@@ -89,12 +89,20 @@ A monorepo where the dependency rules are enforced by tooling before any feature
 - [ ] `docker compose stop` exits cleanly.
 
 ### Live steps for Marcus
-_Filled in at close._
+These use no secrets; `-p ads-agent-dev` keeps them away from the production project (D-058).
+1. `docker compose -p ads-agent-dev up --build`
+   - expect: a `"msg":"ready"` log line from `worker` and from `gateway`
+2. `docker compose -p ads-agent-dev ps`
+   - expect: both `healthy` within ~30 s
+3. `docker compose -p ads-agent-dev stop`, then `docker compose -p ads-agent-dev ps -a`
+   - expect: `"msg":"stopped"` from both, and `Exited (0)`
+4. `docker compose -p ads-agent-dev down`
+   - report back: "ready, healthy, stopped", or paste the output
 
 ## Cut / moved
 | Item | Moved to | Why | Date |
 |---|---|---|---|
-| | | | |
+| none | — | — | — |
 
 ## Leave behind (for later milestones)
 - **Adding a package:**
@@ -114,22 +122,22 @@ _Filled in at close._
 ## Invariants review (BLUEPRINT §8), done at close
 | # | Invariant | OK? | Note |
 |---|---|---|---|
-| 1 | One write path | | |
-| 2 | No product logic in shared code | | |
-| 3 | AI calls through core/model | | |
-| 4 | The AI never supplies decision numbers | | |
-| 5 | Untrusted text is data | | |
-| 6 | Money is bigint micros / decimal strings | | |
-| 7 | Every write action has an undo and a test | | |
-| 8 | Every guard has a property test; copy rules have pass/fail examples | | |
-| 9 | Surfaces only record intent | | |
-| 10 | apps/web depends only on contracts + db | | |
-| 11 | product_id + an index on product-scoped tables | | |
-| 12 | No state outside Postgres | | |
-| 13 | No secrets or personal data | | |
-| 14 | No production write capability outside the gateway process | | |
-| 15 | Cut items moved at most once | | |
-| 16 | Memory is current | | |
+| 1 | One write path | yes | Only `packages/gateway` declares the write connectors; `check:boundaries` enforces it, and a fixture test proves the failure. |
+| 2 | No product logic in shared code | yes | The preflight grep over contracts, pack-sdk, core, gateway, connectors, vault, db and apps/web finds nothing. A product word in a contracts comment was removed. |
+| 3 | AI calls through core/model | n/a | No AI calls yet. |
+| 4 | The AI never supplies decision numbers | n/a | No AI yet. `AnalystFinding` carries no decision numbers beyond a clamped hint, as in BLUEPRINT §3.7. |
+| 5 | Untrusted text is data | n/a | No prompts yet. |
+| 6 | Money is bigint micros / decimal strings | yes | Money is bigint micros / `MicrosJson` strings. `decimalToMicros` rejects inexact input and never rounds. ESLint bans `parseFloat`. The invariant-6 grep hits only port parsing. |
+| 7 | Every write action has an undo and a test | yes | `UNDO_TABLE` covers every action, and a property test proves apply-then-undo restores the snapshot. `upload_conversions` is listed as irreversible. |
+| 8 | Every guard has a property test; copy rules have pass/fail examples | yes | `mergeGuardsTightenOnly` has property tests (accepts tightening, rejects loosening). No copy rules yet. |
+| 9 | Surfaces only record intent | yes | The CLIs only print a version; no state changes. |
+| 10 | apps/web depends only on contracts + db | yes | `apps/web` depends on contracts + db; `check-boundaries` walks the whole tree. |
+| 11 | product_id + an index on product-scoped tables | n/a | No tables yet (M01a). |
+| 12 | No state outside Postgres | yes | The processes hold no state; the container runs with a read-only root filesystem. |
+| 13 | No secrets or personal data | yes | No secrets; the token grep and gitleaks are clean. Doppler tokens live only in a git-ignored `.env` on the SER9. |
+| 14 | No production write capability outside the gateway process | yes | No credentials anywhere. The compose file gives each service its own Doppler token (D-065). |
+| 15 | Cut items moved at most once | yes | Nothing was cut. |
+| 16 | Memory is current | yes | NOW.md and LOG.md are updated in this PR. |
 
 ## Evidence
 
