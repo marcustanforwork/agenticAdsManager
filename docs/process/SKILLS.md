@@ -22,7 +22,7 @@ Writing these before the code exists would mean guessing. Each is created at the
 
 | Skill | Created in | Use when | Must cover |
 |---|---|---|---|
-| `db-migration` | M01a | Adding or changing tables | Drizzle generate/migrate; never editing a merged migration; the `product_id` + index rule; the transition table; role grants; the local test-DB recipe (Postgres 16 in cloud containers) |
+| `db-migration` | M01a (**created**) | Adding or changing tables | Drizzle generate/migrate; never editing a merged migration; the `product_id` + index rule; the transition table; role grants; the local test-DB recipe (Postgres 16 in cloud containers) |
 | `record-fixture` | M02 | Recording or refreshing API fixtures | Hand-written fixtures from docs (cloud), then `RECORD=1` real recording (local, read-only credentials, Marcus's OK); redaction rules; scanning for PII and tokens; file layout |
 | `add-product-pack` | M05b | A new pack or a change to a pack | Manifest vs runtime; `definePack`; defaults, thresholds, phases, facts schema; the adapter with hashing and `isTest`; the **G8 check** commands |
 | `add-finding-type` | M06b | A new detector or finding type | Registry entry; detector rule; per-pack thresholds; type → action mapping; tests (including injection and fake evidence); a replay case |

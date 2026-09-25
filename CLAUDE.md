@@ -29,7 +29,7 @@ This is an agentic ads manager for Marcus's products: SnapPool first, with Prope
 | Branches, commits, PRs, CI | `docs/process/GIT-WORKFLOW.md` |
 | Skills catalogue | `docs/process/SKILLS.md` |
 
-**Skills:** `start-session` · `end-session` · `start-milestone` · `close-milestone` · `preflight` · `update-plan` · `verify-external-facts`. Domain skills are added as milestones create them.
+**Skills:** `start-session` · `end-session` · `start-milestone` · `close-milestone` · `preflight` · `update-plan` · `verify-external-facts`. Domain skills are added as milestones create them: `db-migration` (M01a).
 
 ## Hard rules (the full checklist is BLUEPRINT §8)
 1. Only the gateway can change an ad account. Only `packages/gateway` may depend on `connector-*-write`.
