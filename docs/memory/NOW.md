@@ -2,16 +2,16 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · M00 squash-merged into `main` through PR [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) on Marcus's instruction, after CI passed (D-057).
+**Last updated:** 2026-09-25 · cloud session · M01a started.
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M00: merged**; status **awaiting live acceptance** (the SER9 Docker check, below; Marcus will run it when he's at that machine). Details and "Leave behind" notes: `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`.
+- **Active milestone:** **M01a: in progress** (`docs/milestones/M01a-database-schema-repositories.md`). M00 is merged and awaiting its live acceptance (the SER9 Docker check, below).
 - **Status:** plan v3.4. No open questions. D-065 records M00's build choices: Node 24.21.0, TypeScript 6 (not 7), source-condition resolution, and one Doppler token per service.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01a** (database schema and repositories). Cloud: the assigned branch's PR may already be merged; if so, reset it to `origin/main` first (`start-session` §2). Cloud sessions now get Node 24 and the dependencies from the SessionStart hook.
+1. **Claude (this session):** M01a Build 1: the Drizzle schema, migration, scripts and test-database helper.
 2. **Marcus, when at the SER9:** the M00 live steps (below). They don't block M01a.
 3. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`. The rest of T1 is done (squash only, auto-delete branches, Actions read-only).
 4. **Marcus:** the SnapPool tracking change (T6b), early: paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a SnapPool session. Then the setup tasks that take days: **T2 and T3** (needed for M01a's live steps), T4, T5, T6a (`PROPOSAL.md` §16).
@@ -42,7 +42,7 @@ The `-p ads-agent-dev` keeps this away from the production project name (D-058).
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
-| M01a | Database schema and repositories | 0 | **next** | — | Live steps: T2, T3 |
+| M01a | Database schema and repositories | 0 | **in progress** | — | Live steps: T2, T3 |
 | M01b | Queue, leader lock, vault, request processor | 0 | not started | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |
