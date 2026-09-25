@@ -27,10 +27,12 @@ The background-job plumbing, the credential vault, and the single processor for 
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
-- [ ] 1. `core/queue`: enqueue, claim, heartbeat, complete, fail with backoff, reclaim expired; two queues; priorities; NOTIFY wake-ups with a polling fallback.
+- [x] 1. `core/queue`: enqueue, claim, heartbeat, complete, fail with backoff, reclaim expired; two queues; priorities; NOTIFY wake-ups with a polling fallback.
   - notes: this lives in **`@ads/db`** (`src/queue/`), not in `core`. The gateway app needs the queue too, and the gateway may not depend on `core` (BLUEPRINT §2). Recorded as D-068.
-- [ ] 2. The leader-lock helper (§5.2).
+  - done: `packages/db/src/queue/{jobs,listener,runner}.ts`; tests `packages/db/test/queue.test.ts` (12) and `runner-leader.test.ts`. A claim counts as an attempt, so a job that keeps crashing its process still reaches `max_attempts`. A job that fails for good adds a `job_failed` notification (the alert). `startQueueRunner` runs one job at a time, with heartbeats, a LISTEN wake-up and a 30 s poll.
+- [x] 2. The leader-lock helper (§5.2).
   - notes: also in `@ads/db` (`src/queue/leader.ts`), next to the queue's other connection-level plumbing.
+  - done: `contendForLeadership({ url, lockKey, retryMs })`; tested in `runner-leader.test.ts` (the second contender waits; a killed connection loses leadership and Postgres frees the lock).
 - [ ] 3. `packages/vault`:
   - AES-256-GCM envelope encryption with Node `crypto`;
   - `put(accountId, role, tokenJson, masterKey)`;
@@ -45,8 +47,8 @@ The background-job plumbing, the credential vault, and the single processor for 
 - [ ] 6. `core/recovery` skeleton: reclaim leases, re-queue stuck requests. Cycles are added in M04.
 
 ## Tests
-- [ ] Queue: two claimers never get the same job; an expired lease is reclaimed; failures back off; `max_attempts` leads to `failed`; priority order is respected.
-- [ ] Leader lock: a second contender waits; the lock is released on disconnect.
+- [x] Queue: two claimers never get the same job; an expired lease is reclaimed; failures back off; `max_attempts` leads to `failed`; priority order is respected.
+- [x] Leader lock: a second contender waits; the lock is released on disconnect.
 - [ ] Vault: round-trip works; a wrong key fails; the read key can't open write rows; every `get` writes an audit row; rotation works.
 - [ ] Requests: halt and resume; a valid `settings_patch` creates a new version; a looser guard override is refused; a stale `baseVersion` is refused; an unknown actor is refused.
 
