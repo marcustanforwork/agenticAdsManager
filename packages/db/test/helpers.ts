@@ -5,26 +5,11 @@ import { randomBytes } from 'node:crypto';
 import type { DbOrTx } from '../src/client.ts';
 import { upsertAccount, upsertAdEntity } from '../src/repos/adData.ts';
 import { createProduct } from '../src/repos/products.ts';
+import { TEST_SETTINGS } from '../src/testing.ts';
 
 export const uniq = (prefix = 'x'): string => `${prefix}-${randomBytes(4).toString('hex')}`;
 
-export const SETTINGS: ProductSettings = {
-  spend: { dailyCeilingMicros: null, monthlyCeilingMicros: null, autoPauseOnMonthlyBreach: false },
-  outcomes: { stages: [{ id: 'signup', label: 'Signup', tier: 'success' }], primaryKpiStage: 'signup', feedback: [] },
-  trust: {
-    minClicksToJudgeTracking: 30,
-    maxOutcomeStalenessHours: 48,
-    maxAttributionGapPct: 50,
-    minOutcomesForGap: 10,
-    minIdCapturePct: 60,
-  },
-  agent: { analystLookupBudget: 20, autoApproveFeedback: false, feedbackDailyCap: 200 },
-  notifications: { digest: 'auto' },
-  copy: { tier: 'fragments', requiredStrings: [], bannedPhrases: [] },
-  testTraffic: { emailDomains: [] },
-  guardOverrides: {},
-  disabledActions: [],
-};
+export const SETTINGS: ProductSettings = TEST_SETTINGS;
 
 export async function makeProduct(db: DbOrTx) {
   return createProduct(db, { slug: uniq('p'), name: 'Test product', packId: 'test-pack', settings: SETTINGS });

@@ -33,12 +33,13 @@ The background-job plumbing, the credential vault, and the single processor for 
 - [x] 2. The leader-lock helper (§5.2).
   - notes: also in `@ads/db` (`src/queue/leader.ts`), next to the queue's other connection-level plumbing.
   - done: `contendForLeadership({ url, lockKey, retryMs })`; tested in `runner-leader.test.ts` (the second contender waits; a killed connection loses leadership and Postgres frees the lock).
-- [ ] 3. `packages/vault`:
+- [x] 3. `packages/vault`:
   - AES-256-GCM envelope encryption with Node `crypto`;
   - `put(accountId, role, tokenJson, masterKey)`;
   - `get(accountId, role, { process, purpose }, masterKey)`, which writes a `credential_access` row;
   - master-key rotation;
   - the read key cannot open write or feedback rows.
+  - done: `packages/vault/src/index.ts`, tests `packages/vault/test/vault.test.ts` (11). Master keys are `<id>:<base64 32 bytes>` with ids `read-vN` / `write-vN`; a read key is refused for write and feedback rows before the row is read, and read key bytes relabelled as a write key still can't decrypt. The ciphertexts are bound to their account and role (AAD). Rotation re-wraps the data keys in one transaction (all rows or none). **roles.sql:** `agent_gateway` gets `INSERT, UPDATE` on `credentials` (for `ads-gw credentials put` and rotation; part of D-068).
 - [ ] 4. CLIs: `ads credentials put --account X --role read` reads the token from **stdin**, never from arguments. `ads-gw credentials put --role write|feedback`.
 - [ ] 5. The `core/requests` processor:
   - schema validation, actor check, freshness checks, one transaction per request, `result` written, `NOTIFY`;
@@ -49,7 +50,7 @@ The background-job plumbing, the credential vault, and the single processor for 
 ## Tests
 - [x] Queue: two claimers never get the same job; an expired lease is reclaimed; failures back off; `max_attempts` leads to `failed`; priority order is respected.
 - [x] Leader lock: a second contender waits; the lock is released on disconnect.
-- [ ] Vault: round-trip works; a wrong key fails; the read key can't open write rows; every `get` writes an audit row; rotation works.
+- [x] Vault: round-trip works; a wrong key fails; the read key can't open write rows; every `get` writes an audit row; rotation works.
 - [ ] Requests: halt and resume; a valid `settings_patch` creates a new version; a looser guard override is refused; a stale `baseVersion` is refused; an unknown actor is refused.
 
 ## Done when (cloud)

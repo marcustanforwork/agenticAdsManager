@@ -10,6 +10,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { ProductSettings } from '@ads/contracts';
 import pg from 'pg';
 import { connect, type Database } from './client.ts';
 import { MIGRATIONS_DIR, ROLES_SQL, migrateDatabase } from './migrate.ts';
@@ -105,3 +106,22 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     },
   };
 }
+
+/** Valid product settings with core defaults, for tests in any package. */
+export const TEST_SETTINGS: ProductSettings = {
+  spend: { dailyCeilingMicros: null, monthlyCeilingMicros: null, autoPauseOnMonthlyBreach: false },
+  outcomes: { stages: [{ id: 'signup', label: 'Signup', tier: 'success' }], primaryKpiStage: 'signup', feedback: [] },
+  trust: {
+    minClicksToJudgeTracking: 30,
+    maxOutcomeStalenessHours: 48,
+    maxAttributionGapPct: 50,
+    minOutcomesForGap: 10,
+    minIdCapturePct: 60,
+  },
+  agent: { analystLookupBudget: 20, autoApproveFeedback: false, feedbackDailyCap: 200 },
+  notifications: { digest: 'auto' },
+  copy: { tier: 'fragments', requiredStrings: [], bannedPhrases: [] },
+  testTraffic: { emailDomains: [] },
+  guardOverrides: {},
+  disabledActions: [],
+};
