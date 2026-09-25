@@ -4,6 +4,19 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — M01b built: queue, leader lock, vault, request processor
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR PRLINK
+- **Did:**
+  - `packages/db/src/queue/`: the job queue (enqueue, SKIP LOCKED claim, heartbeat, complete, fail with backoff, release, reclaim), `startQueueRunner` (NOTIFY wake-up + 30 s poll), `listen`, `contendForLeadership`.
+  - `packages/vault`: AES-256-GCM envelope encryption with read and write master keys, a `credential_access` row per `get`, and all-or-nothing key rotation. `credentials put | check | rotate-key` in `ads` and `ads-gw` (tokens from stdin only).
+  - `packages/core`: the operator-request processor (`halt`, `resume_agent`, `settings_patch` with tighten-only, `brief_feedback`; other kinds refused with their milestone) and `recoverWorker`.
+  - `roles.sql`: `agent_gateway` may insert/update `credentials`. 65 new tests (385 in the repo).
+  - Code review (high): 10 findings, all fixed. Security review: no findings; one design point moved to M10a.
+- **Decided:** D-068 (Claude, fix). BLUEPRINT v3.7.
+- **Learned:** GOTCHAS entries on Commander subcommand settings, zod stripping keys, the Postgres facts proven by tests, and Node GCM usage.
+- **Next:** Marcus reviews the PR; then a clean session starts M02.
+- **Open:** no questions; live steps M00 (SER9) and M01a (T2, T3).
+
 ## 2026-09-25 — Code review of M01a; review becomes a closing step; PR #4 merged
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4)
 - **Did:**

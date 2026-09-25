@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | in progress |
+| **Status** | done (no live steps) |
 | **Phase** | 0 |
 | **Started** | 2026-09-25 |
-| **Finished** | — |
+| **Finished** | 2026-09-25 |
 | **PRs** | — |
 
 ## Goal
@@ -23,8 +23,8 @@ The background-job plumbing, the credential vault, and the single processor for 
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented
   - [x] ~300k built, typecheck green
-  - [ ] ~450k tests green, self-review done
-  - [ ] ~550k committed, pushed, handed off
+  - [x] ~450k tests green, self-review done
+  - [x] ~550k committed, pushed, handed off
 
 ## Builds
 - [x] 1. `core/queue`: enqueue, claim, heartbeat, complete, fail with backoff, reclaim expired; two queues; priorities; NOTIFY wake-ups with a polling fallback.
@@ -57,8 +57,8 @@ The background-job plumbing, the credential vault, and the single processor for 
 - [x] Requests: halt and resume; a valid `settings_patch` creates a new version; a looser guard override is refused; a stale `baseVersion` is refused; an unknown actor is refused.
 
 ## Done when (cloud)
-- [ ] All tests are green.
-  - evidence: —
+- [x] All tests are green.
+  - evidence: `pnpm test` → `Test Files 25 passed (25)`, `Tests 385 passed (385)` (2026-09-25, after the review fixes).
 
 ## Done when (live, run by Marcus)
 - None. Tokens are loaded with these CLIs in the M02 and M03 live steps.
@@ -69,7 +69,19 @@ The background-job plumbing, the credential vault, and the single processor for 
 | | | | |
 
 ## Leave behind (for later milestones)
-- How to add a new operator request kind: (written at close)
+- **How to add a new operator request kind** (e.g. M05a `facts_put`, M09a `approve`):
+  1. The contract already lists every kind (`OperatorRequest` in `packages/contracts/src/proposals.ts`). If you need a new one, add it there first.
+  2. Write the handler in `packages/core/src/requests/handlers.ts`: `(tx, request, row) => Promise<result>`. It runs in the processor's transaction, inside a savepoint. To **refuse**, throw `RefusedError`, `StaleVersionError`, `NotFoundError`, `GuardLoosenedError` or `SettingsPatchError`, and the message is shown to Marcus. Any other error is a fault: the request stays queued (or, for Telegram/CLI, the submit fails and nothing is recorded).
+  3. Add it to `HANDLERS` and remove it from `NOT_AVAILABLE_UNTIL`.
+  4. Put freshness checks (version, action hash, expiry) inside the handler, and write everything in the given `tx`.
+  5. Spend-reducing work for the gateway: `enqueueJob(tx, { queue: 'gateway', kind, priority: 100, ... })`, which wakes the gateway at commit.
+  6. Test it in `packages/core/test/requests.test.ts`: `done`, each refusal, and that a refusal changes nothing.
+- **Running a queue** (M04 cycles, M07 services, M11b gateway): `startQueueRunner({ db, listenUrl: <direct URL>, queue, handlers })` from `@ads/db`. Handlers get `{ signal }`: stop when it aborts (lease lost or shutdown). Throw `PermanentJobError` for failures that retrying can't fix. The worker's `main.ts` doesn't start a runner, a leader lock, or `recoverWorker` yet. M04/M07 wire them in, with `OPERATOR_ACTORS` and `DATABASE_URL` from Doppler.
+- **Leader:** `contendForLeadership({ url: <direct URL> })`: only the leader runs cron and polls Telegram (M07, M09a).
+- **Vault:** `get(db, accountId, role, { process, purpose }, key)` returns the token JSON unvalidated; each connector validates it with its own zod schema (M02, M03). Keys: `VAULT_READ_KEY` in the worker's Doppler config, `VAULT_WRITE_KEY` in the gateway's only. Make one with `echo "read-v1:$(openssl rand -base64 32)"`.
+- **Tokens are loaded in the M02/M03 live steps:** `doppler run --config worker -- ads credentials put --account meta:act_… --role read < token.json`, then `ads credentials check …` (prints only field names).
+- **For M10a:** bind each request to the DB role that inserted it (added to M10a's Builds in BLUEPRINT, D-068). Today the processor trusts the `actor` column.
+- **For M05a:** add the pack's guard overrides as a layer in `checkGuardOverridesTightenOnly` (`packages/core/src/requests/settingsPatch.ts`).
 
 ## Skills to create
 - None listed.
@@ -77,24 +89,43 @@ The background-job plumbing, the credential vault, and the single processor for 
 ## Invariants review (BLUEPRINT §8), done at close
 | # | Invariant | OK? | Note |
 |---|---|---|---|
-| 1 | One write path | | |
-| 2 | No product logic in shared code | | |
-| 3 | AI calls through core/model | | |
-| 4 | The AI never supplies decision numbers | | |
-| 5 | Untrusted text is data | | |
-| 6 | Money is bigint micros / decimal strings | | |
-| 7 | Every write action has an undo and a test | | |
-| 8 | Every guard has a property test; copy rules have pass/fail examples | | |
-| 9 | Surfaces only record intent | | |
-| 10 | apps/web depends only on contracts + db | | |
-| 11 | product_id + an index on product-scoped tables | | |
-| 12 | No state outside Postgres | | |
-| 13 | No secrets or personal data | | |
-| 14 | No production write capability outside the gateway | | |
-| 15 | Cut items moved at most once | | |
-| 16 | Memory is current | | |
+| 1 | One write path | yes | No ad-platform calls; nothing depends on a `*-write` package outside the gateway (`check:boundaries` OK). |
+| 2 | No product logic in shared code | yes | No product names or pack ids in db, vault, core; tests use `test-pack`. |
+| 3 | AI calls through core/model | yes | No AI calls. |
+| 4 | The AI never supplies decision numbers | yes | No AI. Guard numbers come from settings, checked tighten-only. |
+| 5 | Untrusted text is data | yes | Request payloads are zod-validated; patches can't add unknown or `__proto__` keys; SQL is parameterised; LISTEN channels escaped. |
+| 6 | Money is bigint micros / decimal strings | yes | Only through `ProductSettings` (MicrosJson); no floats for money. |
+| 7 | Every write action has an undo and a test | yes | No write actions added. |
+| 8 | Every guard has a property test; copy rules have pass/fail examples | yes | No new guards; tighten-only reuses `mergeGuardsTightenOnly` (property-tested in contracts) and has example tests here. |
+| 9 | Surfaces only record intent | yes | CLIs only store credentials (setup, not an ad change). Requests go through the one processor. |
+| 10 | apps/web depends only on contracts + db | yes | Untouched. |
+| 11 | product_id + an index on product-scoped tables | yes | No new tables. |
+| 12 | No state outside Postgres | yes | Queue, leases, leader lock and audit are all in Postgres. |
+| 13 | No secrets or personal data | yes | Keys and actor ids come from env (Doppler); tokens read from stdin only and never printed; test keys are random per run. |
+| 14 | No production write capability outside the gateway | yes | The write key opens write/feedback rows; the worker CLI accepts only a read key and the read role (tested). |
+| 15 | Cut items moved at most once | yes | Nothing cut (rotation was built). |
+| 16 | Memory is current | yes | NOW, LOG, DECISIONS (D-068), GOTCHAS updated at close. |
 
 ## Evidence
+- `pnpm typecheck` → `Tasks: 17 successful, 17 total`
+- `pnpm lint` → ok · `pnpm check:boundaries` → `check-boundaries: OK (17 packages)`, `no dependency violations found (121 modules, 290 dependencies cruised)`
+- `pnpm test` → `Test Files 25 passed (25)`, `Tests 385 passed (385)`
+- `pnpm format:check` → `All matched files use Prettier code style!`
 
 ## Notes and surprises
 - 2026-09-25: postgresql.org is blocked by the cloud proxy. The Postgres behaviours M01b relies on (NOTIFY is delivered at commit; a session advisory lock is released when its connection closes) are proven by this milestone's tests against Postgres 16 instead.
+- 2026-09-25: **code review (high), 10 findings, all confirmed and fixed** (commit `7c3c0a0`):
+  1. the runner never reclaimed expired leases (only at startup), so it now reclaims on every poll;
+  2. the request drain spun on a request another worker held, so it now selects with SKIP LOCKED;
+  3. a failed `completeJob` counted as a failed attempt (and would re-run finished work), so completion is now outside the handler's try;
+  4. a failing `failJob` could escape the loop, so bookkeeping errors are now logged, never thrown;
+  5. the runner claimed kinds it couldn't run, so it now claims only kinds it has handlers for;
+  6. heartbeat errors never stopped the handler, so it now aborts once the lease may have expired;
+  7. shutdown used up an attempt, so a new `releaseJob` hands the job back uncounted;
+  8. the leader had no keepalive, so it now pings and uses TCP keepalive on both sides;
+  9. submit raced with the drain, so recording and processing now happen in one transaction;
+  10. the CLI code was duplicated, so it now lives in `@ads/vault` `cli.ts`.
+
+  New tests cover 1, 2, 5, 7 and 9.
+- 2026-09-25: **security review: no findings** at the reporting bar. It checked crypto (a fresh IV and data key each time, AAD binding, the key-class check before any read), secrets exposure, SQL injection, and request validation. One design point: the processor trusts the `actor` column that the inserting role sets. It was moved to M10a in the plan (D-068), and it can't be exploited today because only the worker and the CLIs insert rows.
+- 2026-09-25: **rotation is all-or-nothing:** one row that fails to open with the old key stops the whole rotation (tested). The error says which key; fix or re-`put` that credential, then rotate again.
