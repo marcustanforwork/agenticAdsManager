@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-09-25 — M01a built: database schema, repositories, roles, seed
-- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR: M01a (opened this session)
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4)
 - **Did:**
   - Pinned Drizzle 0.45.3 / drizzle-kit 0.31.11 / `pg` 8.23.0 (GOTCHAS).
   - `packages/db`: the full §4 schema (`src/schema.ts`, migration `migrations/0000_init.sql`), `sql/roles.sql` (three roles, re-runnable grants, `dashboard_outcomes` view), `db:generate` / `db:migrate` / `db:seed`, and `@ads/db/testing` (a template database cloned per test file).

@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-09-25 |
 | **Finished** | 2026-09-25 (cloud part) |
-| **PRs** | — |
+| **PRs** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) |
 
 ## Goal
 The full schema with typed repositories and the proposal state machine, with both products seeded.

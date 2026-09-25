@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · branch `claude/trusting-wozniak-dcdxfu` · PR for M01a (see In flight).
+**Last updated:** 2026-09-25 · cloud session · branch `claude/trusting-wozniak-dcdxfu` · PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4).
 
 ## Where we are
 - **Phase:** 0.
@@ -20,7 +20,7 @@
 6. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16).
 
 ## In flight
-- M01a PR from `claude/trusting-wozniak-dcdxfu`: ready for review. All local checks green (320 tests).
+- PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (M01a) from `claude/trusting-wozniak-dcdxfu`: ready for review. All local checks green (320 tests).
 
 ## Blocked on Marcus
 - No open questions.
@@ -46,7 +46,7 @@
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
-| M01a | Database schema and repositories | 0 | **awaiting live acceptance** | open (this session) | Live: Neon migrate + seed (needs T2, T3) |
+| M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) | Live: Neon migrate + seed (needs T2, T3) |
 | M01b | Queue, leader lock, vault, request processor | 0 | **next** | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |
