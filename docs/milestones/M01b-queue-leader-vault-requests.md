@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-09-25 |
 | **Finished** | 2026-09-25 |
-| **PRs** | — |
+| **PRs** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) |
 
 ## Goal
 The background-job plumbing, the credential vault, and the single processor for everything a human asks for.

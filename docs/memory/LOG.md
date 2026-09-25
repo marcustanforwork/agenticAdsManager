@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-09-25 — M01b built: queue, leader lock, vault, request processor
-- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR PRLINK
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5)
 - **Did:**
   - `packages/db/src/queue/`: the job queue (enqueue, SKIP LOCKED claim, heartbeat, complete, fail with backoff, release, reclaim), `startQueueRunner` (NOTIFY wake-up + 30 s poll), `listen`, `contendForLeadership`.
   - `packages/vault`: AES-256-GCM envelope encryption with read and write master keys, a `credential_access` row per `get`, and all-or-nothing key rotation. `credentials put | check | rotate-key` in `ads` and `ads-gw` (tokens from stdin only).
