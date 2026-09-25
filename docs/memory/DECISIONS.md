@@ -419,3 +419,14 @@ These correct errors, contradictions and outdated facts found in the review. Det
   - For the agent: SnapPool deletes pending requests after 30 days, so the M05a adapter reads at least daily and keeps what it has read.
 - **Why:** Writing the prompt meant reading SnapPool's middleware, `/api/start`, `startPool()`, security headers and privacy text (commit `a6c190a`). Each point above was a gap in v1.1 that would have broken signups or `/host`, lost click ids, or left the privacy page contradicting itself.
 - **See:** `SNAPPOOL-TRACKING.md` §1, §3, §6, §7 · BLUEPRINT M05a
+
+### D-065 — M00 build choices: toolchain, source resolution, one Doppler token per service
+- **When / who / status:** 2026-09-25 · Claude (fix) · adopted
+- **Decision:**
+  - **Node 24.21.0** stays pinned (`.nvmrc`, `engines`), because Node 26 only becomes LTS on 2026-10-28. Re-check after that date (GOTCHAS).
+  - **TypeScript 6.0.x, not 7.** typescript-eslint doesn't support TypeScript 7 yet.
+  - Workspace packages resolve each other's **TypeScript sources** through the `@ads/source` export condition. `dist/` is only for production builds. So typecheck and tests never need a build first.
+  - **One Doppler service token per process** (`DOPPLER_TOKEN_WORKER`, `DOPPLER_TOKEN_GATEWAY`), kept in a git-ignored `.env` next to `docker-compose.yml` on the SER9. The image's entrypoint runs `doppler run` only when a token is set, so the gateway's write key never reaches the worker's environment.
+  - CI also runs a format check and a Docker smoke test of both entry points.
+- **Why:** M00 had to choose these. None changes a product decision. The per-service token is the simplest way to keep "env via `doppler run`" and the separate worker and gateway configs (PROPOSAL §10) while running both from one compose file.
+- **See:** `docs/milestones/M00-scaffold-contracts-boundaries-ci.md` · PROPOSAL §16 T3 · GOTCHAS

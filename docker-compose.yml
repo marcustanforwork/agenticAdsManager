@@ -1,0 +1,61 @@
+# Production on the SER9: project `ads-agent` (below). Run from the repo checkout:
+#   docker compose up -d --build        # start or update
+#   docker compose stop                 # stop cleanly (SIGTERM, then 30 s grace)
+# Secrets come from Doppler: put one service token per process in a `.env` file next to this file
+# (never committed): DOPPLER_TOKEN_WORKER=… (worker config) and DOPPLER_TOKEN_GATEWAY=… (gateway config).
+#
+# Development uses a SEPARATE project name, and only `dev` config tokens (D-058):
+#   docker compose -p ads-agent-dev up --build
+# Never run dev commands against the production project, and never run global Docker clean-ups.
+name: ads-agent
+
+x-service: &service
+  image: ads-agent:${ADS_AGENT_TAG:-local}
+  build: .
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  stop_grace_period: 30s
+
+services:
+  worker:
+    <<: *service
+    command: ['worker']
+    environment:
+      DOPPLER_TOKEN: ${DOPPLER_TOKEN_WORKER:-}
+      HEALTH_PORT: '8081'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8081/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  gateway:
+    <<: *service
+    command: ['gateway']
+    environment:
+      DOPPLER_TOKEN: ${DOPPLER_TOKEN_GATEWAY:-}
+      HEALTH_PORT: '8082'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8082/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3

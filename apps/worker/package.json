@@ -1,0 +1,35 @@
+{
+  "name": "@ads/app-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "@ads/source": "./src/main.ts",
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@ads/contracts": "workspace:*",
+    "@ads/db": "workspace:*",
+    "@ads/vault": "workspace:*",
+    "@ads/core": "workspace:*",
+    "@ads/pack-sdk": "workspace:*",
+    "@ads/pack-saas-snappool": "workspace:*",
+    "@ads/pack-property-sg": "workspace:*",
+    "commander": "15.0.0",
+    "pino": "10.3.1"
+  },
+  "bin": {
+    "ads": "./dist/cli.js"
+  }
+}

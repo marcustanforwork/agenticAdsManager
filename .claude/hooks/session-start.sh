@@ -4,7 +4,9 @@
 # Its output is added to Claude's context. Docs: docs/process/SESSIONS.md §9.
 #
 # Portable on purpose (Linux, macOS, Windows Git Bash): bash + git + sed/awk only; no jq, no gh.
-# M00 will add dependency installation for cloud sessions (see the session-start-hook skill).
+# In CLOUD sessions only, it also installs the pinned Node (.nvmrc) and pnpm, and runs `pnpm install`,
+# so typecheck, lint and tests work at once (the session-start-hook skill's conventions). Idempotent;
+# it never fails the session: problems are printed as NOTEs.
 
 set -u
 MEM="docs/memory/NOW.md"
@@ -26,8 +28,40 @@ else
   git fetch --quiet --prune origin >/dev/null 2>&1 || fetch_note="  (git fetch failed: remote info below may be stale)"
 fi
 
+# 0) Cloud sessions: toolchain + dependencies. Output goes to a log, not into Claude's context.
+setup_note=""
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ -f .nvmrc ] && [ -f package.json ]; then
+  node_version="$(tr -d ' \n\r' < .nvmrc)"
+  pnpm_version="$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"pnpm@\([0-9.]*\)".*/\1/p' package.json)"
+  node_dir="$HOME/.cache/ads-agent/node-v$node_version-linux-x64"
+  setup_log="$HOME/.cache/ads-agent/session-setup.log"
+  mkdir -p "$HOME/.cache/ads-agent"
+  {
+    set -e
+    if [ ! -x "$node_dir/bin/node" ]; then
+      tarball="node-v$node_version-linux-x64.tar.xz"
+      tmp="$(mktemp -d)"
+      curl -fsSL --retry 3 "https://nodejs.org/dist/v$node_version/$tarball" -o "$tmp/$tarball"
+      curl -fsSL --retry 3 "https://nodejs.org/dist/v$node_version/SHASUMS256.txt" | grep " $tarball\$" | (cd "$tmp" && sha256sum -c -)
+      tar -xJf "$tmp/$tarball" -C "$HOME/.cache/ads-agent"
+      rm -rf "$tmp"
+    fi
+    export PATH="$node_dir/bin:$PATH"
+    if [ -n "$pnpm_version" ] && [ "$(pnpm -v 2>/dev/null)" != "$pnpm_version" ]; then npm install -g "pnpm@$pnpm_version"; fi
+    pnpm install --frozen-lockfile
+  } > "$setup_log" 2>&1 && setup_ok=1 || setup_ok=0
+  set +e
+  if [ -n "${CLAUDE_ENV_FILE:-}" ]; then echo "export PATH=\"$node_dir/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"; fi
+  if [ "$setup_ok" = 1 ]; then
+    setup_note="Toolchain: Node $node_version + pnpm $pnpm_version installed and dependencies up to date (log: $setup_log)."
+  else
+    setup_note="NOTE: toolchain setup FAILED; see $setup_log. Fix it before running pnpm commands."
+  fi
+fi
+
 echo "=== Ads Agent session context (.claude/hooks/session-start.sh${reason:+, start reason: $reason}) ==="
 [ -n "$fetch_note" ] && echo "$fetch_note"
+[ -n "$setup_note" ] && echo "$setup_note"
 
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
   echo "Environment: CLOUD session. No production secrets; use the GitHub MCP tools (no gh); push only to the assigned branch."

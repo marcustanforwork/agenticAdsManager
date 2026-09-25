@@ -4,6 +4,21 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — M00 built: scaffold, contracts, boundaries, CI
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3)
+- **Did:**
+  - Checked Marcus's `main` ruleset through the public API. PR required, force pushes and deletion blocked. Still missing: required status checks, squash-only merging, auto-delete of head branches.
+  - Verified toolchain versions (GOTCHAS) and pinned them.
+  - Built all of M00: pnpm + Turborepo workspace with 17 packages (each with a README), strict TypeScript, Vitest, ESLint, Prettier.
+  - `pnpm check:boundaries`: `scripts/check-boundaries.ts`, dependency-cruiser and the ESLint mirror, all driven by `scripts/boundary-rules.mjs`. Fixture tests show each one failing.
+  - `packages/contracts` (BLUEPRINT §3), with round-trip and property tests: 91 tests in all.
+  - The worker and gateway entry points, the `ads` and `ads-gw` CLIs, the Dockerfile, `docker-compose.yml`, CI (`ci.yml` plus gitleaks), the cloud setup in the SessionStart hook, Commands in CLAUDE.md, and the preflight commands.
+- **Decided:** D-065 (Claude, fix): M00 build choices. PROPOSAL T3 now mentions per-service Doppler tokens (from M07).
+- **Learned:** TypeScript 7 is out, but typescript-eslint needs TypeScript < 6.1. AI SDK 7 is `latest` (M06a decides). Drizzle 1.0 is a release candidate (M01a decides). The GitHub REST API is scoped to this repo in cloud sessions, but `git ls-remote` and release downloads work. See GOTCHAS.
+- **Merged:** Marcus set Actions to read-only, squash-only merging and auto-delete of branches (T1; required status checks aren't on yet), and said to merge. PR #3 was squash-merged after every check passed (D-057). The M00 live test on the SER9 stays a to-do until he's at that machine.
+- **Next:** a clean session starts M01a.
+- **Open:** no questions; the SnapPool tracking change (T6b); setup tasks T1 (part), T2–T14.
+
 ## 2026-09-25 — Q11 approved; the SnapPool prompt; spec fixes from SnapPool's code
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` (reset to `main` after PR #1 merged) · PR [#2](https://github.com/marcustanforwork/agenticAdsManager/pull/2)
 - **Did:**

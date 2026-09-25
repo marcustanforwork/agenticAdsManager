@@ -1,0 +1,1 @@
+{ "name": "@ads/connector-google-write", "dependencies": { "@ads/contracts": "workspace:*" } }

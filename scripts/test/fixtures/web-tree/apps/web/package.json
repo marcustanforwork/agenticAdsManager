@@ -1,0 +1,1 @@
+{ "name": "@ads/app-web", "dependencies": { "@ads/contracts": "workspace:*", "@ads/db": "workspace:*" } }

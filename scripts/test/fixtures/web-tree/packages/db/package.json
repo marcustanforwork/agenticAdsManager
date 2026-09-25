@@ -1,0 +1,1 @@
+{ "name": "@ads/db", "dependencies": { "@ads/contracts": "workspace:*", "@ads/core": "workspace:*" } }
