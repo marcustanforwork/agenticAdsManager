@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.4 — 2026-09-25 (SnapPool tracking approved, D-060; the adapter reads before SnapPool's 30-day clean-up, D-064) |
+| **Version** | v3.5 — 2026-09-25 (M01a: migration naming, role grants, seed file, D-066) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -565,7 +565,7 @@ Terminal statuses: `rejected`, `expired`, `blocked`, `stale`, `failed`, `rolled_
 
 ## 4. Database schema
 
-M01a creates everything below except `source_copy` (M15a), using Drizzle plus migration `0001_init`.
+M01a creates everything below except `source_copy` (M15a), using Drizzle plus migration `0000_init` (drizzle-kit numbers from 0000, D-066). The code is `packages/db/src/schema.ts`; accounts and credentials also get a `product_id` index.
 
 **Conventions:**
 - ids are `uuid default gen_random_uuid()`;
@@ -981,9 +981,11 @@ create index on source_copy (product_id);
 
 | Role | Used by | Grants |
 |---|---|---|
-| `agent_worker` | worker | Read and write on everything except inserting into `change_log`. Optional hardening in M16b. |
-| `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`, `approvals` (for `ads-gw revert` only) |
-| `agent_dashboard` | dashboard | Read on views that exclude `credentials`, `credential_access` and `outcomes.hashed_contact`; `INSERT` on `operator_requests` only |
+| `agent_worker` | worker | Read and write on everything; `change_log` is read-only. Optional hardening in M16b. |
+| `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066) |
+| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access` and `outcomes`; outcomes through the view `dashboard_outcomes` (no `hashed_contact`); `INSERT` on `operator_requests` only |
+
+The grants are `packages/db/sql/roles.sql`, applied by `db:migrate` after the migrations.
 
 ---
 
@@ -1291,7 +1293,7 @@ Methods are tried in this order, and the first match wins:
 **Read first:** this file §3.8–3.9 and §4; `packages/contracts`.
 
 **Builds:**
-1. Drizzle schema for every table in §4 except `source_copy`, migration `0001_init`, and the scripts `db:generate` / `db:migrate`. A test-database helper runs against local Postgres 16 (in cloud sessions, `pg_ctlcluster 16 main start`) and a service container in CI.
+1. Drizzle schema for every table in §4 except `source_copy`, migration `0000_init`, and the scripts `db:generate` / `db:migrate`. A test-database helper runs against local Postgres 16 (in cloud sessions, `pg_ctlcluster 16 main start`) and a service container in CI.
 2. `packages/db/sql/roles.sql`: the three database roles and their grants (§4). The test helper applies it; Marcus applies it on Neon in the live steps.
 3. Repositories as plain functions:
    - products and settings, with optimistic concurrency on `settings_version` and `settings_history`;
@@ -1301,7 +1303,7 @@ Methods are tried in this order, and the first match wins:
    - approvals, change log, briefs, operator requests, notifications, drift, system flags, API usage;
    - `createUndoProposal(revisionId)`, which is used by both the worker and the gateway.
 4. An idempotent seed:
-   - `snappool` (active) and `property-sg` (dormant), with settings taken from stub pack defaults until M05a;
+   - from `products/seed.json` (D-066): `snappool` (active) and `property-sg` (dormant), with settings taken from stub pack defaults until M05a;
    - the offering `sora-at-lakeside` (with facts `{}`);
    - `system_flags.writes_enabled = false`.
 

@@ -430,3 +430,18 @@ These correct errors, contradictions and outdated facts found in the review. Det
   - CI also runs a format check and a Docker smoke test of both entry points.
 - **Why:** M00 had to choose these. None changes a product decision. The per-service token is the simplest way to keep "env via `doppler run`" and the separate worker and gateway configs (PROPOSAL §10) while running both from one compose file.
 - **See:** `docs/milestones/M00-scaffold-contracts-boundaries-ci.md` · PROPOSAL §16 T3 · GOTCHAS
+
+### D-066 — M01a build choices: Drizzle 0.45, migration naming, grants the gateway needs, seed file
+- **When / who / status:** 2026-09-25 · Claude (fix) · adopted
+- **Decision:**
+  - **Drizzle 0.45.3 / drizzle-kit 0.31.11 with node-postgres (`pg` 8.23)**, the stable releases; 1.0 is still a release candidate. Move when 1.0 is `latest` (GOTCHAS).
+  - The first migration is **`0000_init`**: drizzle-kit numbers from 0000. `db:migrate` applies the migrations **and then `roles.sql`**, which revokes and re-grants everything, so it is safe to re-run and covers new tables.
+  - **Role grants, filled in from what the pipeline actually does** (BLUEPRINT §4 "Database roles"):
+    - `agent_gateway` also gets: `INSERT` on `proposals` and `proposal_versions` (`ads-gw revert` creates the undo proposal, BLUEPRINT §6); `UPDATE (reverted_by_revision_id)` on `change_log` (links a change to its undo); `UPDATE (status)` on `products` (halts on `needs_attention`); `UPDATE` on `jobs` (its own queue, M01b); `INSERT, UPDATE` on `api_usage`.
+    - `agent_worker` gets `SELECT` only on `change_log` (the plan said "except inserting"; it needs no update or delete either).
+    - `agent_dashboard` reads everything except `credentials` and `credential_access`, and reads outcomes through the view **`dashboard_outcomes`** (no `hashed_contact`), instead of a view per table.
+  - `accounts` and `credentials` get a `product_id` index (invariant 11; the §4 SQL had left them out). A test now checks every product-scoped table.
+  - **The seed data lives in `products/seed.json`**, not in `packages/db`, so shared code holds no product names (hard rule 2). It also creates SnapPool's own offering (`snappool`). The seed never overwrites existing rows, and `writes_enabled` starts `false`.
+  - CI runs a Postgres 16 service for the tests and fails if `schema.ts` changed without a migration.
+- **Why:** M01a had to choose these, and writing the repositories showed the gateway couldn't do its documented undo and halt steps with the listed grants. None changes a product decision.
+- **See:** `docs/milestones/M01a-database-schema-repositories.md` · BLUEPRINT §4 · `packages/db/sql/roles.sql`
