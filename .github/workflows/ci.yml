@@ -1,0 +1,98 @@
+# The main CI checks (docs/process/GIT-WORKFLOW.md §6). Runs on every PR and every push to main.
+# Order: install → typecheck → lint → check:boundaries → test → build → docker build (no push).
+# A separate job scans for secrets with gitleaks.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6 # pnpm version comes from package.json "packageManager"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check boundaries
+        run: pnpm check:boundaries
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Format check
+        run: pnpm format:check
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Docker build (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ads-agent:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker smoke test (both entry points log ready and stop cleanly)
+        run: |
+          set -eu
+          for svc in worker gateway; do
+            cid=$(docker run -d --init ads-agent:ci "$svc")
+            ok=""
+            for _ in $(seq 1 30); do
+              if docker logs "$cid" 2>&1 | grep -q '"msg":"ready"'; then ok=1; break; fi
+              sleep 1
+            done
+            docker stop -t 30 "$cid" >/dev/null
+            code=$(docker inspect -f '{{.State.ExitCode}}' "$cid")
+            docker logs "$cid"
+            docker rm "$cid" >/dev/null
+            [ -n "$ok" ] || { echo "::error::$svc never logged ready"; exit 1; }
+            [ "$code" = "0" ] || { echo "::error::$svc exited with $code on stop"; exit 1; }
+          done
+          docker run --rm ads-agent:ci ads version
+          docker run --rm ads-agent:ci ads-gw version
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists the PR's commits
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # a personal-account repo needs no GITLEAKS_LICENSE
+          GITLEAKS_ENABLE_COMMENTS: 'false' # findings fail the job; no PR comments (needs no write permission)

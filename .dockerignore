@@ -1,0 +1,17 @@
+# Keep the build context small and free of secrets.
+.git
+.github
+.claude
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+.env
+.env.*
+docs
+products
+fixtures
+scripts/test
+**/test
+*.md
