@@ -4,6 +4,19 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — M01a built: database schema, repositories, roles, seed
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR: M01a (opened this session)
+- **Did:**
+  - Pinned Drizzle 0.45.3 / drizzle-kit 0.31.11 / `pg` 8.23.0 (GOTCHAS).
+  - `packages/db`: the full §4 schema (`src/schema.ts`, migration `migrations/0000_init.sql`), `sql/roles.sql` (three roles, re-runnable grants, `dashboard_outcomes` view), `db:generate` / `db:migrate` / `db:seed`, and `@ads/db/testing` (a template database cloned per test file).
+  - Repositories in `src/repos/`: products and settings (optimistic concurrency + history), documents, offerings, pack manifests; accounts, entities, snapshots (only on hash change), metrics upsert (`restated_at` moves only on change), search terms, clicks, outcomes; cycles, trust checks, findings; proposals with the §3.9 transition table, `newVersion`, `recordDecision`, expiry; change log, `createUndoProposal`; briefs, operator requests, notifications, drift, system flags, API usage.
+  - Seed data in `products/seed.json`. 230 new tests (320 in the repo), including all 144 status pairs and a role-permission test.
+  - CI: a `postgres:16` service, and a check that `schema.ts` and the migrations agree. Skill `db-migration` created.
+- **Decided:** D-066 (Claude, fix): migration `0000_init`, extra gateway grants (undo proposals, revert link, halt, its queue, API usage), worker read-only on `change_log`, the dashboard view, `product_id` indexes on accounts and credentials, the seed file. BLUEPRINT → v3.5.
+- **Learned:** drizzle-kit can't serialise bigint defaults; Drizzle's jsonb reader re-parses JSON strings (fixed in `getFlag`); Drizzle wraps pg errors. See GOTCHAS.
+- **Next:** Marcus reviews and merges the PR; then a clean session starts M01b.
+- **Open:** no questions; M01a live steps (need T2, T3); M00 live steps.
+
 ## 2026-09-25 — M00 built: scaffold, contracts, boundaries, CI
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3)
 - **Did:**
