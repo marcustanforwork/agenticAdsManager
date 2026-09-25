@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.0 — 2026-09-25 |
+| **Version** | v3.1 — 2026-09-25 (sessions resized to Marcus's budget; Vercel Pro and Neon paid confirmed) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
@@ -40,7 +40,7 @@
 - 4: ad-copy variants
 - 5: evaluation and hardening
 
-The build is split into 17 milestones, M00–M16.
+The build is 17 milestones (M00–M16), run as **25 clean-context Claude sessions**. Eight milestones are split into two parts (e.g. M05a, M05b), so that every session fits its budget of 400–600k tokens (§10, D-056).
 
 **What Marcus needs to do first:** answer `docs/memory/QUESTIONS.md` and start the account setup in §16. The Google and Meta setup steps take days of lead time.
 
@@ -89,8 +89,8 @@ The build is split into 17 milestones, M00–M16.
 | **Fixture** | A recorded API response, scrubbed of secrets and personal data, used in tests. |
 | **Replay eval** | Re-running the analyst on saved past inputs to check that a new model or prompt has not made results worse. |
 | **Phase / phase gate** | A stage of the rollout, and the real-data test that must pass before the next phase starts. |
-| **Milestone (M00–M16)** | A unit of build work defined in the blueprint. A milestone may take several Claude sessions. (v2 called these "sessions" S00–S16; the numbers are unchanged.) |
-| **Session** | One Claude Code conversation, in the cloud or on a local machine. Continuity between sessions comes from `docs/memory/` in this repo. |
+| **Milestone (M00–M16)** | A unit of build work defined in the blueprint, sized to fit **one** Claude session. Eight milestones are split into two parts with a letter (M05a, M05b…); a plain "M05" means both. (v2 called these "sessions" S00–S16; the numbers are unchanged.) |
+| **Session** | One Claude Code conversation, in the cloud or on a local machine. It starts from a clean context, runs Opus 5.5 at medium effort, and must finish within 400–600k tokens, including tests, review and fixes. Normally one session = one milestone (or part) = one PR. Continuity between sessions comes from `docs/memory/` in this repo. |
 | **SER9** | Marcus's mini PC, which runs the worker and gateway in Docker. |
 | **Worker** | The long-running program that runs cycles, the Telegram bot and the request processor. It holds no write keys. |
 
@@ -534,16 +534,16 @@ They live **in the database and are edited on the dashboard**, with version hist
 | Google | **Google Ads API** via `google-ads-api` (pinned together with the API version); **Data Manager API** (REST) for conversion uploads | Deterministic reads; we own the write path | Official MCP for sync; third-party hosted write tools |
 | Meta | **Marketing API** (Graph) + **Conversions API**, with system users | Typed; no MCP in the money path | Community Meta MCP servers (account-ban risk) |
 | TikTok | Deferred. The connector interface is designed so it becomes a third connector package. | Matters for SnapPool eventually | — |
-| Processes | **Docker Compose on the SER9**, one image with `worker` and `gateway` services (plus `dashboard` if hosted on the SER9), `restart: unless-stopped`. No local state. **(needs OK: D-043)** | Restart safety; a real security boundary for write keys; the same image can later run on a cloud container service | A bare systemd process (not portable); Cloudflare Workers for the loop (wrong runtime for multi-minute cycles) |
+| Processes | **Docker Compose on the SER9**, one image with `worker` and `gateway` services, `restart: unless-stopped`. No local state. **(needs OK: D-043)** | Restart safety; a real security boundary for write keys; the same image can later run on a cloud container service | A bare systemd process (not portable); Cloudflare Workers for the loop (wrong runtime for multi-minute cycles) |
 | Scheduling / queue | **Postgres `jobs` table** (`FOR UPDATE SKIP LOCKED`, leases, retries with backoff). One worker replica wins a **leader lock** and runs the scheduler and the Telegram poller; any replica runs jobs. | Scaling out means adding replicas, with no message broker | n8n; Vercel cron; Redis/BullMQ |
 | Recovery | Startup reconciliation; two-phase apply; heartbeats to **healthchecks.io** (worker and gateway every ~10 min, plus a daily-sync check) | The bot can't tell you the host is down | Telegram alerts alone |
 | Credentials | **Vault** with two master keys (read / write), §6.13 | Same posture for one user or a thousand | Raw tokens in env |
 | Operating surface | **Telegram bot (grammY)** inside the worker. HTML message formatting. Only Marcus's user id, only in a private chat. | Acting from the phone in under 60 s | Settings menus in the bot (only ceilings and digest mode are allowed there) |
-| Dashboard | **Next.js behind Cloudflare Access.** The middleware verifies the Access token and fails closed. Its database role can only read, and insert operator requests. Hosting: **the SER9 via Cloudflare Tunnel** (recommended) or **Vercel Pro**. Vercel's free Hobby plan forbids commercial use. **(needs OK: D-050)** | Configure and review from a screen | A web app that executes writes or holds platform credentials |
+| Dashboard | **Next.js on Vercel Pro, behind Cloudflare Access** (D-054; Marcus already has Vercel Pro). The middleware verifies the Access token and fails closed, which also closes the raw `*.vercel.app` address. Preview deployments are protected and never get production DB credentials. Its database role can only read, and insert operator requests. | Configure and review from a screen | A web app that executes writes or holds platform credentials |
 | Secrets | **Doppler** with separate configs for `worker`, `gateway` and `dashboard`, plus a `dev` config. It holds DB URLs, the bot token, AI and Langfuse keys, app-level platform secrets and the vault master keys (read key in `worker`, write key in `gateway` only). | One source, scoped per process | A shared `.env` across processes |
 | Observability | **Langfuse** (cloud free tier or self-hosted) via the AI SDK's telemetry, with no personal data; **pino** structured logs | Debug a bad proposal after the fact; cost per product; home for evals | console.log |
 | Testing | **Vitest + fast-check** (property tests for guards); **real Postgres** in tests (a CI service container; cloud sessions have Postgres 16 installed); recorded fixtures; Google test account; Meta `test_event_code` | The guards are the product, so they get the strongest tests | Mock-only database tests |
-| Development | **Claude Code**, in cloud sessions (no secrets) and local sessions (SER9 or laptop). Memory lives in this repo (`docs/memory/`), with a git workflow (`docs/process/`) and project skills (`.claude/skills/`). | Any session can continue where the last one stopped | Memory kept only in chat history or on one machine |
+| Development | **Claude Code on Opus 5.5 at medium effort**, one clean-context session per milestone part, each finishing within 400–600k tokens including tests, review and fixes (D-056). Cloud sessions have no secrets; local sessions (SER9 or laptop) are also possible. Memory lives in this repo (`docs/memory/`), with a git workflow (`docs/process/`) and project skills (`.claude/skills/`). The plan itself was written at max effort, so that build sessions can follow it rather than re-derive it. | Any session can continue where the last one stopped | Memory kept only in chat history or on one machine; sessions sized by feel |
 
 ---
 
@@ -616,13 +616,13 @@ These are rough, excluding ad spend. Check current pricing before committing.
 | Item | Expected | Note |
 |---|---|---|
 | AI model calls | A few USD/month | 2 products × weekly analysis × ~60k input tokens, plus short wording calls. Scales with products and cycles. |
-| Neon Postgres | Small monthly bill likely | The free plan gives 100 compute-hours/month and sleeps after 5 idle minutes. An always-on worker keeps the database awake (~730 h/month), so expect the usage-based paid plan. **(Q7)** |
-| Dashboard hosting | USD 0 on the SER9 via Cloudflare Tunnel, or ~USD 20/month on Vercel Pro | Vercel's free Hobby plan forbids commercial use **(Q6 / D-050)** |
+| Neon Postgres | Marcus's existing **paid plan** (D-055) | An always-on worker keeps the database awake (~730 h/month at the smallest size), which adds some usage to the bill. That's expected. |
+| Dashboard hosting | Marcus's existing **Vercel Pro** (D-054) | Vercel's free Hobby plan would not have been allowed for commercial use |
 | Cloudflare Access | Free tier | Up to 50 users |
 | Langfuse | Free tier likely enough | Or self-host on the SER9 |
 | Doppler, healthchecks.io | Free tiers likely enough | |
 | Google Ads API, Data Manager API, Meta APIs, Telegram | Free | |
-| Claude Code sessions | Per Marcus's plan | Each milestone is roughly 0.4–0.6M tokens (BLUEPRINT §9) |
+| Claude Code sessions | Per Marcus's plan | 25 sessions × about 400–500k tokens ≈ 11.6M tokens in total (BLUEPRINT §9) |
 
 ---
 
@@ -632,7 +632,8 @@ All decisions, with reasons and alternatives, are recorded in `docs/memory/DECIS
 
 - **Standing (Marcus, 2026-09-14):** D-001 to D-019. The two-pack core, no n8n, typed sync, the AI SDK, feedback to platforms, fingerprint checks, evidence thresholds, replay evals, Marcus as content authority, Telegram plus dashboard, per-product outcome config, SnapPool first, ceilings as settings, containerised worker, vault, honest "learning", and the stack.
 - **v3 fixes (Claude, 2026-09-25):** D-020 to D-038. These correct errors, contradictions and outdated facts. They count as adopted, but Marcus can object to any of them.
-- **v3 recommendations needing Marcus's OK:** D-039 to D-053. Listed in `QUESTIONS.md` Q1.
+- **v3 recommendations needing Marcus's OK:** D-039 to D-053, except D-050 (see below). Listed in `QUESTIONS.md` Q1.
+- **Marcus's answers on 2026-09-25:** D-054 (the dashboard runs on his Vercel Pro account, replacing D-050), D-055 (Neon on his existing paid plan) and D-056 (session model: clean-context Opus 5.5 at medium effort, each session within 400–600k tokens).
 
 ---
 
@@ -643,15 +644,15 @@ These are done outside Claude Code. Each lists the milestone it blocks. Google a
 | # | Task | Blocks | Notes |
 |---|---|---|---|
 | T1 | **GitHub repo settings:** protect `main` (require a PR and passing checks, no force-push); squash-merge only; auto-delete merged branches | Before M00 merges | `docs/process/GIT-WORKFLOW.md` §9 |
-| T2 | **Neon:** a project for the agent with `prod` and `dev` branches | M01 live steps | Separate from SnapPool's project |
-| T3 | **Doppler:** a project with `dev`, `worker`, `gateway` and `dashboard` configs; generate the two vault master keys (read, write) | M01 live steps | Never give Claude sessions the `worker`/`gateway` configs |
+| T2 | **Neon:** a project for the agent with `prod` and `dev` branches | M01a live steps | On your existing paid plan (D-055), separate from SnapPool's project |
+| T3 | **Doppler:** a project with `dev`, `worker`, `gateway` and `dashboard` configs; generate the two vault master keys (read, write) | M01a live steps | Never give Claude sessions the `worker`/`gateway` configs |
 | T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). Generate a Conversions API token for SnapPool's dataset. **Set an account spending limit** on the SnapPool ad account. Load the tokens with the CLI (M01) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
 | T5 | **Google:** a manager account (MCC) with the property account and a new SnapPool account under it. Get a developer token from the MCC's API Center: **Explorer access** works on real accounts immediately; also apply for **Basic**. Create an OAuth client in a GCP project. Create **two Google logins**: one with *read-only* access to the ad accounts (for sync) and one with *standard* access (for writes and uploads) **(D-046)**. Set up a separate *test* manager account with a test client account. | M03 (read), M13 (write) | Days of lead time |
-| T6 | **SnapPool:** (a) table/column names for signups, activations, subscriptions and one-off payments, plus a read-only connection string; (b) confirm, or add in SnapPool's code, that each signup stores click IDs, platform IDs from the URL and `utm_*` (§8, rule 1); (c) list what tracking already fires (pixel, CAPI, Google tag) and for which events; (d) how to identify test/internal signups | M05 | (b) and (c) are in SnapPool's codebase, not this repo |
+| T6 | **SnapPool:** (a) table/column names for signups, activations, subscriptions and one-off payments, plus a read-only connection string; (b) confirm, or add in SnapPool's code, that each signup stores click IDs, platform IDs from the URL and `utm_*` (§8, rule 1); (c) list what tracking already fires (pixel, CAPI, Google tag) and for which events; (d) how to identify test/internal signups | M05a (a, c, d), M05b (b) | (b) and (c) are in SnapPool's codebase, not this repo |
 | T7 | **Telegram:** create the bot with BotFather and send Marcus's numeric user id | M07 | |
 | T8 | **healthchecks.io:** three checks (worker alive, gateway alive, daily sync) | M07 | |
-| T9 | **Langfuse:** a project and API keys | M06 | |
-| T10 | **Dashboard hosting and Cloudflare:** decide D-050; set up a Cloudflare-managed domain and an Access application (and a Tunnel, if hosting on the SER9) | M10 | |
+| T9 | **Langfuse:** a project and API keys | M06a | |
+| T10 | **Cloudflare and Vercel:** a Cloudflare-managed domain and an Access application for the dashboard's subdomain; a Vercel (Pro) project for `apps/web`, with deployment protection on previews | M10a | |
 | T11 | **Google conversions:** enable the Data Manager API in the GCP project; create "import from clicks" conversion actions for the feedback stages; turn on auto-tagging | M13 | |
 | T12 | **Property (when it resumes):** hidden fields on the Tally form for click IDs, platform IDs and `utm_*` | Property go-live | |
-| T13 | **Property required elements:** exact registered name, CEA registration number, agency name, licence number, plus any banned phrases | M15 (property rules) | Low urgency while on hold |
+| T13 | **Property required elements:** exact registered name, CEA registration number, agency name, licence number, plus any banned phrases | M15a (property rules) | Low urgency while on hold |

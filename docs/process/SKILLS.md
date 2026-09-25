@@ -10,7 +10,7 @@ A **skill** is a folder `.claude/skills/<name>/` containing a `SKILL.md`. Its sh
 |---|---|---|
 | `start-session` | A session begins; "continue", "resume", "what's next"; after a context compaction | Reads the hook's context block, gets onto the right branch (even continuing an unmerged one), checks Marcus's answers, reads only the active milestone, states the plan |
 | `end-session` | Before stopping; the context is getting full; "wrap up", "stop", "pause", "handoff"; the Stop hook fires | Runs preflight, updates the milestone file, `NOW.md` and `LOG.md` (plus decisions, gotchas and questions), commits, pushes, opens or updates the PR, and tells Marcus what's next |
-| `start-milestone` | The next milestone should begin | Checks prerequisites and phase gates, creates `docs/milestones/M<NN>-<slug>.md` from the template, verifies external facts, and slices the work into PRs |
+| `start-milestone` | The next milestone (or part) should begin | Checks prerequisites and phase gates, creates `docs/milestones/M<NN>[a|b]-<slug>.md` from the template, verifies external facts, and plans the session within its 400–600k budget |
 | `close-milestone` | All of a milestone's items are ticked or cut | Proves "Done when (cloud)", reviews the invariants over the whole milestone diff, records cuts and leave-behind notes, hands live steps to Marcus, and starts gate measurement at a phase exit |
 | `preflight` | Before a push, before marking a PR ready, at session end | Runs the automated checks, the grep checks and an adversarial self-review of the diff, and confirms the memory is updated |
 | `update-plan` | A decision is made or changed; a question is answered; the plan is wrong or stale | Records the decision, updates every document consistently, and bumps versions |
@@ -22,16 +22,16 @@ Writing these before the code exists would mean guessing. Each is created at the
 
 | Skill | Created in | Use when | Must cover |
 |---|---|---|---|
-| `db-migration` | M01 | Adding or changing tables | Drizzle generate/migrate; never editing a merged migration; the `product_id` + index rule; the transition table; role grants; the local test-DB recipe (Postgres 16 in cloud containers) |
+| `db-migration` | M01a | Adding or changing tables | Drizzle generate/migrate; never editing a merged migration; the `product_id` + index rule; the transition table; role grants; the local test-DB recipe (Postgres 16 in cloud containers) |
 | `record-fixture` | M02 | Recording or refreshing API fixtures | Hand-written fixtures from docs (cloud), then `RECORD=1` real recording (local, read-only credentials, Marcus's OK); redaction rules; scanning for PII and tokens; file layout |
-| `add-product-pack` | M05 | A new pack or a change to a pack | Manifest vs runtime; `definePack`; defaults, thresholds, phases, facts schema; the adapter with hashing and `isTest`; the **G8 check** commands |
-| `add-finding-type` | M06 | A new detector or finding type | Registry entry; detector rule; per-pack thresholds; type → action mapping; tests (including injection and fake evidence); a replay case |
+| `add-product-pack` | M05b | A new pack or a change to a pack | Manifest vs runtime; `definePack`; defaults, thresholds, phases, facts schema; the adapter with hashing and `isTest`; the **G8 check** commands |
+| `add-finding-type` | M06b | A new detector or finding type | Registry entry; detector rule; per-pack thresholds; type → action mapping; tests (including injection and fake evidence); a replay case |
 | `deploy-worker` | M07 | Deploying to the SER9 | Build or pull the image, migrate, `docker compose up`, health and heartbeat checks, the `deploy-…` tag, rollback |
 | `incident` | M07 | Something is wrong in production | Halt; read notifications and `ads doctor`; revert; break-glass (revoke tokens); write it up in `LOG.md` |
 | `eval-replay` | M08 | Changing a model, prompt or pack; judging proposal quality | Adding cases; running replay and compare; reading the results; allowing for model randomness |
-| `add-telegram-command` | M09 | A new bot command or button | Command grammar; callback data (≤ 64 bytes, versioned); the operator request kind; the user-id check; tests |
-| `add-write-action` | M11 | A new `WriteOp` | The contracts union; undo table; `fieldsFor`; the allowlist flag; guards; both adapters; property tests; card rendering |
-| `add-guard` | M11 | A new gateway guard | Module; its position in the pipeline (BLUEPRINT §6); tighten-only config; property test; docs |
+| `add-telegram-command` | M09b | A new bot command or button | Command grammar; callback data (≤ 64 bytes, versioned); the operator request kind; the user-id check; tests |
+| `add-write-action` | M11b | A new `WriteOp` | The contracts union; undo table; `fieldsFor`; the allowlist flag; guards; both adapters; property tests; card rendering |
+| `add-guard` | M11a | A new gateway guard | Module; its position in the pipeline (BLUEPRINT §6); tighten-only config; property test; docs |
 
 ## 3. Built-in skills worth using
 
@@ -40,7 +40,7 @@ These come with Claude Code or its environment. They may not exist everywhere; c
 | Skill | When, in this project |
 |---|---|
 | `session-start-hook` | M00: add dependency installation for cloud sessions to `.claude/hooks/session-start.sh` |
-| `security-review` | Before closing M01 (vault), M10 (dashboard auth), M11 (gateway), M12/M13 (write adapters) |
+| `security-review` | Before closing M01b (vault), M10a (dashboard sign-in), M11b (gateway), M12/M13 (write adapters) |
 | `code-review` | Before marking a large PR ready |
 | `claude-api` | When touching `core/model` or AI SDK provider configuration (model ids, pricing, structured outputs) |
 | `simplify` | After a milestone's code works, before closing it |

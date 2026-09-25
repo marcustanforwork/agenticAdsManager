@@ -9,9 +9,9 @@ None of these block milestone **M00**. Each question says what it blocks.
 ## Open
 
 ### Q1 — Do you accept the v3 recommendations?
-**Blocks:** the parts of M05–M15 that depend on them.
+**Blocks:** the parts of M05a–M15b that depend on them.
 
-The recommendations D-039 … D-053 change or extend earlier decisions. There's a one-line summary of each, with its alternative, in `docs/plan/CHANGES-v3.md` §G. D-050 is also covered by Q6, and D-047 depends on Q3.
+The recommendations D-039 … D-053 change or extend earlier decisions. There's a one-line summary of each, with its alternative, in `docs/plan/CHANGES-v3.md` §G. D-050 is already settled (you have Vercel Pro, D-054), and D-047 depends on Q3.
 
 **Answer with:** "all OK", or list the ones you disagree with.
 
@@ -27,7 +27,7 @@ b) What OS does the SER9 run? Does Docker start at boot **without anyone logging
 **Answer:**
 
 ### Q3 — What does SnapPool already track?
-**Blocks:** D-047, the M05 defaults and M12.
+**Blocks:** D-047, the M05a defaults and M12.
 
 - Is the Meta Pixel installed? The Conversions API? The Google tag?
 - For which events: signup, purchase, others?
@@ -38,7 +38,7 @@ b) What OS does the SER9 run? Does Docker start at boot **without anyone logging
 **Answer:**
 
 ### Q4 — Does SnapPool store click IDs and platform IDs on each signup?
-**Blocks:** attribution in M05.
+**Blocks:** attribution in M05b.
 
 These are `gclid`/`gbraid`/`wbraid`, `fbclid`, the `_fbc`/`_fbp` cookies, `utm_*`, and the landing-page URL parameters.
 - If not: is it OK to add this in SnapPool's own code (outside this repo)?
@@ -49,26 +49,9 @@ Without these, attribution and feedback can't work (PROPOSAL §8, rule 1).
 **Answer:**
 
 ### Q5 — How do we recognise test and internal SnapPool signups?
-**Blocks:** M05.
+**Blocks:** M05a.
 
 By email domain? A flag on the account? A list of specific accounts? These must never be uploaded as conversions.
-
-**Answer:**
-
-### Q6 — Where should the dashboard be hosted? (D-050)
-**Blocks:** M10.
-
-- **A (recommended):** on the SER9, behind a Cloudflare Tunnel and Access. Free, and there's no public address that could bypass Access.
-- **B:** Vercel Pro, about USD 20/month. The free Hobby plan isn't allowed for commercial use.
-
-**Answer:**
-
-### Q7 — Are you OK with a small Neon bill?
-**Blocks:** M01 live steps.
-
-An always-on worker keeps Neon's compute awake for about 730 hours a month; the free plan includes 100. Options:
-- use Neon's usage-based paid plan (expect a small monthly bill); or
-- tell us if there's an existing Neon plan (e.g. SnapPool's organisation) we should use.
 
 **Answer:**
 
@@ -80,7 +63,7 @@ Are you willing to set an **account spending limit** on the SnapPool ad account 
 **Answer:**
 
 ### Q9 — Does Meta require the Housing category for property ads?
-**Blocks:** the M05 property pack and M14 creates.
+**Blocks:** the M05b property pack and M14 creates.
 
 From running property ads in Singapore: does Meta require the **Housing special ad category** for them? It restricts age, gender and postcode targeting.
 
@@ -98,4 +81,11 @@ From running property ads in Singapore: does Meta require the **Housing special 
 
 ## Answered
 
-(none yet)
+### Q6 — Where should the dashboard be hosted? · answered 2026-09-25
+**Answer (Marcus):** He already has a Vercel Pro account, so the dashboard goes on Vercel Pro behind Cloudflare Access. → **D-054** (supersedes D-050).
+
+### Q7 — Are you OK with a small Neon bill? · answered 2026-09-25
+**Answer (Marcus):** He is already on Neon's paid plan. → **D-055**.
+
+### (unasked) How will build sessions run? · answered 2026-09-25
+**Answer (Marcus):** Each session starts from a clean context, on Opus 5.5 at medium effort, and must fit within 400–600k tokens, including testing, changes, reviews and fixes. Max effort was for planning only. → **D-056**; eight milestones split into a/b parts (25 sessions).

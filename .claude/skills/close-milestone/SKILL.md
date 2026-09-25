@@ -7,7 +7,7 @@ description: Finish a blueprint milestone. Proves its "Done when (cloud)" criter
 
 ## 1. Every item accounted for
 
-In `docs/milestones/M<NN>-*.md`, every Build and Test item is either ticked or cut with a destination milestone. An item may move **once**. If it was already moved into this milestone, it can't be cut again: do it, or ask Marcus.
+In the milestone file (e.g. `docs/milestones/M05a-pack-sdk-snappool.md`), every Build and Test item is either ticked or cut with a destination milestone. An item may move **once**. If it was already moved into this milestone, it can't be cut again: do it, or ask Marcus.
 
 ## 2. Prove "Done when (cloud)"
 
@@ -18,7 +18,7 @@ Run each listed check. Paste the command and the key lines of its output into th
 Review the **whole milestone's** changes, not just the last PR:
 
 ```bash
-git log --oneline --grep='(m<NN>)' origin/main       # find where the milestone started
+git log --oneline --grep='(m05a)' origin/main        # use this milestone's scope, e.g. m03 or m05a, to find where it started
 git diff <first-milestone-commit>^..HEAD --stat       # then read the risky parts
 ```
 
@@ -40,7 +40,7 @@ If the implementation departed from BLUEPRINT (a renamed field, an added table, 
 
 ## 7. Phase exit?
 
-If the milestone ends a phase (M07, M10, M13, M14, M15), add the phase gate to `NOW.md` as `measuring`, with its start date and how it is measured (`PROPOSAL.md` §12). The next phase starts only after Marcus records the gate as passed.
+If the milestone ends a phase (M07, M10b, M13, M14, M15b), add the phase gate to `NOW.md` as `measuring`, with its start date and how it is measured (`PROPOSAL.md` §12). The next phase starts only after Marcus records the gate as passed.
 
 ## 8. Update memory
 

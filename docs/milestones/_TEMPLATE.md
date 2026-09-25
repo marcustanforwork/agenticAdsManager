@@ -1,4 +1,4 @@
-# M<NN> — <title>
+# M<NN>[a|b] — <title>
 
 <!-- Created by the start-milestone skill from docs/plan/BLUEPRINT.md §7.
      Copy the requirements; don't paraphrase them. Tick items at every checkpoint.
@@ -21,9 +21,14 @@
 ## Read first
 - <BLUEPRINT sections, other milestone files, external docs>
 
-## Slices (one PR is roughly one slice)
-1. <slice name>: Builds <x–y>
-2. …
+## Session plan (one session = one PR, 400–600k tokens incl. tests, review, fixes)
+- Build order: …
+- Cut first, if behind at ~300k: …
+- Checkpoints (`docs/process/SESSIONS.md` §4):
+  - [ ] ~50k oriented
+  - [ ] ~300k built, typecheck green
+  - [ ] ~450k tests green, self-review done
+  - [ ] ~550k committed, pushed, handed off
 
 ## Builds
 - [ ] 1. <copied from BLUEPRINT>

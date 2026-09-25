@@ -4,6 +4,20 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — Plan v3.1: Marcus's answers, sessions resized, PR opened
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR: opened in this session (link in `NOW.md`)
+- **Did:**
+  - Recorded Marcus's answers:
+    - he already has Vercel Pro, so the dashboard runs there (D-054, superseding D-050);
+    - he's already on Neon's paid plan (D-055);
+    - build sessions run from a clean context on Opus 5.5 at medium effort, each within 400–600k tokens including tests, reviews and fixes (D-056).
+  - Re-estimated every milestone against v2's yardstick (500k ≈ 1,500–2,500 lines including tests). Split the 8 that no longer fit into a/b parts, giving 25 sessions and about 11.6M tokens (BLUEPRINT §0, §7, §9; CHANGES §H).
+  - Restored the per-session token budget and checkpoints (SESSIONS §4), and wired them into CLAUDE.md, the skills and the milestone template.
+- **Decided:** D-054, D-055, D-056 (Marcus). D-050 superseded; D-033 partly superseded.
+- **Learned:** GOTCHAS got a design note that Vercel functions can't use LISTEN through Neon's pooler, so the dashboard polls instead.
+- **Next:** Marcus reviews the PR and answers Q1–Q5 and Q8–Q10. Then the M00 session.
+- **Open:** Q1–Q5, Q8–Q10; setup tasks T1–T13.
+
 ## 2026-09-25 — Plan v3: review, rewrite, workflow and memory system
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR: none yet
 - **Did:**

@@ -1,6 +1,6 @@
 ---
 name: end-session
-description: Save the session's state so the next session (cloud or local) can continue. Updates the memory files, commits, pushes, and opens or updates the PR. Use before ending any working session; when the context window is getting large; before a long wait; when the user says "wrap up", "stop", "pause", "handoff" or "that's it for today"; or when the Stop hook says memory is behind.
+description: Save the session's state so the next session (cloud or local) can continue. Updates the memory files, commits, pushes, and opens or updates the PR. Use before ending any working session; at the ~550k-token checkpoint or the 600k hard stop; before a long wait; when the user says "wrap up", "stop", "pause", "handoff" or "that's it for today"; or when the Stop hook says memory is behind.
 ---
 
 # End a session (handoff)
@@ -11,7 +11,7 @@ The test: **could a fresh session, cloud or local, continue in under 5 minutes u
 
 Run the `preflight` skill. Record failures honestly, in the PR and in `NOW.md`. Never claim something is green without having seen the output.
 
-## 2. Update the milestone file (`docs/milestones/M<NN>-*.md`)
+## 2. Update the milestone file (in `docs/milestones/`, e.g. `M05a-pack-sdk-snappool.md`)
 
 - Tick finished items, with a one-line note each: the files and tests involved.
 - A half-done item stays unticked. Write exactly what exists and what's missing.
@@ -57,6 +57,8 @@ git add -A && git status --short        # review the list: no secrets, no stray 
 git commit -m "docs(memory): session handoff — <summary>"
 git push -u origin <branch>             # on a network failure, retry after 2s, 4s, 8s, 16s
 ```
+
+At the **600k hard stop**, commit whatever state you're in anyway. Start the subject with `WIP:`, say whether tests are red, and push. The next session continues the same milestone part.
 
 ## 7. Open or update the PR
 

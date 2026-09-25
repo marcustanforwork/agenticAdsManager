@@ -8,6 +8,7 @@ How any Claude session, **in the cloud (Claude Code on the web) or on Marcus's o
 
 - A Claude session forgets everything when it ends. Long sessions also get *compacted*: older context is summarised and detail is lost.
 - Cloud containers are wiped after a session. A local session sees only that one machine.
+- Build sessions are deliberately **short and clean** (D-056). Each one starts from a clean context on **Opus 5.5 at medium effort**, does one milestone (or milestone part), and must finish within **400–600k tokens**.
 - So **the repository is the memory.** Everything a future session needs is written to files in this repo and **pushed to GitHub**. A session that doesn't push has, as far as the next session is concerned, not happened.
 
 ---
@@ -22,7 +23,7 @@ How any Claude session, **in the cloud (Claude Code on the web) or on Marcus's o
 | `docs/memory/DECISIONS.md` | "What did we decide, why, and what else was considered?" | Claude (records Marcus's decisions, and its own fixes) | When a decision is made | Append-only; supersede, never edit |
 | `docs/memory/GOTCHAS.md` | "What surprised us: API quirks, tooling traps, verified external facts?" | Claude | When learned | Deduplicated; each entry dated with a source |
 | `docs/memory/QUESTIONS.md` | "What does Claude need from Marcus?" | Claude asks; Marcus answers in the file or in chat | Any time | Answered ones move to *Answered* |
-| `docs/milestones/M<NN>-<slug>.md` | "What's the detailed state of this milestone?" Checklist, cuts, verify commands, notes for later milestones. | Claude | Created at milestone start; ticked at every checkpoint | As needed |
+| `docs/milestones/M<NN>[a|b]-<slug>.md` | "What's the detailed state of this milestone?" Checklist, cuts, verify commands, notes for later milestones. | Claude | Created at milestone start; ticked at every checkpoint | As needed |
 | `docs/plan/*` | "What are we building and how?" | via `update-plan` only | When the plan changes | — |
 
 **Read order at session start:** `CLAUDE.md` + `NOW.md` (automatic) → the active milestone file → only the BLUEPRINT sections that the milestone's *Read first* lists. **Don't read everything.**
@@ -35,8 +36,10 @@ How any Claude session, **in the cloud (Claude Code on the web) or on Marcus's o
 
 | Where | How |
 |---|---|
-| **Cloud** (claude.ai/code, app, mobile) | Start a session on this repo and say **"continue"**, or give a specific task. |
+| **Cloud** (claude.ai/code, app, mobile) | Start a **new** session on this repo (Opus 5.5, medium effort) and say **"continue"**, or give a specific task. |
 | **Local** (SER9 or laptop) | `cd agenticAdsManager && git fetch && claude`, then say **"continue"**. You don't need to pull first; the start-session skill handles branches. |
+
+**One session per milestone part, each with a clean context.** Don't carry a long conversation from one milestone into the next: the memory files carry everything needed.
 
 If you've answered questions or run live steps since the last session, tell the new session (or write the answer into `QUESTIONS.md` / the PR).
 
@@ -45,14 +48,42 @@ If you've answered questions or run live steps since the last session, tell the 
 1. The **SessionStart hook** has already printed the checkout, uncommitted leftovers, the unmerged work branches, and **where the newest `NOW.md` is**. If the newest is on another branch, the hook prints it in full.
 2. Get onto the right branch (`GIT-WORKFLOW.md` §3–4).
 3. Read the active milestone file. Check `QUESTIONS.md` and the last PR for Marcus's answers and live-step results.
-4. State the plan for this session in 3–8 lines (1–3 Build items, what "done" means for each), then start.
+4. State the plan for this session in 3–8 lines: the milestone part, its Build items in order, what "done" means, and which **Cut first** items you'll drop if you're behind at the ~300k checkpoint. Then start. Orientation should take about 50k tokens at most.
 
 ---
 
-## 4. During a session: checkpoints
+## 4. The session budget and checkpoints
 
-A **checkpoint** happens after each completed Build item, before anything risky or long, and whenever the context feels large.
+**The model (D-056).** Every build session:
+- starts from a clean context and runs Opus 5.5 at medium effort;
+- does **one milestone, or one milestone part** (M05a, M05b…);
+- must finish within **400–600k tokens**, including orientation, building, tests, self-review, fixes and the handoff.
 
+Milestones are estimated at 400–500k (BLUEPRINT §9), which leaves room for review and fixes. Max effort was used for planning only. Build sessions **follow the plan rather than redesign it** (BLUEPRINT §0).
+
+**Where the tokens should go** (for a ~500k session):
+
+| Share | Activity |
+|---|---|
+| ~10% | Orientation: `CLAUDE.md`, `NOW.md`, the milestone file, the BLUEPRINT sections it lists, and the files it modifies |
+| ~45% | Implementation |
+| ~25% | Tests, and running them |
+| ~15% | Self-review (`preflight`) and fixes |
+| ~5% | Handoff (`end-session`) |
+
+**Checkpoints:**
+
+| Tokens used | You should be here | If you're not |
+|---|---|---|
+| ~50k | Oriented | Stop reading and start building |
+| ~300k | Implementation complete, typecheck green | Apply the milestone's **Cut first** list now |
+| ~450k | Tests green, self-review done | Stop adding scope: fix, commit, push |
+| ~550k | Committed, pushed, `end-session` done (memory + PR) | Do it now |
+| **600k** | **Hard stop, whatever the state** | Commit the work in progress (subject starts `WIP:`; say if tests are red), push, run `end-session`. The next session continues the same milestone part. |
+
+**Knowing where you are.** Use whatever token-usage information the environment shows you. Marcus can also see usage in Claude Code and may tell you. Failing that, use progress as the proxy: Build items done compared with the plan you stated at the start.
+
+**A small checkpoint also happens** after each completed Build item, and before anything risky or long:
 1. The tests for that item pass.
 2. Tick the item in the milestone file, and add notes: what's half-done, what's next, any surprise.
 3. Commit, **and push**.
@@ -81,7 +112,7 @@ A **checkpoint** happens after each completed Build item, before anything risky 
 7. Open or update the PR (draft if the work is unfinished), using the template.
 8. Tell Marcus, in plain words: what shipped, what's next, what he needs to do.
 
-**Also run `end-session`** when the context is getting full, before a long wait, or when Marcus says "wrap up", "stop" or "pause".
+**Also run `end-session`** at the ~550k checkpoint, at the 600k hard stop, before a long wait, or when Marcus says "wrap up", "stop" or "pause".
 
 ---
 
@@ -146,5 +177,6 @@ To switch a hook off temporarily, comment it out in `.claude/settings.local.json
 | A local session forgot to push | The next session, wherever it runs, sees an older memory. When you're back on that machine, push, then the next session reconciles (continue the newest branch; merge if needed). |
 | Two branches both have "newest" work | Don't guess. Show Marcus both `NOW.md` versions and ask which to continue; merge the other or close it. |
 | `NOW.md` merge conflict | Keep the newer session's version, re-add anything the other version knew that's still true, and re-check "Next action". |
+| The session hit the 600k hard stop mid-item | Commit the work in progress as `WIP:`, push, and run `end-session` with the exact state (what's done, what's half-done, which test fails). The next session continues the same milestone part from its milestone file. If this keeps happening for one milestone, split it further with `update-plan`. |
 | Memory and code disagree | **The code and git history win.** Fix the memory, and note it in `LOG.md`. |
 | The plan is wrong or out of date | The `update-plan` skill. Don't let the docs drift. |

@@ -18,6 +18,7 @@ Things that surprised us, and external facts the plan depends on.
 - **The network proxy in cloud sessions blocks some documentation sites:** `developers.facebook.com`, `developers.google.com` and `ads-developers.googleblog.com` (WebFetch returns `EGRESS_BLOCKED`). WebSearch works and usually quotes those pages. *(2026-09-25)*
 - **The cloud harness has its own Stop hook,** which blocks stopping while changes are uncommitted or unpushed. This repo's Stop hook only adds the memory check, plus a push check for local sessions. *(2026-09-25)*
 - **Project hooks load at session start.** Edits to `.claude/settings.json` take effect in the *next* session. *(2026-09-25)*
+- **Vercel functions are short-lived and reach Neon through the pooler,** so they can't use LISTEN. The dashboard polls `operator_requests` for results instead (BLUEPRINT M10a). *(design note, 2026-09-25)*
 
 ## External facts (checked 2026-09-25)
 
@@ -33,8 +34,8 @@ Things that surprised us, and external facts the plan depends on.
 | **Meta special ad categories** (Housing and others) now apply beyond the US: Canada, Europe, Asia and Africa. Housing removes age, gender and postcode targeting and forces a 15-mile minimum radius. | data-axle.com "2025 Meta special ad categories rules"; jonloomer.com special ad categories guide | at M05 (confirm the SG specifics; Q9) |
 | **Node.js release lines:** 24 is the Active LTS (maintenance from 2026-10-20, end of life 2028-04-30). 22 is in maintenance (end of life 2027-04-30). 26 becomes the Active LTS on 2026-10-28. | endoflife.date/nodejs; nodejs.org release pages | at M00 |
 | **AI SDK 6** deprecated `generateObject`/`streamObject`. Use `generateText`/`streamText` with `output: Output.object({ schema })`; multi-step flows need `stopWhen`. | ai-sdk.dev/docs/migration-guides/migration-guide-6-0; vercel.com/blog/ai-sdk-6 | at M06 |
-| **Vercel's Hobby plan** is for personal, non-commercial use only. Commercial use needs Pro or Enterprise. | vercel.com/docs/plans/hobby; vercel.com/docs/limits/fair-use-guidelines | at M10 |
-| **Neon:** the Free plan gives 100 compute-hours per project per month, and compute scales to zero after 5 idle minutes. The pooler is PgBouncer in **transaction mode**, so LISTEN/NOTIFY, session advisory locks and `SET` don't work through it. Use the direct host for those. | neon.com/docs/connect/connection-pooling; neon.com pricing and FAQs | at M01 |
+| **Vercel's Hobby plan** is for personal, non-commercial use only. Commercial use needs Pro or Enterprise. *(Not a problem here: Marcus has Vercel Pro, D-054.)* | vercel.com/docs/plans/hobby; vercel.com/docs/limits/fair-use-guidelines | at M10 |
+| **Neon:** the Free plan gives 100 compute-hours per project per month, and compute scales to zero after 5 idle minutes. The pooler is PgBouncer in **transaction mode**, so LISTEN/NOTIFY, session advisory locks and `SET` don't work through it. Use the direct host for those. *(Marcus is on the paid plan, D-055, so the free-tier limits don't apply; the pooler limits still do.)* | neon.com/docs/connect/connection-pooling; neon.com pricing and FAQs | at M01 |
 | **UNVERIFIED:** whether the Meta Marketing API's `execution_options` (a validate-only option) is available on the campaign, ad set and ad update endpoints. The docs were blocked by the proxy. | — | verify in M12 |
 
 ## Design traps to remember while coding

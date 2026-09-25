@@ -2,7 +2,7 @@
 <!-- 2–5 lines in plain English: what this PR does, and why. -->
 
 ## Milestone
-<!-- e.g. "M03 Google read connector, slice 2: Builds 2–4 (ticked in docs/milestones/M03-google-read.md)"; or "plan", "memory", "fix" -->
+<!-- e.g. "M05a Pack SDK, SnapPool pack, settings: Builds 1–5 (ticked in docs/milestones/M05a-pack-sdk-snappool.md)"; or "plan", "memory", "fix" -->
 
 ## Tests run
 <!-- The commands and their results. Failures stay visible until they're fixed. -->

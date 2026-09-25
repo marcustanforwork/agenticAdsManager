@@ -192,7 +192,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** PROPOSAL §9 · CHANGES B10
 
 ### D-033 — Milestones, not "sessions"; acceptance is split into cloud and live
-- **When / who / status:** 2026-09-25 · Claude (fix) · adopted
+- **When / who / status:** 2026-09-25 · Claude (fix) · adopted; **the "several sessions per milestone" part is superseded by D-056**
 - **Decision:**
   - The blueprint's S00–S16 are now the milestones M00–M16, with the same numbers.
   - One milestone may take several Claude sessions.
@@ -300,7 +300,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** Larger jumps commonly restart Meta's learning phase. Google keeps ±30%.
 
 ### D-050 — The dashboard is hosted on the SER9 behind a Cloudflare Tunnel and Access
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed (see Q6)
+- **When / who / status:** 2026-09-25 · Claude (needs OK) · **superseded by D-054** (Marcus already has Vercel Pro)
 - **Why:** Free, and there's no public origin to bypass. Vercel's free Hobby plan forbids commercial use.
 - **Instead of:** Vercel (v2 "decided"); the alternative is Vercel Pro at about USD 20/month.
 
@@ -319,3 +319,32 @@ These correct errors, contradictions and outdated facts found in the review. Det
   - An exact agree-rate definition, excluding expired and operator proposals and failing if more than 20% expire.
   - The Phase 2 gate counts only wrong changes and unexplained verify failures.
 - **See:** PROPOSAL §12
+
+---
+
+## Marcus's answers (2026-09-25)
+
+### D-054 — The dashboard runs on Vercel Pro, behind Cloudflare Access
+- **When / who / status:** 2026-09-25 · Marcus · adopted · **Supersedes:** D-050
+- **Decision:** Deploy `apps/web` to Marcus's existing Vercel Pro account, with Cloudflare Access in front.
+  - The middleware verifies the Access token and fails closed, which also closes the raw `*.vercel.app` address.
+  - Preview deployments are protected and never get production DB credentials.
+- **Why:** Marcus already pays for Vercel Pro. D-050 only recommended the SER9 because Vercel's free Hobby plan forbids commercial use.
+- **See:** PROPOSAL §10, §16 T10 · BLUEPRINT §5.1, M10a
+
+### D-055 — Neon runs on Marcus's existing paid plan
+- **When / who / status:** 2026-09-25 · Marcus · adopted (answers Q7)
+- **Decision:** The agent's Neon project (with `prod` and `dev` branches) sits on Marcus's paid plan. The always-on worker's direct connection keeps compute awake, which is expected. There's no need to design polling around the free tier's scale-to-zero.
+- **See:** PROPOSAL §14, §16 T2 · BLUEPRINT §5.3
+
+### D-056 — Session model: clean context, Opus 5.5 at medium effort, 400–600k tokens per session
+- **When / who / status:** 2026-09-25 · Marcus · adopted · **Supersedes:** the "several sessions per milestone" part of D-033
+- **Decision:**
+  - Build sessions start from a **clean context** and run on **Opus 5.5 at medium effort**. Max effort is for planning only.
+  - Every session must finish within **400–600k tokens**, including orientation, tests, changes, reviews and fixes.
+  - One milestone (or milestone part) = one session = one PR.
+  - Eight milestones that no longer fit are split into a/b parts (M01, M05, M06, M09, M10, M11, M15, M16), so there are **25 sessions**, each estimated at 400–500k tokens.
+  - The token-budget checkpoints from v2 are restored (SESSIONS §4). The hard stop is at 600k.
+- **Why:** This is Marcus's operating model. v2's yardstick (500k ≈ 1,500–2,500 lines including tests) shows that eight v3 milestones, which grew with the review's safety additions, would overrun one session.
+- **See:** BLUEPRINT §0, §7, §9 · SESSIONS §4 · CHANGES §H
+

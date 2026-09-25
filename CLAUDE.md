@@ -5,8 +5,9 @@ This is an agentic ads manager for Marcus's products: SnapPool first, with Prope
 ## Every session
 1. Run the **`start-session`** skill. The SessionStart hook has already printed where the newest memory is, even if that's on an unmerged branch or your local clone is stale.
 2. Read only the active milestone file and the BLUEPRINT sections it lists. **Don't read everything.**
-3. **Commit and push after each completed step.** A cloud container or a local machine can vanish at any time.
-4. Finish with the **`end-session`** skill: update the memory, commit, **push**, and open or update the PR.
+3. **Stay within the session budget.** Build sessions run on Opus 5.5 at medium effort from a clean context, and do one milestone (or part, e.g. M05a) per session. Each session finishes within **400–600k tokens**, including tests, review and fixes (checkpoints: `docs/process/SESSIONS.md` §4). Follow the plan; don't redesign it mid-session.
+4. **Commit and push after each completed step.** A cloud container or a local machine can vanish at any time.
+5. Finish with the **`end-session`** skill: update the memory, commit, **push**, and open or update the PR.
 
 ## Standing instructions from Marcus
 - Write for Marcus in plain, simple English. Explain jargon and keep summaries short.

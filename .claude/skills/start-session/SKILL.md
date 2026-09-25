@@ -37,16 +37,17 @@ No block, or it looks broken? Run `bash .claude/hooks/session-start.sh < /dev/nu
 
 ## 4. Read the active milestone, and only what it needs
 
-- `NOW.md` names the active milestone. Open `docs/milestones/M<NN>-*.md`.
+- `NOW.md` names the active milestone or part. Open its file in `docs/milestones/`, e.g. `M05a-pack-sdk-snappool.md`.
 - No milestone file yet? Run the `start-milestone` skill.
-- Read only the `docs/plan/BLUEPRINT.md` sections listed under **Read first** for the next unticked items.
+- Read only the `docs/plan/BLUEPRINT.md` sections listed under **Read first** for the next unticked items. Keep orientation to about **50k tokens**. The session budget is in `docs/process/SESSIONS.md` §4.
 - From M00 on: if the hook didn't install dependencies, run `pnpm install`, then a quick `pnpm typecheck` to confirm the checkout is healthy.
 
 ## 5. State the plan, then start
 
 Tell Marcus, in 8 lines or fewer and in plain words:
 - where things stand (one line);
-- what this session will do (1–3 items), and what "done" means for each;
+- which milestone part this session completes, its Build items in order, and what "done" means;
+- which **Cut first** items you'll drop if you're behind at the ~300k checkpoint;
 - anything waiting on him (question ids, live steps, setup tasks).
 
 Then start working. Wait for his go-ahead only if:
@@ -57,5 +58,7 @@ Then start working. Wait for his go-ahead only if:
 
 - Don't read all of `PROPOSAL.md` and `BLUEPRINT.md` at every start.
 - Don't start the next milestone while the current one has unticked items, unless `NOW.md` says so.
+- Don't take on a second milestone part in the same session: one session = one part, within 400–600k tokens (D-056).
+- Don't redesign the plan mid-session. If it looks wrong, record it with `update-plan` or a question, and keep to scope.
 - Don't start from `main` while a newer unmerged work branch exists.
 - Don't touch uncommitted files you didn't create.

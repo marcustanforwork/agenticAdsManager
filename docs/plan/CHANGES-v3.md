@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-09-25 |
 | **Reviewed** | `docs/archive/proposal-v2.1.md` and `docs/archive/blueprint-v2.1.md` (both generated on 2026-09-14) |
-| **Result** | `docs/plan/PROPOSAL.md` v3.0 and `docs/plan/BLUEPRINT.md` v3.0 |
+| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 the same day after Marcus's reply (§H) |
 | **Method** | Read both documents in full. Checked every mechanism for "what happens if…", cross-checked the two documents against each other, and re-checked external facts against current sources (2026-09-25). |
 
 **Headline.** The v2 design is sound, and its core ideas stay:
@@ -106,8 +106,8 @@ Severity: **Critical** = would cause wrong changes, money loss, or a blocked mil
 | D3 | "v25.1 current" | v25.2 is out (v25 released 2026-07-22, sunsets Aug 2027). `google-ads-api` moved to v25.1 on 2026-09-17 and supports one API version per release. | Pin the library and the API version together |
 | D4 | Node 22 LTS | Node 24 is the active LTS (maintenance from 2026-10-20); Node 26 becomes LTS on 2026-10-28 | Node 24; decide on 26 in M00 |
 | D5 | AI SDK `generateObject` | Deprecated in AI SDK 6, replaced by `generateText` + `Output.object` | M06 |
-| D6 | Dashboard on Vercel (implicitly the free tier) | Vercel's Hobby plan forbids commercial use | Vercel Pro or the SER9 via Cloudflare Tunnel (D-050) |
-| D7 | Neon (cost not considered) | The free plan has 100 compute-hours a month and sleeps when idle. An always-on worker uses about 730. | Expect a small bill (Q7) |
+| D6 | Dashboard on Vercel (implicitly the free tier) | Vercel's Hobby plan forbids commercial use | **Settled:** Marcus already has Vercel Pro, so the dashboard runs there (D-054) |
+| D7 | Neon (cost not considered) | The free plan has 100 compute-hours a month and sleeps when idle. An always-on worker uses about 730. | **Settled:** Marcus is already on Neon's paid plan (D-055) |
 | D8 | Special ad categories not mentioned | Meta's special ad categories (Housing etc.) now apply beyond the US, including Asia | The property pack declares HOUSING (verify for SG) |
 | D9 | Google MCP read-only, 3 tools | Confirmed. It also had a July 2026 fix for OAuth credentials being written to logs. | Supports keeping MCP out of the core path (D-039) |
 | D10 | Meta MCP "since July 2026" | Launched April 2026; developer availability July 2026; writes need `ads_management` | No change; D-018 narrowed |
@@ -120,7 +120,7 @@ Severity: **Critical** = would cause wrong changes, money loss, or a blocked mil
 | # | Change | Where |
 |---|---|---|
 | E1 | A one-page summary, a glossary, and a "how to read this" note | PROPOSAL §0–1 |
-| E2 | Blueprint "sessions" renamed **milestones** (M00–M16, same numbers). Acceptance split into **cloud** (Claude can prove it) and **live** (Marcus runs it). Token budgets kept as rough size, not a hard stop. | BLUEPRINT §0 · D-033 |
+| E2 | Blueprint "sessions" renamed **milestones** (M00–M16, same numbers). Acceptance split into **cloud** (Claude can prove it) and **live** (Marcus runs it). In v3.1, every milestone or milestone part is sized to one session, and the token budget with its checkpoints is restored (§H). | BLUEPRINT §0 · D-033, D-056 |
 | E3 | The analyst's drill-down uses typed read-only **database look-ups** instead of the official MCP servers: deterministic, replayable, no extra credentials, no quota, no Python sidecar | PROPOSAL §10 · BLUEPRINT §5.10 · D-039 (needs OK) |
 | E4 | **Detectors first**: fixed rules produce candidates, and the AI reviews, ranks and explains them | PROPOSAL §5.2 · BLUEPRINT §5.9 · D-040 (needs OK) |
 | E5 | The **strongest model does the analysis** (v2 had a cheap model analysing and a frontier model writing prose, which is backwards); the cost at this volume is a few dollars a month | PROPOSAL §10 · D-041 (needs OK) |
@@ -161,10 +161,34 @@ Reply "all OK", or name the ones you disagree with, in `docs/memory/QUESTIONS.md
 | D-047 | SnapPool reports signups itself in real time; the agent uploads delayed stages | The agent uploads signups (v2); depends on Q3 |
 | D-048 | Upload auto-approval off until the Phase 2 gate; daily caps | Auto-approved from the start (v2) |
 | D-049 | Meta budget changes at most ±20% by default | ±30% on both platforms (v2) |
-| D-050 | Dashboard on the SER9 via Cloudflare Tunnel | Vercel Pro (~USD 20/month); Vercel Hobby is not allowed |
+| D-050 | ~~Dashboard on the SER9 via Cloudflare Tunnel~~ **Settled: Vercel Pro (D-054)** | — |
 | D-051 | Confirmed operator pauses run immediately | Wait for the 5-minute loop (v2) |
 | D-052 | Proposal expiry: budget 72 h, others 7 d | 7 days for everything (v2) |
 | D-053 | Measurable gates (brief buttons, agree-rate definition, Phase 2 counting) | Judgement at the time (v2) |
+
+## H. Updates after Marcus's reply (v3.1, 2026-09-25)
+
+| # | Marcus said | What changed |
+|---|---|---|
+| H1 | He already has **Vercel Pro** | The dashboard runs on Vercel Pro behind Cloudflare Access (D-054, which supersedes D-050). The Tunnel option is removed, and Q6 is answered. The safeguards stay: Access-token verification in middleware (which also closes the raw `*.vercel.app` address), protected preview deployments, and no production DB credentials in previews. |
+| H2 | He is already on **Neon's paid plan** | Costs updated (D-055), and Q7 is answered. The always-on worker is fine. |
+| H3 | Build sessions start from a **clean context** on **Opus 5.5 at medium effort** (max was for planning only), and each must fit in **400–600k tokens**, including testing, changes, reviews and fixes | v3.0 had said "a milestone may take several sessions" and treated sizes as rough. That's replaced by D-056: **one milestone (or part) = one session = one PR**, estimated at 400–500k so there's room for fixes before a hard stop at 600k. The v2 checkpoint table is restored (SESSIONS §4). The eight milestones that no longer fit are split into a/b parts (below). The plan also tells medium-effort sessions to follow the plan, not redesign it (BLUEPRINT §0). |
+
+**How the milestones were re-sized.** Yardstick (from v2): 500k tokens ≈ 1,500–2,500 lines of TypeScript including tests. The estimates below are rough line counts, including tests.
+
+| Milestone | Estimate after the v3 review | Result |
+|---|---|---|
+| M01 | ~3,300 lines (27 tables, repositories, queue, leader lock, vault, request processor) | **M01a** schema + repositories (~500k) · **M01b** queue, leader lock, vault, request processor (~450k) |
+| M05 | ~3,000 lines (pack SDK, two packs, settings, attribution, manifests, product docs) | **M05a** pack SDK + SnapPool pack + settings (~500k) · **M05b** property pack + attribution + product docs (~450k). This also makes the G8 test cleaner: the second pack arrives in its own session. |
+| M06 | ~2,300 lines (AI layer, 8 detectors, analyst input, look-ups, analyse stage) | **M06a** AI layer + registry + detectors (~450k) · **M06b** analyst input, look-ups, analyse stage (~450k) |
+| M09 | ~2,300 lines (bot, cards, commands, settings, alerts, entity resolution) | **M09a** bot core + proposal cards (~450k) · **M09b** operator commands (~400k) |
+| M10 | ~2,450 lines (Next.js, auth, settings forms, all views) | **M10a** app + sign-in + settings (~450k) · **M10b** review views (~400k) |
+| M11 | ~2,800 lines (guards with property tests, pipeline, crash tests) | **M11a** allowlist, guards, fingerprint (~450k) · **M11b** pipeline, recovery, undo, service (~450k) |
+| M15 | ~2,000 lines (source copy, format checks, both claim tiers, variant stage) | **M15a** source copy + claim checks (~400k) · **M15b** format checks, variants, proposals (~400k) |
+| M16 | ~1,700 lines plus a long runbook | **M16a** evals + model-swap gate (~450k) · **M16b** runbook, backups, doctor (~400k) |
+| M00, M02–M04, M07, M08, M12–M14 | 1,400–1,750 lines each | Kept whole, each re-estimated at ~500k |
+
+**Total:** 25 sessions, about 11.6M tokens (v2 had 17 sessions and about 9.05M). The difference comes from the review's safety additions, the headroom left for fixes, and the orientation cost each clean session pays (~30–50k).
 
 ## What did not change
 

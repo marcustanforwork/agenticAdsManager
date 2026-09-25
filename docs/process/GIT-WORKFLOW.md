@@ -8,7 +8,7 @@ How work moves from a Claude session (cloud or local) into `main`, so that **any
 
 1. **GitHub is the only shared memory.** Cloud containers are wiped and local machines differ. Work that isn't pushed doesn't exist for the next session.
 2. **`main` is always green.** It is only changed through PRs with passing checks, so every session can safely start from it.
-3. **Small PRs, one per session.** Each working session ends with a PR (draft if unfinished). This is a **standing instruction from Marcus** (also stated in `CLAUDE.md`). Marcus reviews and merges.
+3. **Small PRs, one per session.** One session = one milestone (or milestone part) = one PR (D-056). Each working session ends with a PR (draft if unfinished). This is a **standing instruction from Marcus** (also stated in `CLAUDE.md`). Marcus reviews and merges.
 4. **Every PR updates the memory.** A PR that changes code or the plan also changes `docs/memory/NOW.md` and `docs/memory/LOG.md`. CI checks this.
 5. **The plan is code.** `PROPOSAL.md` and `BLUEPRINT.md` change only through PRs, with a decision recorded in `DECISIONS.md` (the `update-plan` skill).
 6. **No secrets, ever.** Not in commits, fixtures, logs, PR text or memory files.
@@ -25,7 +25,7 @@ How work moves from a Claude session (cloud or local) into `main`, so that **any
 | `plan/<slug>` | either | Plan-only changes (proposal, blueprint, process docs) |
 | `fix/<slug>` | either | A fix to something already merged, outside the current milestone |
 
-- **One branch = one PR = normally one session.** A milestone is usually several PRs in sequence.
+- **One branch = one PR = one session = one milestone (or part).** If a session hits the 600k hard stop, its PR stays a draft, and the next session continues it (§4).
 - Merged branches are deleted automatically (repo setting, §9). So any `claude/*` or `m*/` branch still on GitHub is **unfinished work**, either an open PR or an abandoned attempt.
 
 ---
@@ -95,7 +95,7 @@ The new PR contains all the old commits plus the new ones, so nothing is lost an
 | `ci` | CI workflows |
 | `build` | Docker, build config |
 
-**Scopes:** `m00` … `m16` for milestone work; `memory` for memory-file updates; `plan` for PROPOSAL/BLUEPRINT/process; `ci`, `deps`, `hooks`, `skills`.
+**Scopes:** `m00` … `m16` for milestone work, including the part letter where there is one (`m05a`, `m05b`); `memory` for memory-file updates; `plan` for PROPOSAL/BLUEPRINT/process; `ci`, `deps`, `hooks`, `skills`.
 
 Examples:
 - `feat(m03): add GAQL query builder with field allowlist`
@@ -179,20 +179,20 @@ After merging, nothing else is needed. The next session starts from `main` and f
 
 | Tag | When | Who |
 |---|---|---|
-| `m<NN>-done` | A milestone is closed (all cloud "Done when" met and live acceptance confirmed) | Claude when asked, or Marcus |
+| `m<NN>-done`, e.g. `m05b-done` | A milestone (or part) is closed (all cloud "Done when" met and live acceptance confirmed) | Claude when asked, or Marcus |
 | `phase-<N>-exit` | A phase gate passes | Marcus decides; either creates the tag |
 | `deploy-YYYY-MM-DD[-n]` | A commit is deployed to the SER9 (from M07) | Marcus or a local session with his go-ahead |
 
-Tags always point at commits on `main`. `docs/memory/NOW.md` records the currently deployed tag. From M07, the `deploy-worker` skill describes building and deploying an image and rolling it back.
+Tags always point at commits on `main`. `docs/memory/NOW.md` records the currently deployed tag. From M07, the `deploy-worker` skill describes building and deploying an image and rolling it back. The dashboard deploys through Vercel's Git integration (from M10a): production from `main`, and protected previews from PR branches.
 
 ---
 
-## 11. Database migrations (from M01)
+## 11. Database migrations (from M01a)
 
 - Migrations are **forward-only** and generated with Drizzle (`pnpm db:generate`). **Never edit a migration that has been merged.** Write a new one instead.
 - A PR that adds a migration says so in its title (`[M05] … (+migration)`) and in the body.
 - Migrations are applied to the Neon `dev` branch by Marcus or a local session, and to `prod` as part of a deploy. They are never applied from a cloud session, which has no DB credentials.
-- The `db-migration` skill (created in M01) covers the details.
+- The `db-migration` skill (created in M01a) covers the details.
 
 ---
 
