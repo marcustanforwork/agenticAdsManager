@@ -22,7 +22,7 @@ The background-job plumbing, the credential vault, and the single processor for 
 - Cut first, if behind at ~300k: master-key rotation (keep `master_key_id`).
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented
-  - [ ] ~300k built, typecheck green
+  - [x] ~300k built, typecheck green
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
@@ -42,17 +42,19 @@ The background-job plumbing, the credential vault, and the single processor for 
   - done: `packages/vault/src/index.ts`, tests `packages/vault/test/vault.test.ts` (11). Master keys are `<id>:<base64 32 bytes>` with ids `read-vN` / `write-vN`; a read key is refused for write and feedback rows before the row is read, and read key bytes relabelled as a write key still can't decrypt. The ciphertexts are bound to their account and role (AAD). Rotation re-wraps the data keys in one transaction (all rows or none). **roles.sql:** `agent_gateway` gets `INSERT, UPDATE` on `credentials` (for `ads-gw credentials put` and rotation; part of D-068).
 - [x] 4. CLIs: `ads credentials put --account X --role read` reads the token from **stdin**, never from arguments. `ads-gw credentials put --role write|feedback`.
   - done: `credentials put | check | rotate-key` in both CLIs (`apps/*/src/cli.ts`); shared logic in `packages/vault/src/commands.ts`. Keys come from `VAULT_READ_KEY` (ads) / `VAULT_WRITE_KEY` (ads-gw), plus `…_NEW` for rotation; the DB from `DATABASE_URL`. `--account` takes an account id, `meta:act_…`/`google:…`, or a bare external id. `check` decrypts (audited as `cli check`) and prints only the field names. Tests: `apps/*/test/credentials.test.ts`.
-- [ ] 5. The `core/requests` processor:
+- [x] 5. The `core/requests` processor:
   - schema validation, actor check, freshness checks, one transaction per request, `result` written, `NOTIFY`;
   - implements `halt`, `resume_agent`, `settings_patch` (validated with `ProductSettings` and tighten-only) and `brief_feedback`;
   - other kinds are refused with "not available yet (M-number)".
-- [ ] 6. `core/recovery` skeleton: reclaim leases, re-queue stuck requests. Cycles are added in M04.
+  - done: `packages/core/src/requests/{processor,handlers,settingsPatch}.ts`; tests `packages/core/test/requests.test.ts`. Allowed actors come from `OPERATOR_ACTORS` (comma-separated, e.g. `telegram:<id>,cli:marcus`; kept in Doppler). The patch merges plain objects key by key and replaces anything else (null unsets); unknown keys are refused by name. Tighten-only is checked against the core defaults **and each platform's defaults** (a product override of 25% is refused because Meta's default is 20%); M05a adds the pack layer. Halt all moves only `active` products (dormant stays dormant); resume moves only `halted` ones. A handler fault (not a refusal) rolls back and leaves the request queued for the next pass. A request naming an unknown product can't be recorded at all (the foreign key).
+- [x] 6. `core/recovery` skeleton: reclaim leases, re-queue stuck requests. Cycles are added in M04.
+  - done: `recoverWorker(db, ctx)` in `packages/core/src/recovery.ts`: reclaims the worker queue's expired leases, drains queued requests, and queues a `worker_recovered` note if it did anything. A crash can't leave a request half-done (it's processed in the transaction that locks it), so "re-queue stuck requests" = process what is still queued.
 
 ## Tests
 - [x] Queue: two claimers never get the same job; an expired lease is reclaimed; failures back off; `max_attempts` leads to `failed`; priority order is respected.
 - [x] Leader lock: a second contender waits; the lock is released on disconnect.
 - [x] Vault: round-trip works; a wrong key fails; the read key can't open write rows; every `get` writes an audit row; rotation works.
-- [ ] Requests: halt and resume; a valid `settings_patch` creates a new version; a looser guard override is refused; a stale `baseVersion` is refused; an unknown actor is refused.
+- [x] Requests: halt and resume; a valid `settings_patch` creates a new version; a looser guard override is refused; a stale `baseVersion` is refused; an unknown actor is refused.
 
 ## Done when (cloud)
 - [ ] All tests are green.
