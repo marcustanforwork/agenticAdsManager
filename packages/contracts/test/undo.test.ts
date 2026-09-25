@@ -4,6 +4,7 @@ import {
   ActionType,
   UNDO_TABLE,
   UndoContextError,
+  fingerprintFieldsFor,
   undoFor,
   type ApplyContext,
   type EntityRef,
@@ -178,5 +179,24 @@ describe('undo table', () => {
     expect(() => undoFor({ action: 'adjust_budget', target, newDailyBudgetMicros: '1', netIncrease: false })).toThrow(
       UndoContextError,
     );
+  });
+});
+
+describe('fingerprintFieldsFor', () => {
+  it('names the fields BLUEPRINT §3.6 lists, for every action', () => {
+    expect(fingerprintFieldsFor('pause_entity')).toEqual(['status']);
+    expect(fingerprintFieldsFor('resume_entity')).toEqual(['status']);
+    expect(fingerprintFieldsFor('mark_abandoned')).toEqual(['status']);
+    expect(fingerprintFieldsFor('adjust_budget')).toEqual([
+      'budgetShared',
+      'budgetType',
+      'dailyBudgetMicros',
+      'status',
+    ]);
+    expect(fingerprintFieldsFor('add_negative_keyword')).toEqual(['negativeListHash', 'parentStatus']);
+    expect(fingerprintFieldsFor('remove_negative_keyword')).toEqual(['criterionExists']);
+    expect(fingerprintFieldsFor('create_entity_paused')).toEqual(['idempotencyTagUnused', 'parentStatus']);
+    expect(fingerprintFieldsFor('upload_conversions')).toEqual([]);
+    for (const action of ActionType.options) expect(Array.isArray(fingerprintFieldsFor(action))).toBe(true);
   });
 });

@@ -108,3 +108,26 @@ export function undoFor(op: WriteOp, ctx: ApplyContext = {}): WriteOp | null {
       return null;
   }
 }
+
+/** The fingerprint fields per action (BLUEPRINT §3.6): the single definition, shared by the gateway (which
+ *  re-reads them before applying) and by whoever stores a precondition hash (e.g. an undo proposal).
+ *  Names are fields of the entity state the connectors read back; `parentStatus`, `negativeListHash`,
+ *  `criterionExists` and `idempotencyTagUnused` are derived values the gateway computes (M11a). */
+export function fingerprintFieldsFor(action: WriteOp['action']): string[] {
+  switch (action) {
+    case 'pause_entity':
+    case 'resume_entity':
+    case 'mark_abandoned':
+      return ['status'];
+    case 'adjust_budget':
+      return ['budgetShared', 'budgetType', 'dailyBudgetMicros', 'status'];
+    case 'add_negative_keyword':
+      return ['negativeListHash', 'parentStatus'];
+    case 'remove_negative_keyword':
+      return ['criterionExists'];
+    case 'create_entity_paused':
+      return ['idempotencyTagUnused', 'parentStatus'];
+    case 'upload_conversions':
+      return []; // instead, each event must not already be marked uploaded in outcomes
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "_comment": "The M01a seed (BLUEPRINT M01a Build 4). Settings are stub pack defaults until M05a/M05b replace them. Re-running the seed never overwrites existing rows. Test email domains are set later in the database, never here (D-059).",
+  "products": [
+    {
+      "slug": "snappool",
+      "name": "SnapPool",
+      "packId": "saas-snappool",
+      "status": "active",
+      "settings": {
+        "spend": {
+          "dailyCeilingMicros": null,
+          "monthlyCeilingMicros": null,
+          "autoPauseOnMonthlyBreach": false
+        },
+        "outcomes": {
+          "stages": [
+            {
+              "id": "pool_request",
+              "label": "Pool request",
+              "tier": "soft"
+            },
+            {
+              "id": "signup",
+              "label": "Signup",
+              "tier": "success"
+            },
+            {
+              "id": "activated",
+              "label": "Activated",
+              "tier": "success"
+            },
+            {
+              "id": "paid",
+              "label": "Paid",
+              "tier": "hard"
+            }
+          ],
+          "primaryKpiStage": "signup",
+          "feedback": []
+        },
+        "trust": {
+          "minClicksToJudgeTracking": 30,
+          "maxOutcomeStalenessHours": 48,
+          "maxAttributionGapPct": 50,
+          "minOutcomesForGap": 10,
+          "minIdCapturePct": 60
+        },
+        "agent": {
+          "analystLookupBudget": 20,
+          "autoApproveFeedback": false,
+          "feedbackDailyCap": 200
+        },
+        "notifications": {
+          "digest": "auto"
+        },
+        "copy": {
+          "tier": "fragments",
+          "requiredStrings": [],
+          "bannedPhrases": []
+        },
+        "testTraffic": {
+          "emailDomains": []
+        },
+        "guardOverrides": {},
+        "disabledActions": []
+      },
+      "offerings": [
+        {
+          "kind": "product",
+          "key": "snappool",
+          "name": "SnapPool"
+        }
+      ]
+    },
+    {
+      "slug": "property-sg",
+      "name": "Property SG",
+      "packId": "property-sg",
+      "status": "dormant",
+      "settings": {
+        "spend": {
+          "dailyCeilingMicros": null,
+          "monthlyCeilingMicros": null,
+          "autoPauseOnMonthlyBreach": false
+        },
+        "outcomes": {
+          "stages": [
+            {
+              "id": "enquiry",
+              "label": "Enquiry",
+              "tier": "success"
+            }
+          ],
+          "primaryKpiStage": "enquiry",
+          "feedback": []
+        },
+        "trust": {
+          "minClicksToJudgeTracking": 30,
+          "maxOutcomeStalenessHours": 48,
+          "maxAttributionGapPct": 50,
+          "minOutcomesForGap": 10,
+          "minIdCapturePct": 60
+        },
+        "agent": {
+          "analystLookupBudget": 20,
+          "autoApproveFeedback": false,
+          "feedbackDailyCap": 200
+        },
+        "notifications": {
+          "digest": "auto"
+        },
+        "copy": {
+          "tier": "fragments",
+          "requiredStrings": [],
+          "bannedPhrases": []
+        },
+        "testTraffic": {
+          "emailDomains": []
+        },
+        "guardOverrides": {},
+        "disabledActions": []
+      },
+      "offerings": [
+        {
+          "kind": "project",
+          "key": "sora-at-lakeside",
+          "name": "Sora at Lakeside"
+        }
+      ]
+    }
+  ],
+  "flags": {
+    "writes_enabled": false
+  }
+}

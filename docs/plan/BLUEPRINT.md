@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.4 — 2026-09-25 (SnapPool tracking approved, D-060; the adapter reads before SnapPool's 30-day clean-up, D-064) |
+| **Version** | v3.6 — 2026-09-25 (code review of M01a: fingerprint fields move to contracts, D-067) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -393,7 +393,7 @@ export const WriteOp = z.discriminatedUnion('action', [
 | `resume_entity` / `remove_negative_keyword` | `pause_entity` / `add_negative_keyword` | same idea | These are undos of undos |
 | `mark_abandoned` | none | — | Terminal |
 
-**Fingerprint fields** (`fieldsFor(action)` in `gateway/src/precondition.ts`, the single definition):
+**Fingerprint fields** (`fingerprintFieldsFor(action)` in `contracts/undo.ts`, the single definition, used by the gateway and by anything that stores a precondition hash, such as an undo proposal, D-067). The derived values (`parentStatus`, `negativeListHash`, `criterionExists`, `idempotencyTagUnused`) are computed by `gateway/src/precondition.ts`:
 - `pause_entity`, `resume_entity`, `mark_abandoned`: `status`
 - `adjust_budget`: `status`, `dailyBudgetMicros`, `budgetShared`, `budgetType`
 - `add_negative_keyword`: the parent's `status`, plus a hash of its current negative list
@@ -565,7 +565,7 @@ Terminal statuses: `rejected`, `expired`, `blocked`, `stale`, `failed`, `rolled_
 
 ## 4. Database schema
 
-M01a creates everything below except `source_copy` (M15a), using Drizzle plus migration `0001_init`.
+M01a creates everything below except `source_copy` (M15a), using Drizzle plus migration `0000_init` (drizzle-kit numbers from 0000, D-066). The code is `packages/db/src/schema.ts`; accounts and credentials also get a `product_id` index.
 
 **Conventions:**
 - ids are `uuid default gen_random_uuid()`;
@@ -981,9 +981,11 @@ create index on source_copy (product_id);
 
 | Role | Used by | Grants |
 |---|---|---|
-| `agent_worker` | worker | Read and write on everything except inserting into `change_log`. Optional hardening in M16b. |
-| `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`, `approvals` (for `ads-gw revert` only) |
-| `agent_dashboard` | dashboard | Read on views that exclude `credentials`, `credential_access` and `outcomes.hashed_contact`; `INSERT` on `operator_requests` only |
+| `agent_worker` | worker | Read and write on everything; `change_log` is read-only. Optional hardening in M16b. |
+| `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066) |
+| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access` and `outcomes`; outcomes through the view `dashboard_outcomes` (no `hashed_contact`); `INSERT` on `operator_requests` only |
+
+The grants are `packages/db/sql/roles.sql`, applied by `db:migrate` after the migrations.
 
 ---
 
@@ -1115,7 +1117,7 @@ The cycle result is `fail` if any check fails, which means a diagnostic brief on
 - **Type → action** comes from the registry (§3.7). A type with no action produces a finding only.
 - **Budget amounts.** new = current × (1 + clamp(pct, −max, +max)/100), rounded to the platform unit (Google 10,000 micros; Meta one minor unit). If the change is below the minimum delta, no proposal is made.
 - **Negative keywords.** The text must equal a real search-term row that met the threshold, with match type EXACT or PHRASE only. A BROAD negative could block far more than intended.
-- **Fingerprint** = `sha256Hex(canonicalJson(pick(latestSnapshot, fieldsFor(action))))`.
+- **Fingerprint** = `sha256Hex(canonicalJson(pick(latestSnapshot, fingerprintFieldsFor(action))))`.
 - **Expiry.** `adjust_budget` 72 h; other actions 7 days; operator confirm cards 30 min.
 
 ### 5.12 Attribution
@@ -1196,7 +1198,7 @@ Methods are tried in this order, and the first match wins:
 | 3 | Product status: if halted, only operator-origin spend-reducing actions continue | `deferred: halted` |
 | 4 | Allowlist: the action is enabled for this phase and not removed by the pack or product; undo-only actions need `revertsRevisionId` | `blocked` |
 | 5 | Guards, which need only the DB (cheapest first): `ceiling_unset` → shared budget → magnitude → minimum delta → cooldown → ceilings/projection → budget-neutral set → max per day | `blocked` (names the guard) or `deferred: waiting_for_offsets` |
-| 6 | Fingerprint: re-read the target from the platform, hash `fieldsFor(action)`, compare with the stored hash | `stale` (with the diff) |
+| 6 | Fingerprint: re-read the target from the platform, hash `fingerprintFieldsFor(action)`, compare with the stored hash | `stale` (with the diff) |
 | 7 | Validate: Google `validate_only`; Meta local checks + permission probe (+ validation option where supported) | `failed` |
 | 8 | **Persist** in one transaction: `status='applying'`, `idempotency_key`, `applying_since`, the before-snapshot | — |
 | 9 | Apply (the platform call) | `failed` |
@@ -1291,7 +1293,7 @@ Methods are tried in this order, and the first match wins:
 **Read first:** this file §3.8–3.9 and §4; `packages/contracts`.
 
 **Builds:**
-1. Drizzle schema for every table in §4 except `source_copy`, migration `0001_init`, and the scripts `db:generate` / `db:migrate`. A test-database helper runs against local Postgres 16 (in cloud sessions, `pg_ctlcluster 16 main start`) and a service container in CI.
+1. Drizzle schema for every table in §4 except `source_copy`, migration `0000_init`, and the scripts `db:generate` / `db:migrate`. A test-database helper runs against local Postgres 16 (in cloud sessions, `pg_ctlcluster 16 main start`) and a service container in CI.
 2. `packages/db/sql/roles.sql`: the three database roles and their grants (§4). The test helper applies it; Marcus applies it on Neon in the live steps.
 3. Repositories as plain functions:
    - products and settings, with optimistic concurrency on `settings_version` and `settings_history`;
@@ -1301,7 +1303,7 @@ Methods are tried in this order, and the first match wins:
    - approvals, change log, briefs, operator requests, notifications, drift, system flags, API usage;
    - `createUndoProposal(revisionId)`, which is used by both the worker and the gateway.
 4. An idempotent seed:
-   - `snappool` (active) and `property-sg` (dormant), with settings taken from stub pack defaults until M05a;
+   - from `products/seed.json` (D-066): `snappool` (active) and `property-sg` (dormant), with settings taken from stub pack defaults until M05a;
    - the offering `sora-at-lakeside` (with facts `{}`);
    - `system_flags.writes_enabled = false`.
 
@@ -1935,7 +1937,7 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
    - shared budget.
 
    The budget-neutral set guard comes in M14.
-3. `gateway/precondition.ts` (§3.6): `fieldsFor`, re-read, hash, diff.
+3. `gateway/precondition.ts` (§3.6): re-read, compute the derived values for `fingerprintFieldsFor` (contracts), hash, diff.
 4. A `FakeWriteClient`: an in-memory entity store with call counters. It is the only write client until M12.
 
 **Tests:**

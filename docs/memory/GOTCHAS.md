@@ -22,6 +22,8 @@ Things that surprised us, and external facts the plan depends on.
 - **The SER9 (local sessions, D-058)** runs Linux with Docker, and no login is needed after a reboot. It's shared with production (`ads-agent`) and possibly other projects' containers (e.g. SnapPool's `snappool-worker`). Use the compose project `ads-agent-dev` for dev, and **never** run `docker system prune` or `docker volume prune`. *(2026-09-25)*
 - **Project hooks load at session start.** Edits to `.claude/settings.json` take effect in the *next* session. *(2026-09-25)*
 - **Vercel functions are short-lived and reach Neon through the pooler,** so they can't use LISTEN. The dashboard polls `operator_requests` for results instead (BLUEPRINT M10a). *(design note, 2026-09-25)*
+- **Postgres row locks need UPDATE rights:** `SELECT … FOR UPDATE` (and `FOR SHARE`) fails with 42501 for a role that may only SELECT the table. Use `pg_advisory_xact_lock` to serialise work on a read-only table (e.g. the worker on `change_log`). *(2026-09-25, D-067)*
+- **drizzle-kit resolves imports with Node's resolver,** without our `@ads/source` condition, so `db:generate` sets `NODE_OPTIONS=--conditions=@ads/source` (schema.ts imports contracts). *(2026-09-25)*
 
 ## External facts (checked 2026-09-25)
 
@@ -39,7 +41,7 @@ Things that surprised us, and external facts the plan depends on.
 | **Toolchain versions pinned in M00** (`npm view`, 2026-09-25): pnpm **10.34.5** (latest-10; 11 and 12 exist, not adopted); TypeScript **6.0.3**; zod **4.6.5**; Vitest **5.0.1** (Node ^22.12 / ^24 / ≥26); ESLint **10.11.0**; typescript-eslint **8.70.1**; Turborepo **2.11.4**; dependency-cruiser **18.4.0**; Prettier **3.9.9**; commander **15.0.0**; fast-check **4.10.2**; pino **10.3.1**. | npm registry (`npm view <pkg> version`, `peerDependencies`, `engines`) | 2026-12-25 |
 | **TypeScript 7 (7.0.2, the native Go compiler) is `latest`, but typescript-eslint 8.70 declares `typescript >=4.8.4 <6.1.0`.** So the repo stays on TypeScript 6.0.x until typescript-eslint supports 7. | npm registry: `npm view typescript-eslint peerDependencies` | 2026-12-25 |
 | **AI SDK 7 is `latest`** (`ai` 7.0.114); v6 is still published under the `ai-v6` tag (6.0.291). The plan (PROPOSAL §10) says AI SDK 6. M06a decides after reading the v7 migration guide. | npm registry: `npm view ai dist-tags` | at M06a |
-| **Drizzle:** `drizzle-orm` `latest` is still **0.45.3**; 1.0 is at `1.0.0-rc.5` (release candidate). M01a picks one. | npm registry: `npm view drizzle-orm dist-tags` | at M01a |
+| **Drizzle (chosen in M01a):** `drizzle-orm` `latest` is **0.45.3** and `drizzle-kit` `latest` is **0.31.11** (both published 2026-09-21); 1.0 is still `1.0.0-rc.4` (tag `rc`). M01a pins the stable 0.45.3 / 0.31.11 with node-postgres `pg` **8.23.0** (`@types/pg` 8.23.1); drizzle-orm's peer range for `pg` is `>=8`. Move to 1.0 once it's `latest`. | npm registry: `npm view drizzle-orm dist-tags`, `npm view drizzle-kit dist-tags`, `npm view pg dist-tags` | 2026-12-25 |
 | **AI SDK 6** deprecated `generateObject`/`streamObject`. Use `generateText`/`streamText` with `output: Output.object({ schema })`; multi-step flows need `stopWhen`. | ai-sdk.dev/docs/migration-guides/migration-guide-6-0; vercel.com/blog/ai-sdk-6 | at M06 |
 | **Vercel's Hobby plan** is for personal, non-commercial use only. Commercial use needs Pro or Enterprise. *(Not a problem here: Marcus has Vercel Pro, D-054.)* | vercel.com/docs/plans/hobby; vercel.com/docs/limits/fair-use-guidelines | at M10 |
 | **Neon:** the Free plan gives 100 compute-hours per project per month, and compute scales to zero after 5 idle minutes. The pooler is PgBouncer in **transaction mode**, so LISTEN/NOTIFY, session advisory locks and `SET` don't work through it. Use the direct host for those. *(Marcus is on the paid plan, D-055, so the free-tier limits don't apply; the pooler limits still do.)* | neon.com/docs/connect/connection-pooling; neon.com pricing and FAQs | at M01 |
@@ -51,6 +53,10 @@ Things that surprised us, and external facts the plan depends on.
 
 These come from the v3 review. The ones marked *(training knowledge)* weren't re-verified on 2026-09-25, so verify them in the milestone named.
 
+- **drizzle-kit 0.31 can't write a JS bigint column default** (`.default(0n)` fails `generate` with "Do not know how to serialize a BigInt"). Write `.default(sql\`0\`)`. *(M01a, 2026-09-25)*
+- **Drizzle 0.45's jsonb reader re-parses string values:** a stored JSON string `"true"` reads back as boolean `true`. Store objects, or select `col::text` and `JSON.parse` once (`getFlag` does). *(M01a, 2026-09-25)*
+- **Drizzle wraps Postgres errors** (`DrizzleQueryError`, the pg error in `cause`). Match constraints with `isUniqueViolation()` in `@ads/db`, or `expectConstraint` in tests. *(M01a, 2026-09-25)*
+- **Postgres roles are cluster-wide, grants are per database.** `roles.sql` creates roles only if missing, and the test template carries the grants into every cloned test database. *(M01a, 2026-09-25)*
 - **`JSON.stringify` throws on BigInt.** Money in JSON is a decimal string of micros (BLUEPRINT §3.1).
 - **Meta money units:** budgets are in minor units (SGD cents), while insights report spend as decimal strings. Google uses micros. Convert exactly; never `parseFloat`.
 - **Meta can't map an `fbclid` to a campaign.** Put `{{campaign.id}}`, `{{adset.id}}` and `{{ad.id}}` URL parameters on every ad, and capture them at landing.

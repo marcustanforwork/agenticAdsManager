@@ -13,6 +13,15 @@ In the milestone file (e.g. `docs/milestones/M05a-pack-sdk-snappool.md`), every 
 
 Run each listed check. Paste the command and the key lines of its output into the milestone file under **Evidence**. Then run the full `preflight` skill.
 
+## 2b. Code review (D-067)
+
+Run the `code-review` skill at **high** effort over the whole milestone diff (`origin/main...HEAD`). For each finding:
+- **Confirm it** against the code. For a bug, write a test that fails on the old code.
+- **Fix it**, or record why not in the milestone file's Notes and in the PR (e.g. "efficiency only; not worth the risk").
+- Security-sensitive milestones (M01b, M10a, M11b, M12, M13) also run `security-review`.
+
+Re-run the full `preflight` after the fixes.
+
 ## 3. Review the invariants (BLUEPRINT §8)
 
 Review the **whole milestone's** changes, not just the last PR:
