@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-09-25 |
 | **Reviewed** | `docs/archive/proposal-v2.1.md` and `docs/archive/blueprint-v2.1.md` (both generated on 2026-09-14) |
-| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 (§H), v3.2 (§I) and v3.3 (§J) the same day after Marcus's replies |
+| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 (§H), v3.2 (§I), v3.3 and v3.4 (§J) the same day after Marcus's replies |
 | **Method** | Read both documents in full. Checked every mechanism for "what happens if…", cross-checked the two documents against each other, and re-checked external facts against current sources (2026-09-25). |
 
 **Headline.** The v2 design is sound, and its core ideas stay:
@@ -208,13 +208,14 @@ Reply "all OK", or name the ones you disagree with, in `docs/memory/QUESTIONS.md
 - **The funnel is `/start` request → email-verified claim → first photo.** That gives the stage defaults `pool_request` / `signup` / `activated`.
 - **Activation usually happens on the event day,** weeks after the ad click. It's for reporting, not for platform feedback.
 
-## J. Marcus's third round of answers (v3.3, 2026-09-25)
+## J. Marcus's third round of answers (v3.3 and v3.4, 2026-09-25)
 
 | # | Marcus said | What changed |
 |---|---|---|
 | J1 | Q12: "Yes, it's $500 dollars." Not sure about auto-reset: "I'll manually do the reset if I need to, but I will adjust the limits when we are trying as well." | D-063 supersedes D-061. The budget is **S$500 a month**. The agent reads Meta's limit on every sync instead of assuming it, and never changes it. `spend_cap_headroom` now runs from **M04** (it was only in M12), because ads are live in Phase 0 and every Meta campaign stops at the limit. The digest shows the usage and a reset reminder on the 1st (M07). The M05a live steps now enter the starting settings: test email domains and ceilings. |
 | J2 | Q11: "Tracking plan for which project?" | Clarified; nothing changed in substance. The tracking change is built in the **snappool** repo, and this repo only reads what it saves. Q11 and `SNAPPOOL-TRACKING.md` §0 now say so first. Q11 stays open. |
 | J3 | "After that we can merge", then a clean context for M00 | PR #1 is merged on his instruction, after CI passes (D-057). GIT-WORKFLOW §4 and §8 and the `start-session` skill now cover a cloud branch whose PR is already merged: reset it to `main` before new work. |
+| J4 | Q11: "yes okay"; then "so we don't need Meta's pixel or Google API integration?" and "give me a prompt, I'll run it on my local machine" | **D-060 adopted** (v3.4). Right: SnapPool needs no pixel, tag or API code; the API work is this repo's (M02, M03, M12, M13), plus platform setup (T4, T11, T14). Writing the prompt meant reading SnapPool's code, and that found gaps in the spec, fixed as **D-064** (`SNAPPOOL-TRACKING.md` v1.2): the middleware is only the `/host` login guard, so capture must be split by path; click ids are never cut; `page_url` comes from `Referer`; repeat `/start` keeps the earlier attribution; the privacy page needs three edits because it promises "never share it with advertisers"; migration before deploy. The prompt is §7. |
 
 ## What did not change
 

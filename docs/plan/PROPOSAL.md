@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Version** | v3.3 — 2026-09-25 (Q12 answered: S$500 a month, and Marcus resets the Meta limit by hand, D-063) |
+| **Version** | v3.4 — 2026-09-25 (Q11 answered: the SnapPool tracking plan is approved, D-060; spec fixes, D-064) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
-| **Status** | Reviewed by Marcus on 2026-09-25. The v3 recommendations are **approved** (D-039 to D-053). One new proposal waits for his OK: the SnapPool conversion-tracking plan (D-060, `docs/plan/SNAPPOOL-TRACKING.md`, QUESTIONS Q11). Open questions are tracked in `docs/memory/QUESTIONS.md`. |
+| **Status** | Reviewed by Marcus on 2026-09-25. The v3 recommendations are **approved** (D-039 to D-053). The SnapPool conversion-tracking plan is **approved** too (D-060, `docs/plan/SNAPPOOL-TRACKING.md`, QUESTIONS Q11). Open questions are tracked in `docs/memory/QUESTIONS.md`. |
 
 > **How to read this.** §0 is the one-page version. §1 is a glossary that defines every term once; if a word in the plan seems vague, look there. The rest explains *what* we are building and *why*. The blueprint explains *how*, and `docs/memory/NOW.md` says where the build currently stands.
 
@@ -483,7 +483,7 @@ Feeding real outcomes back to the platforms is the biggest lever in the whole sy
    - Browser tag or pixel plus a server event carrying the **same event id**, so the platform de-duplicates them; **or**
    - Server upload only.
 
-   Never count one conversion through two uncoordinated paths. **For SnapPool (D-060, needs OK in Q11):** no browser pixel or tag for now. **The agent is the only path.** It uploads `pool_request` (Meta `Lead`) and `signup` (Meta `CompleteRegistration`; Google offline click conversion) server to server. A pixel can be added later using the same event ids. *This replaces the earlier D-047, which assumed SnapPool already had tracking. It has none.*
+   Never count one conversion through two uncoordinated paths. **For SnapPool (D-060, approved in Q11):** no browser pixel or tag for now. **The agent is the only path.** It uploads `pool_request` (Meta `Lead`) and `signup` (Meta `CompleteRegistration`; Google offline click conversion) server to server. A pixel can be added later using the same event ids. *This replaces the earlier D-047, which assumed SnapPool already had tracking. It has none.*
 3. **Exclude test and internal signups.** Each outcome carries an `isTest` flag. Test outcomes are never uploaded and never counted in KPIs. For SnapPool, a test signup is one from a listed **email domain** (a product setting, D-059) or the superadmin.
 4. **Respect time limits.** Meta rejects a whole batch if any website event is older than 7 days, so the agent uploads at least daily (hourly once auto-approved) and skips events older than 6.5 days. Google imports must arrive within the conversion window after the click (*verify in M13*).
 5. **Treat uploads as irreversible.** Meta uploads cannot be undone, and Google offers only retractions. Therefore:
@@ -646,7 +646,7 @@ All decisions, with reasons and alternatives, are recorded in `docs/memory/DECIS
   - D-059: SnapPool test signups identified by email domain;
   - D-062: the Housing category is confirmed for property;
   - D-063: a budget of S$500 a month; Marcus resets and adjusts the Meta spending limit by hand, and the agent reads it live (replacing D-061).
-- **Waiting for Marcus's OK:** D-060, the SnapPool tracking plan (Q11).
+- **D-060**, the SnapPool tracking plan: approved by Marcus (Q11). **D-064**: fixes to its spec after reading SnapPool's code (Claude).
 
 ---
 
@@ -659,9 +659,9 @@ These are done outside Claude Code. Each lists the milestone it blocks. Google a
 | T1 | **GitHub repo settings:** protect `main` (require a PR and passing checks, no force-push); squash-merge only; auto-delete merged branches | Before M00 merges | `docs/process/GIT-WORKFLOW.md` §9 |
 | T2 | **Neon:** a project for the agent with `prod` and `dev` branches | M01a live steps | On your existing paid plan (D-055), separate from SnapPool's project |
 | T3 | **Doppler:** a project with `dev`, `worker`, `gateway` and `dashboard` configs; generate the two vault master keys (read, write) | M01a live steps | Never give Claude sessions the `worker`/`gateway` configs |
-| T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). Generate a Conversions API token for SnapPool's dataset. **Set an account spending limit** on the SnapPool ad account at about your monthly budget (S$500 to start). It's a lifetime total, so **reset it by hand** at the start of each month, or turn on auto-reset if your billing page offers it. Change it whenever you like, e.g. during trials: the agent reads it from Meta (D-063). Load the tokens with the CLI (M01b) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
+| T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). In Events Manager, create a **dataset** for SnapPool. Meta used to call it a pixel, but its code is **not** installed on the site (D-060). Generate a Conversions API token for it. **Set an account spending limit** on the SnapPool ad account at about your monthly budget (S$500 to start). It's a lifetime total, so **reset it by hand** at the start of each month, or turn on auto-reset if your billing page offers it. Change it whenever you like, e.g. during trials: the agent reads it from Meta (D-063). Load the tokens with the CLI (M01b) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
 | T5 | **Google:** a manager account (MCC) with the property account and a new SnapPool account under it. Get a developer token from the MCC's API Center: **Explorer access** works on real accounts immediately; also apply for **Basic**. Create an OAuth client in a GCP project. Create **two Google logins**: one with *read-only* access to the ad accounts (for sync) and one with *standard* access (for writes and uploads) **(D-046)**. Set up a separate *test* manager account with a test client account. | M03 (read), M13 (write) | Days of lead time |
-| T6 | **SnapPool:** (a) ~~schema info~~, done by Claude from the repo (`SNAPPOOL-TRACKING.md` §1–2); still needed: a **read-only connection string** in Doppler `dev`/`worker`; (b) **build the tracking change** in the SnapPool repo, per `SNAPPOOL-TRACKING.md` §3, as a SnapPool session, **early**, because attribution only works from the day it ships; (c) ~~current tracking~~, confirmed as none; (d) the test-signup **email domains**, entered as a setting in the M05a live steps | M05a (a, d), M05b and M12 (b) | (b) happens in SnapPool's repo, not this one |
+| T6 | **SnapPool:** (a) ~~schema info~~, done by Claude from the repo (`SNAPPOOL-TRACKING.md` §1–2); still needed: a **read-only connection string** in Doppler `dev`/`worker`; (b) **build the tracking change** in the SnapPool repo, **early**, because attribution only works from the day it ships: paste the prompt in `SNAPPOOL-TRACKING.md` §7 into a SnapPool session, apply its migration to production before deploying, and approve the privacy wording in its PR; (c) ~~current tracking~~, confirmed as none; (d) the test-signup **email domains**, entered as a setting in the M05a live steps | M05a (a, d), M05b and M12 (b) | (b) happens in SnapPool's repo, not this one |
 | T7 | **Telegram:** create the bot with BotFather and send Marcus's numeric user id | M07 | |
 | T8 | **healthchecks.io:** three checks (worker alive, gateway alive, daily sync) | M07 | |
 | T9 | **Langfuse:** a project and API keys | M06a | |

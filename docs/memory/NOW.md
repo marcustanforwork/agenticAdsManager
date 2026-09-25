@@ -2,32 +2,37 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · plan v3.3, merged into `main` through PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1) on Marcus's instruction, after CI passed (D-057)
+**Last updated:** 2026-09-25 · cloud session · plan v3.4, merged into `main` through PR [#2](https://github.com/marcustanforwork/agenticAdsManager/pull/2) on Marcus's instruction, after CI passed (D-057). PR #1 (plan v3.3) was merged earlier the same day.
 
 ## Where we are
 - **Phase:** planning is done. Phase 0 starts with M00.
 - **Active milestone:** none. **M00 is next.**
-- **Status:** plan v3.3 is on `main`. All of Marcus's answers so far are recorded (D-039–D-053 adopted; D-054–D-063). The budget is S$500 a month; Marcus resets and adjusts the Meta spending limit by hand, and the agent reads it live (D-063). SnapPool has no tracking today: the fix is a small change built in the **snappool** repo (`docs/plan/SNAPPOOL-TRACKING.md`), waiting for his OK (Q11).
+- **Status:** plan v3.4. **Every question is answered** (D-039–D-064). The SnapPool tracking plan is approved (D-060). Its spec, `docs/plan/SNAPPOOL-TRACKING.md` v1.2, now has fixes from reading SnapPool's code (D-064), and in §7 **the prompt Marcus pastes into a SnapPool session** to build it. Budget: S$500 a month; Marcus resets the Meta limit by hand, and the agent reads it live (D-063).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens: 25 sessions (BLUEPRINT §9). Local sessions will later run on the SER9 (D-058).
 
 ## Next action
-1. **Claude (next session: clean context, Opus 5.5, medium effort):** run `start-milestone` for **M00**. It needs nothing from Marcus, except T1 before its PR is merged. Cloud: if your assigned branch's PR is already merged, reset the branch to `origin/main` first (`start-session` §2).
-2. **Marcus:** setup task **T1** (GitHub repo settings: `docs/process/GIT-WORKFLOW.md` §9), before M00's PR is merged.
-3. **Marcus:** answer **Q11**: OK the SnapPool tracking change and the privacy wording. Then a session in the **snappool** repo builds it from `SNAPPOOL-TRACKING.md` §3. **Do it early:** ads can only be credited for visitors who arrive after it ships.
-4. **Marcus:** the setup tasks that take days: **T5** (Google), **T4** (Meta, including a spending limit of about S$500 that you reset by hand), **T6a** (a read-only SnapPool DB connection string); and **T14** (ad URL settings) when the ads are created. The full list is in `PROPOSAL.md` §16.
+1. **Marcus: the SnapPool tracking change (T6b), early.**
+   - Paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a Claude Code session in the **snappool** repo, on a machine where `gh` is signed in.
+   - Apply its migration to production **before** deploying.
+   - Approve the privacy wording in its PR.
+   - When it's live, tell Claude the date, and record it under **Deployed** below. Attribution data starts that day.
+2. **Claude (next session: clean context, Opus 5.5, medium effort):** run `start-milestone` for **M00**. It needs nothing from Marcus, except T1 before its PR is merged. Cloud: if your assigned branch's PR is already merged, reset the branch to `origin/main` first (`start-session` §2).
+3. **Marcus:** setup task **T1** (GitHub repo settings: `docs/process/GIT-WORKFLOW.md` §9), before M00's PR is merged.
+4. **Marcus:** the setup tasks that take days: **T5** (Google), **T4** (Meta: a dataset with a Conversions API token, no pixel code on the site, and a spending limit of about S$500 that you reset by hand), **T6a** (a read-only SnapPool DB connection string); and **T14** (ad URL settings) when the ads are created. The full list is in `PROPOSAL.md` §16.
 
 ## In flight
-- Nothing. PR #1 (plan v3.3, process docs, the memory system, the skills and the SnapPool tracking spec) was squash-merged into `main` on 2026-09-25.
+- Nothing. PR #2 (Q11 recorded, spec v1.2 with fixes and the SnapPool prompt) was squash-merged into `main` on 2026-09-25.
 
 ## Blocked on Marcus
-- Q11 in `QUESTIONS.md`. It doesn't block M00–M05a.
-- Setup tasks T1–T14 (`PROPOSAL.md` §16).
+- No open questions.
+- The SnapPool tracking change (T6b), and setup tasks T1–T14 (`PROPOSAL.md` §16).
 
 ## Live steps for Marcus
-- None yet.
+- The SnapPool session (Next action 1).
 
 ## Deployed
-- Nothing deployed yet.
+- Ads Agent: nothing yet.
+- SnapPool tracking (T6b): not built yet. Record its go-live date here; attribution data starts then.
 
 ## Milestone tracker (one row = one session)
 | M | Title | Ph | Status | PR | Notes |

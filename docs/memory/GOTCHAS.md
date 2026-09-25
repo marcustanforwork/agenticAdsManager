@@ -57,4 +57,4 @@ These come from the v3 review. The ones marked *(training knowledge)* weren't re
 
 ## SnapPool facts (read from its repo on 2026-09-25, commit `a6c190a`)
 
-See `docs/plan/SNAPPOOL-TRACKING.md` §1–2, the single place these live: stack, the funnel tables (`pool_requests` → `hosts` → `events.first_upload_at`), open signup since 2026-09-20, no checkout (free beta; signup window to 2026-11-30), no tracking at all, CSP, and the privacy page. Re-read that section, and SnapPool's own `memory/MEMORY.md`, before M05a, because SnapPool changes fast.
+See `docs/plan/SNAPPOOL-TRACKING.md` §1–2, the single place these live: stack, the funnel tables (`pool_requests` → `hosts` → `events.first_upload_at`), open signup since 2026-09-20, no checkout (free beta; signup window to 2026-11-30), no tracking at all, CSP, the middleware (only the `/host` login guard), pending requests deleted after 30 days, and what the privacy page promises today. Re-read that section, and SnapPool's own `memory/MEMORY.md`, before M05a, because SnapPool changes fast.

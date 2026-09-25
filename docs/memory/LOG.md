@@ -4,6 +4,26 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — Q11 approved; the SnapPool prompt; spec fixes from SnapPool's code
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` (reset to `main` after PR #1 merged) · PR [#2](https://github.com/marcustanforwork/agenticAdsManager/pull/2)
+- **Did:**
+  - Marcus OK'd Q11: **D-060 adopted**.
+  - He asked whether a pixel or Google API work is needed. Answer: not in SnapPool. The API work is this repo's (M02, M03, M12, M13), plus platform setup (T4, T11, T14). T4 now says "create a dataset; don't install its pixel code".
+  - He asked for a prompt to build the SnapPool change on his local machine. Reading SnapPool's code at `a6c190a` to write it found gaps, fixed in `SNAPPOOL-TRACKING.md` v1.2 (**D-064**):
+    - the middleware is only the Auth.js `/host` guard, and would send every ad visitor to `/login` if simply widened;
+    - click ids were being cut to 255 characters;
+    - `page_url` now comes from `Referer`;
+    - a repeat `/start` keeps the earlier attribution;
+    - the privacy page promises "never share it with advertisers", so it needs three edits;
+    - the migration must reach production before the deploy.
+  - The prompt is §7. It has the SnapPool session add the work to SnapPool's own blueprint as its next session.
+  - M05a: SnapPool deletes pending requests after 30 days, so the adapter reads at least daily.
+  - Squash-merged PR #2 into `main` on Marcus's instruction, after CI passed (D-057), and reset the branch to `main`.
+- **Decided:** D-060 adopted (Marcus); D-064 (Claude, fix).
+- **Learned:** `gh api … -H 'Accept: application/vnd.github.raw'` returns a file's raw text (tested against this repo). SnapPool is on Next.js 15.5; its middleware lives in `middleware.ts`.
+- **Next:** Marcus runs the SnapPool session with the §7 prompt. A clean session starts M00.
+- **Open:** no questions; the SnapPool change (T6b); setup tasks T1–T14.
+
 ## 2026-09-25 — Q12 answered; Q11 clarified; PR #1 merged
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1)
 - **Did:**

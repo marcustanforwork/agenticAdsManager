@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Version** | v1.1 — 2026-09-25 (§0 now says first which repo the work is in) |
-| **Status** | **Proposed**. Decision D-060 needs Marcus's OK (QUESTIONS Q11). |
+| **Version** | v1.2 — 2026-09-25 (approved by Marcus; fixes from reading SnapPool's code, D-064; the prompt for the SnapPool session, §7) |
+| **Status** | **Approved** by Marcus on 2026-09-25 (D-060, Q11). Not built yet: setup task T6b. |
 | **Built in** | The **SnapPool repo** (`marcustanforwork/snappool`), by a SnapPool session following SnapPool's own process. This repo only uses what it produces. |
 | **Used by** | M05a (outcomes), M05b (attribution), M12 (Meta uploads) and M13 (Google uploads) in this repo |
-| **Based on** | The SnapPool repo at commit `a6c190a` and its `memory/MEMORY.md`, read on 2026-09-25. |
+| **Based on** | The SnapPool repo at commit `a6c190a` (still its `main` on 2026-09-25) and its `memory/MEMORY.md`, `CLAUDE.md` and blueprint, read on 2026-09-25. |
 
 ---
 
@@ -24,7 +24,8 @@
 
   Revisit this if match rates turn out poor (§5).
 - **Do it early.** Attribution only works for visitors who arrive *after* this ships, so it should land before ad spend grows, and well before M05b.
-- **Size:** one small SnapPool session: one migration, middleware, one API change, a privacy-page update and tests. Roughly 150–300 lines.
+- **Size:** one small SnapPool session: one migration, middleware, one API change, a privacy-page update and tests. Roughly 200–400 lines, most of them tests.
+- **To build it:** paste the prompt in §7 into a Claude Code session in the `snappool` repo.
 
 ---
 
@@ -39,7 +40,13 @@
 | Money | **No checkout.** The pricing phase is `beta` (free, no prices shown). Upgrades are free in beta; any other phase returns `checkout_unavailable`. Beta programme: signup window to **2026-11-30**; free plans honoured to **2027-01-01**. |
 | Tracking | None. No pixel, no Google tag, no analytics tool, no click-ID or `utm_*` capture. |
 | Security headers | CSP `script-src 'self' 'unsafe-inline'`. A browser pixel would need CSP changes; this plan needs none. |
-| Privacy | A privacy page exists (`app/(marketing)/privacy`, text in `messages/en/privacy.json`). |
+| Middleware | `middleware.ts` (Next.js 15.5) is **only the Auth.js login guard for `/host`**. Its matcher is `/host/:path*`, and it redirects **every** matched request without a signed-in user to `/login`. |
+| `/start` | The page is `app/start/page.tsx`, outside the marketing route group. It already says "By continuing you agree to the terms and privacy policy". The form POSTs JSON to `/api/start` (`app/api/start/route.ts`), which calls `startPool()` in `lib/pool-requests.ts`. A repeat `/start` for the same email updates the one pending row (an upsert) and re-sends the link. |
+| Referrer policy | `strict-origin-when-cross-origin`, so the same-origin POST to `/api/start` carries the full `/start` URL in its `Referer` header. |
+| Retention | Pending (unclaimed) requests are deleted after **30 days** (`POOL_REQUEST_TTL_DAYS`). |
+| Privacy | A privacy page exists (`app/(marketing)/privacy`, text in `messages/en/privacy.json`). Today it promises "we never sell personal data, **never share it with advertisers**…", names three services that handle data (Resend, Sentry, Cloudflare Workers AI), and its Cookies section lists only the sign-in and guest cookies. |
+| Migrations | SnapPool's own rule: deploys don't run migrations, so a migration isn't shipped until the **production** Neon branch has it. |
+| Process | SnapPool sessions are numbered in `SnapPool-BLUEPRINT.md` (Session 40 is the latest), with its own `CLAUDE.md`, `memory/MEMORY.md` and `docs/DECISIONS.md`. |
 
 ---
 
@@ -76,12 +83,20 @@ Every ad carries its own identity in its URL, so attribution is exact:
 
 ### 3.2 Remember the click (`middleware.ts`)
 
-- **When:** a page request (not an API route or an asset) carries any of `gclid`, `gbraid`, `wbraid`, `fbclid`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `sp_agid`, `sp_adid`. SnapPool then sets a first-party cookie **`sp_attr`**.
+- **Keep the `/host` login guard exactly as it is.** Today the whole middleware is that guard, and it sends every matched request without a user to `/login`. Widening its matcher without splitting by path would send **every ad visitor to the login page**. So:
+  - `/host/*` goes through the unchanged Auth.js guard;
+  - landing pages run only the click capture, which never redirects and doesn't read the session.
+- **Where the capture runs:** the pages an ad can land on, meaning the marketing pages and `/start`. Not API routes or assets, and not the guest pages (`/e`, `/g`), which are the busiest paths during an event.
+- **When it sets the cookie:** the request carries any of `gclid`, `gbraid`, `wbraid`, `fbclid`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `sp_agid` or `sp_adid`. SnapPool then sets a first-party cookie, **`sp_attr`**.
 - **The cookie holds:**
-  - those parameters (only these keys, each truncated to 255 characters);
+  - those parameters, and only these keys:
+    - click ids (`gclid`, `gbraid`, `wbraid`, `fbclid`) are kept **whole**, up to 512 characters. A longer one is dropped, never cut, because a cut id matches nothing.
+    - other values are truncated to 255 characters.
   - `landing_url` (path + query, max 1,024 characters);
   - `captured_at` (ISO time);
   - and, when `fbclid` is present, `fbc = fb.1.<epoch_ms>.<fbclid>` (Meta's click-cookie format).
+
+  The whole cookie stays under about 3.5 KB, because browsers cap a cookie at 4 KB. If it's larger, shorten `landing_url` first.
 - **Cookie attributes:** `Path=/; Max-Age=7776000` (90 days); `SameSite=Lax; Secure; HttpOnly`. Only the server needs to read it.
 - **The last paid click wins.** A new click id or `utm_source` replaces the cookie; a visit without parameters never clears it.
 - No script is involved, so there's no CSP change.
@@ -92,24 +107,39 @@ Every ad carries its own identity in its URL, so attribution is exact:
   - `attribution jsonb`: the validated cookie contents;
   - `user_agent text`: at most 512 characters, from the request header. **Meta requires the browser user agent for website events.**
   - `page_url text`: the `/start` page URL, at most 1,024 characters. **Meta requires the event's page URL for website events.**
-- **`/api/start`** reads the cookie and headers, validates them with zod, and stores them. No cookie means an organic visit, so the columns stay null. A malformed cookie is ignored, not treated as an error.
+- **Order matters:** the migration goes on the **production** Neon branch *before* the code is deployed. Otherwise `/api/start` fails and signups stop (SnapPool's own rule, §1).
+- **`/api/start`:**
+  - It reads the `sp_attr` cookie and the `User-Agent` header.
+  - It takes `page_url` from the `Referer` header, and only if that is a `snappool.photos` URL. The `/start` form doesn't change.
+  - It validates all of it with zod, in a module that doesn't touch the database (like `lib/pool-start-input.ts`), and passes it to `startPool()`.
+  - No cookie means an organic visit, so `attribution` stays null. A malformed cookie is ignored, not treated as an error.
+  - **Nothing about attribution may ever block a signup.**
+- **A repeat `/start`** (the upsert on the pending row) keeps the existing `attribution` unless the new request has one, so the last paid click wins. `user_agent` and `page_url` take the new values.
+- **Keep it server-side:** these columns never appear in any API response, and their raw values aren't logged.
 - **Don't store the IP address.** That keeps the privacy footprint small. The cost is a slightly lower Meta match rate, which is acceptable.
 
 ### 3.4 Privacy page (PDPA)
 
-Add a short paragraph along these lines: *"To learn which ads bring people to SnapPool, we share ad-click identifiers and a one-way scrambled (hashed) version of your email address with Google and Meta. They use it only to measure our ads."* **The final wording is Marcus's call (Q11).**
+The page needs **three edits**, not just a new paragraph, because of what it says today (§1):
+1. **The promise "never share it with advertisers".** Keep "we never sell personal data". Say plainly that SnapPool shares ad-click identifiers and a hashed email with Google and Meta, only to measure its own ads.
+2. **The list of services that handle data:** add Google and Meta, for ad measurement.
+3. **The Cookies section:** add the ad-click cookie. It's set only when a visitor arrives from an ad link, holds the ad's identifiers, and is kept for 90 days.
+
+Then update the page's `updated` date. A starting point for the words: *"To learn which ads bring people to SnapPool, we share ad-click identifiers and a one-way scrambled (hashed) version of your email address with Google and Meta. They use it only to measure our ads."* Marcus OK'd the approach (Q11). **He approves the exact words in the SnapPool PR.**
 
 ### 3.5 Tests in SnapPool
 
 - **Middleware:**
   - it sets `sp_attr` only when allowed parameters are present, and ignores any others;
-  - it truncates long values;
+  - it truncates long values, but drops a click id over 512 characters instead of cutting it;
   - the `fbc` format is right;
-  - a later click replaces an earlier one, and a visit without parameters keeps it.
+  - a later click replaces an earlier one, and a visit without parameters keeps it;
+  - **`/host/*` without a session still redirects to `/login`**, and a landing page with ad parameters never redirects, whether or not the visitor is signed in.
 - **`/api/start`:**
   - it stores `attribution`, `user_agent` and `page_url`;
   - an organic request stores nulls;
-  - a malformed cookie is ignored.
+  - a malformed cookie, or a `Referer` from another site, is ignored and the signup still succeeds;
+  - a repeat `/start` without a cookie keeps the earlier attribution.
 - **The claim flow is unchanged,** so its existing tests keep passing.
 
 ---
@@ -142,8 +172,64 @@ Add a short paragraph along these lines: *"To learn which ads bring people to Sn
 
 ---
 
-## 6. Open points for Marcus
+## 6. Status and what's left
 
-- **Q11:** OK this approach? And what wording for the privacy page?
-- The Meta event names: the defaults are `Lead` and `CompleteRegistration`.
+- **Q11:** approved by Marcus on 2026-09-25 (D-060). He approves the privacy-page words in the SnapPool PR (§3.4).
+- **The Meta event names:** the defaults are `Lead` and `CompleteRegistration`.
 - **Setup task T14:** the ad URL settings in §3.1, applied when the ads are created.
+- **When it's live on production, record the date** in this repo's `docs/memory/NOW.md`. Attribution data starts from that day.
+- **For the agent (M05a):** SnapPool deletes pending requests after 30 days, so the adapter reads at least daily and keeps what it has read. A pending row that disappears is not a deleted outcome.
+
+---
+
+## 7. The prompt for the SnapPool session
+
+Paste this into a new Claude Code session in the `snappool` repo, on a machine where `gh` is signed in. It reads this spec from `main` of this repo, so merge any pending change to this file first.
+
+```text
+We're adding ad-click attribution to SnapPool, so that the Ads Agent (a separate
+project in marcustanforwork/agenticAdsManager) can later tell Google and Meta
+which ads produced sign-ups. This session builds only SnapPool's part: remember
+the ad click, and save it with the /start request. Nothing in SnapPool calls
+Google or Meta, and there is no pixel or Google tag.
+
+1. Read the spec. It's approved (Marcus, 2026-09-25) and it's the source of truth:
+     gh api 'repos/marcustanforwork/agenticAdsManager/contents/docs/plan/SNAPPOOL-TRACKING.md?ref=main' -H 'Accept: application/vnd.github.raw'
+   Build §3.2 to §3.5. (§3.1 is a setup step for me, not code.) §1 lists the
+   SnapPool facts it was written against (commit a6c190a): re-check them against
+   the current code, and tell me if anything no longer holds. If the command
+   fails, ask me to paste the file.
+
+2. Follow this repo's own process (CLAUDE.md, /session-start). This is new scope:
+   add it to SnapPool-BLUEPRINT.md as the next numbered session, with Exit Gates,
+   and record the decision in docs/DECISIONS.md. Confirm the session number with
+   me before writing code.
+
+3. Four things that must not go wrong:
+   - middleware.ts is today only the Auth.js login guard for /host, and it
+     redirects every matched request without a user to /login. Keep that guard
+     exactly as it is. The click capture runs only on the pages an ad can land
+     on (the marketing pages and /start): it never redirects and doesn't read
+     the session. It doesn't run on /api, assets or the guest pages (/e, /g).
+   - Nothing about attribution may block a sign-up. A missing or malformed
+     cookie just means no attribution.
+   - The migration must reach the production Neon branch BEFORE the code is
+     deployed, or /api/start breaks and sign-ups stop. Remind me, and don't
+     call the session done until I confirm it's applied.
+   - The privacy page promises "never share it with advertisers". It needs the
+     three edits in §3.4. Show me the exact new wording; I approve it in the PR.
+
+4. Out of scope: any pixel or tag, any call to Google or Meta, a consent
+   banner, and any admin or reporting screen.
+
+5. Done when:
+   - the §3.5 tests pass, and pnpm test is green (plus the e2e specs the change
+     touches);
+   - on a Vercel preview, opening /?utm_source=meta&fbclid=test123 sets the
+     sp_attr cookie, and a /start submitted afterwards stores attribution,
+     user_agent and page_url on its pool_requests row;
+   - /host still redirects to /login when signed out.
+
+6. When it's live on production, tell me the date. Attribution data starts that
+   day, and the Ads Agent needs to know it.
+```
