@@ -1,0 +1,52 @@
+# Gotchas and verified facts
+
+Things that surprised us, and external facts the plan depends on.
+- **Deduplicate:** update an existing entry instead of adding a near-copy.
+- **Date everything:** every external fact has a source and a re-check date (the `verify-external-facts` skill).
+
+---
+
+## Environment (Claude Code sessions)
+
+- **Cloud sessions have no `gh` CLI.** Use the GitHub MCP tools, loading them with ToolSearch if they're deferred. *(2026-09-25)*
+- **The cloud container** runs Ubuntu 24.04, Node 22.22 and pnpm 10.33, and has ripgrep.
+  - PostgreSQL 16 is installed but stopped. Start it with `pg_ctlcluster 16 main start`.
+  - Docker is the **client only, with no daemon**: build images in CI, not in cloud sessions.
+  - The project targets Node 24, so M00 decides how cloud sessions get it (e.g. installed by the SessionStart hook).
+
+  *(2026-09-25)*
+- **The network proxy in cloud sessions blocks some documentation sites:** `developers.facebook.com`, `developers.google.com` and `ads-developers.googleblog.com` (WebFetch returns `EGRESS_BLOCKED`). WebSearch works and usually quotes those pages. *(2026-09-25)*
+- **The cloud harness has its own Stop hook,** which blocks stopping while changes are uncommitted or unpushed. This repo's Stop hook only adds the memory check, plus a push check for local sessions. *(2026-09-25)*
+- **Project hooks load at session start.** Edits to `.claude/settings.json` take effect in the *next* session. *(2026-09-25)*
+
+## External facts (checked 2026-09-25)
+
+| Fact | Source | Re-check by |
+|---|---|---|
+| **Google conversion uploads:** since 2026-06-15, `ConversionUploadService.UploadClickConversions` (Google Ads API) is blocked for developer tokens not on the legacy allowlist (tokens active in roughly the first half of 2026). The replacement is the **Data Manager API**: `POST https://datamanager.googleapis.com/v1/events:ingest`, OAuth scope `https://www.googleapis.com/auth/datamanager`, **no developer token**. The destination is `operatingAccount {product: GOOGLE_ADS, accountId}` plus `productDestinationId` (the conversion action id). Offline events need a conversion action of type `UPLOAD_CLICKS`, and the OAuth user needs Standard or Admin access. | ppc.land "Google blocks new offline conversion imports via Ads API from June 15"; developers.google.com/data-manager/api (field mappings, `events.ingest`, destinations; reached via search) | before M13 (latest 2026-12-25) |
+| **Google Ads API access levels:** **Explorer** (since Feb 2026) reaches production accounts without an application, with a cap of 2,880 operations/day, and blocks the planning services, account creation, user management and billing. **Basic** allows 15,000/day. **Standard** is unlimited. Applications have had backlogs. | developers.google.com/google-ads/api/docs/api-policy/access-levels; ppc.land "developer token application backlog as new API tier debuts" | 2026-12-25 |
+| **Google Ads API version:** v25.2 is the latest. v25 was released 2026-07-22 and sunsets in Aug 2027. There are monthly minor releases and a few majors a year. | developers.google.com/google-ads/api/docs/release-notes (updated 2026-09-23); Google Ads Developer Blog | 2026-10-25 |
+| **`google-ads-api` (Opteo, npm):** moved to Google Ads API **v25.1** on 2026-09-17 and requires Node ≥ 22. Each library release supports **one** API version, so the library and API versions are upgraded together. | github.com/Opteo/google-ads-api PR #549 | at M03 |
+| **Official Google Ads MCP** (`googleads/google-ads-mcp`): read-only, with 3 tools (`list_accessible_accounts`, `search` (GAQL), `get_resource_metadata`). Open source since 2025-10-03. A July 2026 security fix stopped OAuth credentials being written to logs. | ppc.io/blog/google-ads-mcp; github.com/googleads/google-ads-mcp | 2026-12-25 |
+| **Meta ads MCP** (`mcp.facebook.com/ads`): launched 2026-04-29; the "available for developers" post is dated 2026-07-16. Writes need the `ads_management` permission. Third-party, unofficial Meta MCP tools have got ad accounts banned. | developers.facebook.com blog 2026-07-16 (via search); soku.ai Meta Ads MCP guide; portermetrics.com | 2026-12-25 |
+| **Meta Conversions API time limit:** if any website event's `event_time` is more than 7 days in the past, the **whole request is rejected** (error subcode 2804003). `physical_store` events allow 62 days. CRM events use `action_source=system_generated`. Batches hold up to 500 events. | customerlabs.com offline-conversions guide; dev.to "Meta's CAPI wants seconds"; search summaries of the Meta CAPI docs | at M12 |
+| **Meta special ad categories** (Housing and others) now apply beyond the US: Canada, Europe, Asia and Africa. Housing removes age, gender and postcode targeting and forces a 15-mile minimum radius. | data-axle.com "2025 Meta special ad categories rules"; jonloomer.com special ad categories guide | at M05 (confirm the SG specifics; Q9) |
+| **Node.js release lines:** 24 is the Active LTS (maintenance from 2026-10-20, end of life 2028-04-30). 22 is in maintenance (end of life 2027-04-30). 26 becomes the Active LTS on 2026-10-28. | endoflife.date/nodejs; nodejs.org release pages | at M00 |
+| **AI SDK 6** deprecated `generateObject`/`streamObject`. Use `generateText`/`streamText` with `output: Output.object({ schema })`; multi-step flows need `stopWhen`. | ai-sdk.dev/docs/migration-guides/migration-guide-6-0; vercel.com/blog/ai-sdk-6 | at M06 |
+| **Vercel's Hobby plan** is for personal, non-commercial use only. Commercial use needs Pro or Enterprise. | vercel.com/docs/plans/hobby; vercel.com/docs/limits/fair-use-guidelines | at M10 |
+| **Neon:** the Free plan gives 100 compute-hours per project per month, and compute scales to zero after 5 idle minutes. The pooler is PgBouncer in **transaction mode**, so LISTEN/NOTIFY, session advisory locks and `SET` don't work through it. Use the direct host for those. | neon.com/docs/connect/connection-pooling; neon.com pricing and FAQs | at M01 |
+| **UNVERIFIED:** whether the Meta Marketing API's `execution_options` (a validate-only option) is available on the campaign, ad set and ad update endpoints. The docs were blocked by the proxy. | — | verify in M12 |
+
+## Design traps to remember while coding
+
+These come from the v3 review. The ones marked *(training knowledge)* weren't re-verified on 2026-09-25, so verify them in the milestone named.
+
+- **`JSON.stringify` throws on BigInt.** Money in JSON is a decimal string of micros (BLUEPRINT §3.1).
+- **Meta money units:** budgets are in minor units (SGD cents), while insights report spend as decimal strings. Google uses micros. Convert exactly; never `parseFloat`.
+- **Meta can't map an `fbclid` to a campaign.** Put `{{campaign.id}}`, `{{adset.id}}` and `{{ad.id}}` URL parameters on every ad, and capture them at landing.
+- **Google shared budgets** belong to several campaigns, so this system never changes them.
+- **Telegram `callback_data` is limited to 1–64 bytes.** *(training knowledge; well established. Confirm in M09.)*
+- **Telegram allows one `getUpdates` consumer per bot.** Only the leader replica polls. *(training knowledge; M09)*
+- **Google `click_view`** can be queried for only one day at a time, and only for the last ~90 days. *(training knowledge; M03)*
+- **A Meta ad account's timezone and currency** can't simply be changed after creation. *(training knowledge; M02)*
+- **Google can spend up to 2× a campaign's daily budget on a single day,** so daily budgets aren't hard caps. *(training knowledge; M14)*
