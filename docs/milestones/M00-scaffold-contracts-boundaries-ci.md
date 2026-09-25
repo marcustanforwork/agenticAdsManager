@@ -12,7 +12,7 @@
 A monorepo where the dependency rules are enforced by tooling before any feature exists.
 
 ## Needs
-- [ ] T1 (GitHub repo settings, GIT-WORKFLOW §9): needed **before merging**, not before building.
+- [x] T1 (GitHub repo settings, GIT-WORKFLOW §9): done 2026-09-25, except the ruleset's required status checks (optional; recorded in NOW). PR #3 merged on Marcus's instruction.
   - 2026-09-25: Marcus added a ruleset on `main`. Checked via the public API: PR required, force pushes and deletion blocked. **Still missing:** a required status check (`memory-check`, and `ci` once this PR has run it), squash-only merging, and "Automatically delete head branches". The Actions permission couldn't be checked from here.
 
 ## Read first

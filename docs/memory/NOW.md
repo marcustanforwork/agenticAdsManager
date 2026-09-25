@@ -2,29 +2,26 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · branch `claude/trusting-wozniak-dcdxfu` · PR [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (M00)
+**Last updated:** 2026-09-25 · cloud session · M00 squash-merged into `main` through PR [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) on Marcus's instruction, after CI passed (D-057).
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M00: all 9 builds done**, and so are the tests. PR #3 is ready for review, CI green; status **awaiting live acceptance**. Details and "Leave behind" notes: `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`.
+- **Active milestone:** **M00: merged**; status **awaiting live acceptance** (the SER9 Docker check, below; Marcus will run it when he's at that machine). Details and "Leave behind" notes: `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`.
 - **Status:** plan v3.4. No open questions. D-065 records M00's build choices: Node 24.21.0, TypeScript 6 (not 7), source-condition resolution, and one Doppler token per service.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus: finish T1** (GitHub → Settings), then review and merge PR #3:
-   - in the `main` ruleset, tick **Require status checks to pass** and add `memory-check`, `ci` and `secret-scan`;
-   - General → Pull Requests: untick merge commits and rebase merging (**squash only**), and tick **Automatically delete head branches**;
-   - Actions → General: workflow permissions **Read repository contents**.
-2. **Marcus: M00 live steps on the SER9**, when convenient (below). They don't block M01a.
-3. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01a** (database schema and repositories). If PR #3 is merged by then, reset the branch to `origin/main` first (`start-session` §2). Cloud sessions now get Node 24 and the dependencies from the SessionStart hook.
-4. **Marcus: the SnapPool tracking change (T6b), early:** paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a SnapPool session. Then the setup tasks that take days: T2 and T3 (needed for M01a's live steps), T4, T5, T6a (`PROPOSAL.md` §16).
+1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01a** (database schema and repositories). Cloud: the assigned branch's PR may already be merged; if so, reset it to `origin/main` first (`start-session` §2). Cloud sessions now get Node 24 and the dependencies from the SessionStart hook.
+2. **Marcus, when at the SER9:** the M00 live steps (below). They don't block M01a.
+3. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`. The rest of T1 is done (squash only, auto-delete branches, Actions read-only).
+4. **Marcus:** the SnapPool tracking change (T6b), early: paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a SnapPool session. Then the setup tasks that take days: **T2 and T3** (needed for M01a's live steps), T4, T5, T6a (`PROPOSAL.md` §16).
 
 ## In flight
-- PR #3 (M00): **ready for review**; CI green (`ci` incl. the Docker build and smoke test, `secret-scan`, `memory-check`). Merge only on Marcus's word (D-057).
+- Nothing. PR #3 (M00) was squash-merged into `main` on 2026-09-25.
 
 ## Blocked on Marcus
 - No open questions.
-- T1 (the rest of it) before PR #3 merges; the SnapPool tracking change (T6b); setup tasks T2–T14.
+- The M00 live steps (SER9); T1's required status checks (optional); the SnapPool tracking change (T6b); setup tasks T2–T14.
 
 ## Live steps for Marcus
 M00 on the SER9 (Linux, Docker). These use **no secrets**:
@@ -44,7 +41,7 @@ The `-p ads-agent-dev` keeps this away from the production project name (D-058).
 ## Milestone tracker (one row = one session)
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) | T1 before merge; live: compose up/stop |
+| M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
 | M01a | Database schema and repositories | 0 | **next** | — | Live steps: T2, T3 |
 | M01b | Queue, leader lock, vault, request processor | 0 | not started | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |

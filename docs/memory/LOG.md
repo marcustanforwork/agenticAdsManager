@@ -15,7 +15,8 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - The worker and gateway entry points, the `ads` and `ads-gw` CLIs, the Dockerfile, `docker-compose.yml`, CI (`ci.yml` plus gitleaks), the cloud setup in the SessionStart hook, Commands in CLAUDE.md, and the preflight commands.
 - **Decided:** D-065 (Claude, fix): M00 build choices. PROPOSAL T3 now mentions per-service Doppler tokens (from M07).
 - **Learned:** TypeScript 7 is out, but typescript-eslint needs TypeScript < 6.1. AI SDK 7 is `latest` (M06a decides). Drizzle 1.0 is a release candidate (M01a decides). The GitHub REST API is scoped to this repo in cloud sessions, but `git ls-remote` and release downloads work. See GOTCHAS.
-- **Next:** Marcus finishes T1 and reviews PR #3. Then a clean session starts M01a.
+- **Merged:** Marcus set Actions to read-only, squash-only merging and auto-delete of branches (T1; required status checks aren't on yet), and said to merge. PR #3 was squash-merged after every check passed (D-057). The M00 live test on the SER9 stays a to-do until he's at that machine.
+- **Next:** a clean session starts M01a.
 - **Open:** no questions; the SnapPool tracking change (T6b); setup tasks T1 (part), T2–T14.
 
 ## 2026-09-25 — Q11 approved; the SnapPool prompt; spec fixes from SnapPool's code
