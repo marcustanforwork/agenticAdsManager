@@ -179,7 +179,7 @@ export const offerings = pgTable(
     id: id(),
     productId: productId(),
     kind: text('kind').notNull(), // pack-defined: 'project' | 'product'
-    key: text('key').notNull(), // 'sora-at-lakeside', 'snappool'
+    key: text('key').notNull(), // the offering's slug, unique within the product
     name: text('name').notNull(),
     facts: jsonb('facts').notNull().default({}), // validated against the pack's fact schema on write
     factsVersion: integer('facts_version').notNull().default(1),
