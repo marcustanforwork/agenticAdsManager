@@ -194,3 +194,4 @@ export async function rotateMasterKey(db: DbOrTx, from: MasterKey, to: MasterKey
     return rows.length;
   });
 }
+export * from './commands.ts';

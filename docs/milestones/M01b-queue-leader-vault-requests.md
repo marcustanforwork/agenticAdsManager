@@ -40,7 +40,8 @@ The background-job plumbing, the credential vault, and the single processor for 
   - master-key rotation;
   - the read key cannot open write or feedback rows.
   - done: `packages/vault/src/index.ts`, tests `packages/vault/test/vault.test.ts` (11). Master keys are `<id>:<base64 32 bytes>` with ids `read-vN` / `write-vN`; a read key is refused for write and feedback rows before the row is read, and read key bytes relabelled as a write key still can't decrypt. The ciphertexts are bound to their account and role (AAD). Rotation re-wraps the data keys in one transaction (all rows or none). **roles.sql:** `agent_gateway` gets `INSERT, UPDATE` on `credentials` (for `ads-gw credentials put` and rotation; part of D-068).
-- [ ] 4. CLIs: `ads credentials put --account X --role read` reads the token from **stdin**, never from arguments. `ads-gw credentials put --role write|feedback`.
+- [x] 4. CLIs: `ads credentials put --account X --role read` reads the token from **stdin**, never from arguments. `ads-gw credentials put --role write|feedback`.
+  - done: `credentials put | check | rotate-key` in both CLIs (`apps/*/src/cli.ts`); shared logic in `packages/vault/src/commands.ts`. Keys come from `VAULT_READ_KEY` (ads) / `VAULT_WRITE_KEY` (ads-gw), plus `…_NEW` for rotation; the DB from `DATABASE_URL`. `--account` takes an account id, `meta:act_…`/`google:…`, or a bare external id. `check` decrypts (audited as `cli check`) and prints only the field names. Tests: `apps/*/test/credentials.test.ts`.
 - [ ] 5. The `core/requests` processor:
   - schema validation, actor check, freshness checks, one transaction per request, `result` written, `NOTIFY`;
   - implements `halt`, `resume_agent`, `settings_patch` (validated with `ProductSettings` and tighten-only) and `brief_feedback`;
