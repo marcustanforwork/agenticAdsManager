@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { enqueueJob, getJob } from '../src/queue/jobs.ts';
+import { claimJob, enqueueJob, getJob } from '../src/queue/jobs.ts';
 import { contendForLeadership } from '../src/queue/leader.ts';
 import { PermanentJobError, startQueueRunner, type QueueRunner } from '../src/queue/runner.ts';
 import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
@@ -57,20 +57,20 @@ describe('queue runner', () => {
     try {
       const flaky = await enqueueJob(t.db, { queue: 'gateway', kind: 'flaky' });
       const broken = await enqueueJob(t.db, { queue: 'gateway', kind: 'broken' });
-      const unknown = await enqueueJob(t.db, { queue: 'gateway', kind: 'no-such-kind' });
+      const unknown = await enqueueJob(t.db, { queue: 'gateway', kind: 'no-such-kind' }); // e.g. from a newer release
       await expect
         .poll(async () => (await getJob(t.db, flaky.id))?.lastError, { timeout: 3000 })
         .toBe('platform timeout');
       expect(await getJob(t.db, flaky.id)).toMatchObject({ status: 'queued', attempts: 1 }); // backed off
       await expect.poll(async () => (await getJob(t.db, broken.id))?.status, { timeout: 3000 }).toBe('failed');
-      await expect.poll(async () => (await getJob(t.db, unknown.id))?.status, { timeout: 3000 }).toBe('failed');
-      expect((await getJob(t.db, unknown.id))?.lastError).toBe('no handler for job kind "no-such-kind"');
+      // Kinds this runner has no handler for are left for a replica that has one, not failed.
+      expect(await getJob(t.db, unknown.id)).toMatchObject({ status: 'queued', attempts: 0 });
     } finally {
       await stopRunner();
     }
   });
 
-  it('stop() aborts the running job and waits for it', async () => {
+  it('stop() aborts the running job and hands it back without using an attempt', async () => {
     let aborted = false;
     runner = startQueueRunner({
       db: t.db,
@@ -90,7 +90,31 @@ describe('queue runner', () => {
     await expect.poll(async () => (await getJob(t.db, job.id))?.status, { timeout: 3000 }).toBe('running');
     await stopRunner();
     expect(aborted).toBe(true);
-    expect(await getJob(t.db, job.id)).toMatchObject({ status: 'queued', lastError: 'stopped' });
+    expect(await getJob(t.db, job.id)).toMatchObject({ status: 'queued', attempts: 0, lastError: null });
+  });
+
+  it('reclaims expired leases on its queue while it runs, not only at startup', async () => {
+    const orphan = await enqueueJob(t.db, { queue: 'worker', kind: 'orphan' });
+    await claimJob(t.db, { queue: 'worker', workerId: 'crashed', leaseMs: 1, kinds: ['orphan'] });
+    await new Promise((r) => setTimeout(r, 20));
+    const ran: string[] = [];
+    runner = startQueueRunner({
+      db: t.db,
+      queue: 'worker',
+      pollMs: 50,
+      handlers: {
+        orphan: (job) => {
+          ran.push(job.id);
+          return Promise.resolve();
+        },
+      },
+    });
+    try {
+      await expect.poll(async () => (await getJob(t.db, orphan.id))?.status, { timeout: 3000 }).toBe('done');
+      expect(ran).toEqual([orphan.id]);
+    } finally {
+      await stopRunner();
+    }
   });
 });
 

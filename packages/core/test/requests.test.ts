@@ -281,6 +281,45 @@ describe('processing', () => {
   });
 });
 
+describe('draining with other workers', () => {
+  it('skips a request another worker holds instead of spinning on it or counting it', async () => {
+    const p = await makeProduct();
+    const q = await makeProduct();
+    const held = await dashboardInsert('halt', { kind: 'halt', productId: p.id }, MARCUS);
+    const free = await dashboardInsert('halt', { kind: 'halt', productId: q.id }, MARCUS);
+    const other = await t.pool.connect(); // "another worker" mid-way through `held`
+    try {
+      await other.query('begin');
+      await other.query('select 1 from operator_requests where id = $1 for update', [held]);
+      expect(await processQueuedRequests(t.db, ctx)).toBe(1);
+      expect((await getOperatorRequest(t.db, free)).status).toBe('done');
+      expect((await getOperatorRequest(t.db, held)).status).toBe('queued');
+    } finally {
+      await other.query('rollback');
+      other.release();
+    }
+    expect(await processQueuedRequests(t.db, ctx)).toBe(1); // now free to take
+  });
+
+  it('submit records and processes in one transaction: a fault leaves nothing behind', async () => {
+    const p = await makeProduct();
+    const original = HANDLERS.halt;
+    if (original === undefined) throw new Error('halt has a handler');
+    HANDLERS.halt = () => Promise.reject(new Error('database hiccup'));
+    try {
+      await expect(submit({ kind: 'halt', productId: p.id })).rejects.toThrow('database hiccup');
+    } finally {
+      HANDLERS.halt = original;
+    }
+    const [row] = (
+      await t.pool.query<{ n: number }>(`select count(*)::int as n from operator_requests where product_id = $1`, [
+        p.id,
+      ])
+    ).rows;
+    expect(row?.n).toBe(0);
+  });
+});
+
 describe('worker recovery', () => {
   it('reclaims expired worker leases, processes queued requests, and leaves a note', async () => {
     const p = await makeProduct();

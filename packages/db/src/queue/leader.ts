@@ -1,6 +1,7 @@
 // Leader election (BLUEPRINT §5.2): the leader holds a session-level pg_try_advisory_lock on a dedicated direct
 // connection for the life of the process. If that connection drops, Postgres releases the lock and another
-// replica takes it within one retry interval (10 s). Only the leader runs cron and polls Telegram.
+// replica takes it within one retry interval (10 s). The leader pings every interval and steps down if a ping
+// fails, so it never believes it leads after its connection is gone. Only the leader runs cron and polls Telegram.
 import pg from 'pg';
 
 /** The advisory-lock key for the worker leader. Any constant works; this one spells "ads" + 0x10. */
@@ -29,7 +30,11 @@ export function contendForLeadership(opts: LeadershipOptions): Leadership {
   let client: pg.Client | null = null;
   let timer: NodeJS.Timeout | null = null;
 
+  let ping: NodeJS.Timeout | null = null;
+
   const lose = (): void => {
+    if (ping !== null) clearInterval(ping);
+    ping = null;
     if (!leader) return;
     leader = false;
     opts.onLost?.();
@@ -41,7 +46,15 @@ export function contendForLeadership(opts: LeadershipOptions): Leadership {
   const attempt = async (): Promise<void> => {
     timer = null;
     if (stopped) return;
-    const c = new pg.Client({ connectionString: opts.url, application_name: 'ads-leader' });
+    // Keepalive and a query timeout, so a silently dead network (no FIN, no RST) is noticed within about one
+    // retry interval instead of the OS default of ~2 hours.
+    const c = new pg.Client({
+      connectionString: opts.url,
+      application_name: 'ads-leader',
+      keepAlive: true,
+      keepAliveInitialDelayMillis: retryMs,
+      query_timeout: retryMs,
+    });
     c.on('error', (error) => {
       opts.onError?.(error);
       void c.end().catch(() => undefined);
@@ -61,8 +74,17 @@ export function contendForLeadership(opts: LeadershipOptions): Leadership {
         return;
       }
       if (res.rows[0]?.locked === true) {
+        // Server side too: if this process vanishes, Postgres drops the session (and frees the lock) in ~30 s.
+        // Best effort: a proxy in between may ignore these.
+        await c
+          .query('set tcp_keepalives_idle = 10; set tcp_keepalives_interval = 5; set tcp_keepalives_count = 4')
+          .catch(() => undefined);
         client = c;
         leader = true;
+        ping = setInterval(() => {
+          // A ping that fails or times out means the lock can't be proven held: drop it and step down.
+          c.query('select 1').catch(() => void c.end().catch(() => undefined));
+        }, retryMs);
         opts.onAcquired?.();
         return;
       }

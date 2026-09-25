@@ -277,6 +277,9 @@ importers:
       '@ads/db':
         specifier: workspace:*
         version: link:../db
+      commander:
+        specifier: 15.0.0
+        version: 15.0.0
       drizzle-orm:
         specifier: 0.45.3
         version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)

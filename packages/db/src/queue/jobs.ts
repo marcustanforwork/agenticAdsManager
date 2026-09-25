@@ -113,6 +113,25 @@ export async function completeJob(db: DbOrTx, input: { jobId: string; workerId: 
   return rows.length > 0;
 }
 
+/** Hands a leased job back to the queue without counting the attempt (the process is shutting down).
+ *  Returns false if the lease was lost first. */
+export async function releaseJob(db: DbOrTx, input: { jobId: string; workerId: string }): Promise<boolean> {
+  const rows = await db
+    .update(jobs)
+    .set({
+      status: 'queued',
+      attempts: sql`greatest(${jobs.attempts} - 1, 0)`,
+      runAt: sql`now()`,
+      leasedUntil: null,
+      leasedBy: null,
+    })
+    .where(leasedBy(input.jobId, input.workerId))
+    .returning({ id: jobs.id, queue: jobs.queue });
+  const [row] = rows;
+  if (row) await notifyQueue(db, row.queue, row.id);
+  return row !== undefined;
+}
+
 /** Records a failed attempt. The job is re-queued with backoff (1 min × 2^(attempt−1)), or marked `failed`
  *  after `max_attempts` (or at once when `permanent`), which also alerts Marcus through the outbox.
  *  Returns the new status, or null if the lease was lost first. */

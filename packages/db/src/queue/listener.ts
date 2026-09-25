@@ -29,7 +29,11 @@ export function listen(opts: ListenOptions): Listener {
   };
 
   const connect = async (): Promise<void> => {
-    const c = new pg.Client({ connectionString: opts.url, application_name: opts.applicationName ?? 'ads-listen' });
+    const c = new pg.Client({
+      connectionString: opts.url,
+      application_name: opts.applicationName ?? 'ads-listen',
+      keepAlive: true, // notice a dead network; the caller's polling covers the gap
+    });
     client = c;
     c.on('notification', (msg) => opts.onNotify(msg.channel, msg.payload ?? ''));
     c.on('error', (error) => {

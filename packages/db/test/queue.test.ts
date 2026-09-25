@@ -6,6 +6,7 @@ import {
   completeJob,
   enqueueJob,
   failJob,
+  releaseJob,
   getJob,
   heartbeatJob,
   reclaimExpiredJobs,
@@ -72,6 +73,18 @@ describe('claiming', () => {
     expect(await completeJob(t.db, { jobId: job.id, workerId: 'w1' })).toBe(true);
     expect(await getJob(t.db, job.id)).toMatchObject({ status: 'done', leasedBy: null });
     expect(await completeJob(t.db, { jobId: job.id, workerId: 'w1' })).toBe(false);
+  });
+});
+
+describe('release', () => {
+  it('hands a job back without counting the attempt', async () => {
+    const kind = uniq('k');
+    const job = await enqueueJob(t.db, { queue: 'worker', kind });
+    await claim(kind, 'w1');
+    expect(await releaseJob(t.db, { jobId: job.id, workerId: 'other' })).toBe(false);
+    expect(await releaseJob(t.db, { jobId: job.id, workerId: 'w1' })).toBe(true);
+    expect(await getJob(t.db, job.id)).toMatchObject({ status: 'queued', attempts: 0, leasedBy: null });
+    expect((await claim(kind, 'w2'))?.id).toBe(job.id);
   });
 });
 
