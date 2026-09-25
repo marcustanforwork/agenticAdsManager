@@ -2,4 +2,3 @@ packages:
   - packages/*
   - packages/packs/*
   - apps/*
-  - '!packages/packs'
