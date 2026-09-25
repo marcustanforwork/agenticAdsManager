@@ -8,16 +8,32 @@
       "@ads/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "@ads/source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations",
+    "sql"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --conditions=@ads/source src/cli.ts migrate",
+    "db:seed": "node --conditions=@ads/source src/cli.ts seed"
   },
   "dependencies": {
-    "@ads/contracts": "workspace:*"
+    "@ads/contracts": "workspace:*",
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11"
   }
 }
