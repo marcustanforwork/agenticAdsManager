@@ -189,8 +189,13 @@ export async function acknowledgeDrift(db: DbOrTx, id: string, at: Date = new Da
 export const WRITES_ENABLED = 'writes_enabled';
 
 export async function getFlag(db: DbOrTx, key: string): Promise<unknown> {
-  const [row] = await db.select({ value: systemFlags.value }).from(systemFlags).where(eq(systemFlags.key, key));
-  return row?.value;
+  // Read as text and parse once: Drizzle's jsonb reader re-parses string values, so a stored string "true"
+  // would come back as boolean true (GOTCHAS). For the write switch that difference matters.
+  const [row] = await db
+    .select({ json: sql<string>`${systemFlags.value}::text` })
+    .from(systemFlags)
+    .where(eq(systemFlags.key, key));
+  return row === undefined ? undefined : (JSON.parse(row.json) as unknown);
 }
 
 export async function setFlag(db: DbOrTx, key: string, value: unknown, requestId: string | null = null) {
