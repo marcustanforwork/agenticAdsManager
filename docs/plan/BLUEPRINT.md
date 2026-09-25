@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.5 — 2026-09-25 (M01a: migration naming, role grants, seed file, D-066) |
+| **Version** | v3.6 — 2026-09-25 (code review of M01a: fingerprint fields move to contracts, D-067) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -393,7 +393,7 @@ export const WriteOp = z.discriminatedUnion('action', [
 | `resume_entity` / `remove_negative_keyword` | `pause_entity` / `add_negative_keyword` | same idea | These are undos of undos |
 | `mark_abandoned` | none | — | Terminal |
 
-**Fingerprint fields** (`fieldsFor(action)` in `gateway/src/precondition.ts`, the single definition):
+**Fingerprint fields** (`fingerprintFieldsFor(action)` in `contracts/undo.ts`, the single definition, used by the gateway and by anything that stores a precondition hash, such as an undo proposal, D-067). The derived values (`parentStatus`, `negativeListHash`, `criterionExists`, `idempotencyTagUnused`) are computed by `gateway/src/precondition.ts`:
 - `pause_entity`, `resume_entity`, `mark_abandoned`: `status`
 - `adjust_budget`: `status`, `dailyBudgetMicros`, `budgetShared`, `budgetType`
 - `add_negative_keyword`: the parent's `status`, plus a hash of its current negative list
@@ -1117,7 +1117,7 @@ The cycle result is `fail` if any check fails, which means a diagnostic brief on
 - **Type → action** comes from the registry (§3.7). A type with no action produces a finding only.
 - **Budget amounts.** new = current × (1 + clamp(pct, −max, +max)/100), rounded to the platform unit (Google 10,000 micros; Meta one minor unit). If the change is below the minimum delta, no proposal is made.
 - **Negative keywords.** The text must equal a real search-term row that met the threshold, with match type EXACT or PHRASE only. A BROAD negative could block far more than intended.
-- **Fingerprint** = `sha256Hex(canonicalJson(pick(latestSnapshot, fieldsFor(action))))`.
+- **Fingerprint** = `sha256Hex(canonicalJson(pick(latestSnapshot, fingerprintFieldsFor(action))))`.
 - **Expiry.** `adjust_budget` 72 h; other actions 7 days; operator confirm cards 30 min.
 
 ### 5.12 Attribution
@@ -1198,7 +1198,7 @@ Methods are tried in this order, and the first match wins:
 | 3 | Product status: if halted, only operator-origin spend-reducing actions continue | `deferred: halted` |
 | 4 | Allowlist: the action is enabled for this phase and not removed by the pack or product; undo-only actions need `revertsRevisionId` | `blocked` |
 | 5 | Guards, which need only the DB (cheapest first): `ceiling_unset` → shared budget → magnitude → minimum delta → cooldown → ceilings/projection → budget-neutral set → max per day | `blocked` (names the guard) or `deferred: waiting_for_offsets` |
-| 6 | Fingerprint: re-read the target from the platform, hash `fieldsFor(action)`, compare with the stored hash | `stale` (with the diff) |
+| 6 | Fingerprint: re-read the target from the platform, hash `fingerprintFieldsFor(action)`, compare with the stored hash | `stale` (with the diff) |
 | 7 | Validate: Google `validate_only`; Meta local checks + permission probe (+ validation option where supported) | `failed` |
 | 8 | **Persist** in one transaction: `status='applying'`, `idempotency_key`, `applying_since`, the before-snapshot | — |
 | 9 | Apply (the platform call) | `failed` |
@@ -1937,7 +1937,7 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
    - shared budget.
 
    The budget-neutral set guard comes in M14.
-3. `gateway/precondition.ts` (§3.6): `fieldsFor`, re-read, hash, diff.
+3. `gateway/precondition.ts` (§3.6): re-read, compute the derived values for `fingerprintFieldsFor` (contracts), hash, diff.
 4. A `FakeWriteClient`: an in-memory entity store with call counters. It is the only write client until M12.
 
 **Tests:**

@@ -1,5 +1,7 @@
 import { hashOf, type WriteOp } from '@ads/contracts';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import * as schema from '../src/schema.ts';
 import { NotFoundError, RefusedError } from '../src/errors.ts';
 import {
   createUndoProposal,
@@ -92,7 +94,7 @@ describe('the change log', () => {
 });
 
 describe('createUndoProposal', () => {
-  it('builds the stored undo, with the fingerprint taken from the change’s after state', async () => {
+  it('builds the stored undo, fingerprinting the action’s fields (fingerprintFieldsFor) from the after state', async () => {
     const after = { status: 'paused', name: 'Campaign', dailyBudgetMicros: '20000000' };
     const { revisionId } = await applied(
       pauseOp(target),
@@ -109,16 +111,37 @@ describe('createUndoProposal', () => {
     expect(proposal.origin).toBe('operator');
     expect(proposal.status).toBe('pending');
     expect(proposal.cycleId).toBeNull();
-    expect(proposal.preconditionFields).toEqual(['dailyBudgetMicros', 'name', 'status']);
-    expect(proposal.preconditionHash).toBe(hashOf(after));
+    // The same fields the gateway re-reads for resume_entity, so the hash can match at apply time.
+    expect(proposal.preconditionFields).toEqual(['status']);
+    expect(proposal.preconditionHash).toBe(hashOf({ status: 'paused' }));
   });
 
   it('uses the given fieldsFor to choose the fingerprint fields', async () => {
     const after = { status: 'paused', name: 'Renamed elsewhere' };
     const { revisionId } = await applied(pauseOp(target), { action: 'resume_entity', target }, {}, after);
-    const { proposal } = await createUndoProposal(t.db, revisionId, { fieldsFor: () => ['status'] });
-    expect(proposal.preconditionFields).toEqual(['status']);
-    expect(proposal.preconditionHash).toBe(hashOf({ status: 'paused' }));
+    const { proposal } = await createUndoProposal(t.db, revisionId, { fieldsFor: () => ['name', 'status'] });
+    expect(proposal.preconditionFields).toEqual(['name', 'status']);
+    expect(proposal.preconditionHash).toBe(hashOf(after));
+  });
+
+  it('works as agent_worker, which may only read the change log (the worker handles undo requests)', async () => {
+    const { revisionId } = await applied(
+      pauseOp(target),
+      { action: 'resume_entity', target },
+      {},
+      { status: 'paused' },
+    );
+    const client = await t.pool.connect();
+    try {
+      await client.query('set role agent_worker');
+      const workerDb = drizzle({ client, schema });
+      const { proposal, created } = await createUndoProposal(workerDb, revisionId);
+      expect(created).toBe(true);
+      expect(proposal.revertsRevisionId).toBe(revisionId);
+    } finally {
+      await client.query('reset role');
+      client.release();
+    }
   });
 
   it('an adjust_budget undo goes back to the old amount, and its own undo returns to ours (72 h expiry)', async () => {

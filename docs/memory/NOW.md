@@ -2,32 +2,31 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · branch `claude/trusting-wozniak-dcdxfu` · PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4).
+**Last updated:** 2026-09-25 · cloud session · M01a squash-merged into `main` through PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) on Marcus's instruction, after a code review, its fixes and a green CI (D-057, D-067).
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M01a: cloud work done**; status **awaiting live acceptance** (Neon migrate + seed, below). Details, evidence and "Leave behind": `docs/milestones/M01a-database-schema-repositories.md`.
+- **Active milestone:** **M01a: merged**; status **awaiting live acceptance** (Neon migrate + seed, below: not done yet, needs T2 + T3). Details, evidence and "Leave behind": `docs/milestones/M01a-database-schema-repositories.md`.
 - **M00** is merged and still awaiting its live acceptance (the SER9 Docker check).
-- **Status:** plan v3.5 (BLUEPRINT). No open questions. D-066 records M01a's build choices (Drizzle 0.45, migration `0000_init`, extra gateway grants, seed data in `products/seed.json`).
+- **Status:** plan v3.6 (BLUEPRINT). No open questions. D-066: M01a's build choices. **D-067:** code review of M01a (9 fixes), fingerprint fields now in contracts, and `close-milestone` runs `code-review` for every milestone.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review the M01a PR; merge when happy and CI is green (D-057).
-2. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01b** (queue, leader lock, vault, request processor). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2). Start with the `db-migration` skill's test-DB recipe (`pg_ctlcluster 16 main start` + the postgres password).
-3. **Marcus, when T2 and T3 are done:** the M01a live steps (below). They don't block M01b's cloud work.
-4. **Marcus, when at the SER9:** the M00 live steps (in `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`).
-5. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`.
-6. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16).
+1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01b** (queue, leader lock, vault, request processor). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2). Start with the `db-migration` skill's test-DB recipe (`pg_ctlcluster 16 main start` + the postgres password).
+2. **Marcus, when T2 and T3 are done:** the M01a live steps (below). They don't block M01b's cloud work.
+3. **Marcus, when at the SER9:** the M00 live steps (in `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`).
+4. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`.
+5. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16).
 
 ## In flight
-- PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (M01a) from `claude/trusting-wozniak-dcdxfu`: ready for review. All local checks green (320 tests).
+- Nothing. PR #4 (M01a, with the code-review fixes) was squash-merged into `main` on 2026-09-25.
 
 ## Blocked on Marcus
 - No open questions.
 - Live steps: M01a (needs T2, T3), M00 (SER9). Setup tasks T1 (optional part), T2–T14; the SnapPool tracking change (T6b).
 
 ## Live steps for Marcus
-**M01a** (after the PR is merged; needs T2 + T3). Use the Neon **owner** connection strings, **direct** host (no `-pooler`):
+**M01a** (to do; needs T2 + T3). Use the Neon **owner** connection strings, **direct** host (no `-pooler`):
 1. `git pull` on `main`, then `pnpm install`.
 2. Add `DATABASE_URL` (Neon **dev** branch, owner) to Doppler's `dev` config.
 3. `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (twice) → `migrations and roles.sql applied` both times.
@@ -46,7 +45,7 @@
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
-| M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) | Live: Neon migrate + seed (needs T2, T3) |
+| M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: Neon migrate + seed (to do; needs T2, T3) |
 | M01b | Queue, leader lock, vault, request processor | 0 | **next** | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |

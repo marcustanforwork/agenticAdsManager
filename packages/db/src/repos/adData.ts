@@ -3,6 +3,7 @@ import { hashOf, type EntityRef, type Platform } from '@ads/contracts';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError } from '../errors.ts';
+import { addDecimals, inBatches } from './batch.ts';
 import {
   accounts,
   adEntities,
@@ -34,12 +35,14 @@ export async function upsertAccount(
   const [row] = await db
     .insert(accounts)
     .values({ productId: input.productId, platform: input.platform, externalId: input.externalId, ...reported })
-    .onConflictDoUpdate({ target: [accounts.platform, accounts.externalId], set: reported })
+    // setWhere: another product's row is never touched; the upsert then returns nothing.
+    .onConflictDoUpdate({
+      target: [accounts.platform, accounts.externalId],
+      set: reported,
+      setWhere: eq(accounts.productId, input.productId),
+    })
     .returning();
-  if (!row) throw new Error('upsert into accounts returned nothing');
-  if (row.productId !== input.productId) {
-    throw new Error(`account ${input.platform}:${input.externalId} belongs to another product`);
-  }
+  if (!row) throw new Error(`account ${input.platform}:${input.externalId} belongs to another product`);
   return row;
 }
 
@@ -93,6 +96,15 @@ export interface AdEntityInput {
 /** Inserts or refreshes an entity by (account, type, external id). `firstSeenAt`, `offeringId` and
  *  `createdByUs` are kept from the first insert unless given. */
 export async function upsertAdEntity(db: DbOrTx, input: AdEntityInput, syncedAt: Date = new Date()): Promise<AdEntity> {
+  // An entity's account must be this product's, on the same platform: refs never cross products.
+  const [account] = await db
+    .select({ productId: accounts.productId, platform: accounts.platform })
+    .from(accounts)
+    .where(eq(accounts.id, input.accountId));
+  if (!account) throw new NotFoundError('account', input.accountId);
+  if (account.productId !== input.productId || account.platform !== input.platform) {
+    throw new Error(`account ${input.accountId} is not a ${input.platform} account of product ${input.productId}`);
+  }
   const refreshed = {
     parentId: input.parentId ?? null,
     name: input.name,
@@ -115,10 +127,13 @@ export async function upsertAdEntity(db: DbOrTx, input: AdEntityInput, syncedAt:
       externalId: input.externalId,
       ...refreshed,
     })
-    .onConflictDoUpdate({ target: [adEntities.accountId, adEntities.type, adEntities.externalId], set: refreshed })
+    .onConflictDoUpdate({
+      target: [adEntities.accountId, adEntities.type, adEntities.externalId],
+      set: refreshed,
+      setWhere: eq(adEntities.productId, input.productId),
+    })
     .returning();
-  if (!row) throw new Error('upsert into ad_entities returned nothing');
-  if (row.productId !== input.productId) throw new Error(`ad entity ${input.externalId} belongs to another product`);
+  if (!row) throw new Error(`ad entity ${input.externalId} belongs to another product`);
   return row;
 }
 
@@ -194,7 +209,8 @@ export async function recordSnapshot(
       adEntityId: input.adEntityId,
       snapshot: input.snapshot,
       hash,
-      ...(input.takenAt ? { takenAt: input.takenAt } : {}),
+      // clock_timestamp(), not now(): snapshots taken in one transaction still get distinct, ordered times.
+      takenAt: input.takenAt ?? sql`clock_timestamp()`,
     });
     return { stored: true, hash };
   });
@@ -218,24 +234,34 @@ export interface MetricsInput {
 /** Upserts rows; an existing row is overwritten, and `restated_at` moves only if a value changed. */
 export async function upsertMetricsDaily(db: DbOrTx, rows: MetricsInput[]): Promise<void> {
   if (rows.length === 0) return;
+  // One row per (entity, day): a connector must aggregate segmented rows first. Postgres would reject the
+  // whole statement anyway ("cannot affect row a second time"); this names the offending key.
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const key = `${r.adEntityId}|${r.date}`;
+    if (seen.has(key)) throw new Error(`duplicate metrics row for entity ${r.adEntityId} on ${r.date}`);
+    seen.add(key);
+  }
   const m = metricsDaily;
   const changed = sql`(${m.impressions}, ${m.clicks}, ${m.spendMicros}, ${m.platformConversions}, ${m.platformConversionValueMicros})
     is distinct from (excluded.impressions, excluded.clicks, excluded.spend_micros, excluded.platform_conversions,
     excluded.platform_conversion_value_micros)`;
-  await db
-    .insert(m)
-    .values(rows.map((r) => ({ ...r, platformConversionValueMicros: r.platformConversionValueMicros ?? 0n })))
-    .onConflictDoUpdate({
-      target: [m.adEntityId, m.date],
-      set: {
-        impressions: sql`excluded.impressions`,
-        clicks: sql`excluded.clicks`,
-        spendMicros: sql`excluded.spend_micros`,
-        platformConversions: sql`excluded.platform_conversions`,
-        platformConversionValueMicros: sql`excluded.platform_conversion_value_micros`,
-        restatedAt: sql`case when ${changed} then now() else ${m.restatedAt} end`,
-      },
-    });
+  await inBatches(db, rows, (tx, batch) =>
+    tx
+      .insert(m)
+      .values(batch.map((r) => ({ ...r, platformConversionValueMicros: r.platformConversionValueMicros ?? 0n })))
+      .onConflictDoUpdate({
+        target: [m.adEntityId, m.date],
+        set: {
+          impressions: sql`excluded.impressions`,
+          clicks: sql`excluded.clicks`,
+          spendMicros: sql`excluded.spend_micros`,
+          platformConversions: sql`excluded.platform_conversions`,
+          platformConversionValueMicros: sql`excluded.platform_conversion_value_micros`,
+          restatedAt: sql`case when ${changed} then now() else ${m.restatedAt} end`,
+        },
+      }),
+  );
 }
 
 export async function getMetrics(
@@ -260,20 +286,40 @@ export async function getMetrics(
 
 export type SearchTerm = typeof searchTerms.$inferSelect;
 
+/** Rows with the same (ad group, day, term) are summed first: Google reports a term once per matched keyword. */
 export async function upsertSearchTerms(db: DbOrTx, rows: (typeof searchTerms.$inferInsert)[]): Promise<void> {
   if (rows.length === 0) return;
-  await db
-    .insert(searchTerms)
-    .values(rows)
-    .onConflictDoUpdate({
-      target: [searchTerms.adGroupEntityId, searchTerms.date, searchTerms.term],
-      set: {
-        impressions: sql`excluded.impressions`,
-        clicks: sql`excluded.clicks`,
-        spendMicros: sql`excluded.spend_micros`,
-        conversions: sql`excluded.conversions`,
-      },
-    });
+  const merged = new Map<string, typeof searchTerms.$inferInsert>();
+  for (const r of rows) {
+    const key = JSON.stringify([r.adGroupEntityId, r.date, r.term]);
+    const prev = merged.get(key);
+    merged.set(
+      key,
+      prev
+        ? {
+            ...prev,
+            impressions: (prev.impressions ?? 0) + (r.impressions ?? 0),
+            clicks: (prev.clicks ?? 0) + (r.clicks ?? 0),
+            spendMicros: (prev.spendMicros ?? 0n) + (r.spendMicros ?? 0n),
+            conversions: addDecimals(prev.conversions, r.conversions),
+          }
+        : r,
+    );
+  }
+  await inBatches(db, [...merged.values()], (tx, batch) =>
+    tx
+      .insert(searchTerms)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: [searchTerms.adGroupEntityId, searchTerms.date, searchTerms.term],
+        set: {
+          impressions: sql`excluded.impressions`,
+          clicks: sql`excluded.clicks`,
+          spendMicros: sql`excluded.spend_micros`,
+          conversions: sql`excluded.conversions`,
+        },
+      }),
+  );
 }
 
 export async function getSearchTerms(
@@ -298,7 +344,9 @@ export async function getSearchTerms(
 
 export async function upsertGoogleClicks(db: DbOrTx, rows: (typeof googleClicks.$inferInsert)[]): Promise<void> {
   if (rows.length === 0) return;
-  await db.insert(googleClicks).values(rows).onConflictDoNothing({ target: googleClicks.gclid });
+  await inBatches(db, rows, (tx, batch) =>
+    tx.insert(googleClicks).values(batch).onConflictDoNothing({ target: googleClicks.gclid }),
+  );
 }
 
 export async function findGoogleClick(db: DbOrTx, productId: string, gclid: string) {

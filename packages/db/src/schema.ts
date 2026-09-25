@@ -3,6 +3,7 @@
 // and every product-scoped table has product_id plus an index on it (invariant 11).
 // Change this file, then `pnpm --filter @ads/db db:generate --name <what>` (see the db-migration skill).
 import { sql } from 'drizzle-orm';
+import { EntityType, Platform, ProposalStatus } from '@ads/contracts';
 import {
   bigint,
   boolean,
@@ -24,6 +25,9 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+
+/** A zod enum's options as the non-empty tuple Drizzle's `enum` option expects. */
+const asTuple = <T extends string>(options: readonly T[]): readonly [T, ...T[]] => options as readonly [T, ...T[]];
 
 const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
 
@@ -107,7 +111,7 @@ export const packManifests = pgTable(
 
 // ── Accounts and credentials ──────────────────────────────────────────────────────────────────
 
-export const PLATFORMS = ['google', 'meta'] as const;
+export const PLATFORMS = asTuple(Platform.options); // from @ads/contracts
 export const ACCOUNT_STATUSES = ['active', 'paused', 'disconnected'] as const;
 
 export const accounts = pgTable(
@@ -190,7 +194,7 @@ export const offerings = pgTable(
 
 // ── What's in the ad accounts ─────────────────────────────────────────────────────────────────
 
-export const ENTITY_TYPES = ['campaign', 'ad_group', 'ad', 'keyword', 'budget'] as const;
+export const ENTITY_TYPES = asTuple(EntityType.options); // from @ads/contracts
 
 /** Every level: campaign, ad group/ad set, ad, keyword, budget. */
 export const adEntities = pgTable(
@@ -441,20 +445,7 @@ export const findings = pgTable(
 );
 
 export const PROPOSAL_ORIGINS = ['agent', 'operator', 'policy'] as const;
-export const PROPOSAL_STATUSES = [
-  'pending',
-  'approved',
-  'rejected',
-  'expired',
-  'blocked',
-  'stale',
-  'applying',
-  'applied',
-  'failed',
-  'rolled_back',
-  'needs_attention',
-  'reverted',
-] as const;
+export const PROPOSAL_STATUSES = asTuple(ProposalStatus.options); // one source of truth: @ads/contracts
 
 export const proposals = pgTable(
   'proposals',

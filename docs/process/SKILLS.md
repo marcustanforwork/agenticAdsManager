@@ -41,7 +41,7 @@ These come with Claude Code or its environment. They may not exist everywhere; c
 |---|---|
 | `session-start-hook` | M00: add dependency installation for cloud sessions to `.claude/hooks/session-start.sh` |
 | `security-review` | Before closing M01b (vault), M10a (dashboard sign-in), M11b (gateway), M12/M13 (write adapters) |
-| `code-review` | Before marking a large PR ready |
+| `code-review` | **Every milestone**, in `close-milestone` step 2b, at high effort over the milestone diff (D-067) |
 | `claude-api` | When touching `core/model` or AI SDK provider configuration (model ids, pricing, structured outputs) |
 | `simplify` | After a milestone's code works, before closing it |
 

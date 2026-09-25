@@ -2,6 +2,7 @@
 import { microsFromJson, OutcomeEvent, type Platform } from '@ads/contracts';
 import { and, asc, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
+import { inBatches } from './batch.ts';
 import { outcomes, type ATTRIBUTION_METHODS } from '../schema.ts';
 
 export type Outcome = typeof outcomes.$inferSelect;
@@ -25,12 +26,16 @@ export async function insertOutcomes(db: DbOrTx, productId: string, events: Outc
       hashedContact: e.hashedContact ?? null,
     };
   });
-  const inserted = await db
-    .insert(outcomes)
-    .values(rows)
-    .onConflictDoNothing({ target: [outcomes.productId, outcomes.sourceId, outcomes.stage] })
-    .returning({ id: outcomes.id });
-  return inserted.length;
+  let inserted = 0;
+  await inBatches(db, rows, async (tx, batch) => {
+    const ids = await tx
+      .insert(outcomes)
+      .values(batch)
+      .onConflictDoNothing({ target: [outcomes.productId, outcomes.sourceId, outcomes.stage] })
+      .returning({ id: outcomes.id });
+    inserted += ids.length;
+  });
+  return inserted;
 }
 
 export async function listOutcomes(

@@ -445,3 +445,19 @@ These correct errors, contradictions and outdated facts found in the review. Det
   - CI runs a Postgres 16 service for the tests and fails if `schema.ts` changed without a migration.
 - **Why:** M01a had to choose these, and writing the repositories showed the gateway couldn't do its documented undo and halt steps with the listed grants. None changes a product decision.
 - **See:** `docs/milestones/M01a-database-schema-repositories.md` · BLUEPRINT §4 · `packages/db/sql/roles.sql`
+
+### D-067 — Code review of M01a: fixes, and code-review becomes a closing step
+- **When / who / status:** 2026-09-25 · Claude (fix) · adopted. Marcus asked whether sessions run a code review; they didn't.
+- **Decision:**
+  - **Fingerprint fields live in contracts:** `fingerprintFieldsFor(action)` in `contracts/undo.ts` is the single definition (was `gateway/src/precondition.ts`). The worker's undo proposals must store the same fields the gateway checks, and the worker may not depend on the gateway. The gateway still computes the derived values (M11a).
+  - Fixes from the review, each with a test that fails on the old code:
+    - undo proposals take an advisory lock instead of `SELECT … FOR UPDATE`, because the worker may only read `change_log`;
+    - account and entity upserts never overwrite another product's row, and an entity's account must belong to its product and platform;
+    - metrics refuse duplicate (entity, day) rows; search-term duplicates are summed;
+    - bulk writes are split into 1,000-row batches inside one transaction;
+    - snapshots use `clock_timestamp()`;
+    - `schema.ts` takes the platform, entity-type and proposal-status lists from contracts;
+    - CI's migration check can't hang on a drizzle-kit prompt.
+  - **The `close-milestone` skill now runs `code-review` (high)** over the milestone's diff, and every confirmed finding is fixed or answered before the PR is marked ready.
+- **Not changed:** `recordDecision` still re-locks a proposal it already holds. That costs one extra savepoint per decision, and the change isn't worth the risk.
+- **See:** BLUEPRINT §3.6, §6 · `.claude/skills/close-milestone/SKILL.md` · `docs/milestones/M01a-database-schema-repositories.md`

@@ -22,6 +22,8 @@ Things that surprised us, and external facts the plan depends on.
 - **The SER9 (local sessions, D-058)** runs Linux with Docker, and no login is needed after a reboot. It's shared with production (`ads-agent`) and possibly other projects' containers (e.g. SnapPool's `snappool-worker`). Use the compose project `ads-agent-dev` for dev, and **never** run `docker system prune` or `docker volume prune`. *(2026-09-25)*
 - **Project hooks load at session start.** Edits to `.claude/settings.json` take effect in the *next* session. *(2026-09-25)*
 - **Vercel functions are short-lived and reach Neon through the pooler,** so they can't use LISTEN. The dashboard polls `operator_requests` for results instead (BLUEPRINT M10a). *(design note, 2026-09-25)*
+- **Postgres row locks need UPDATE rights:** `SELECT … FOR UPDATE` (and `FOR SHARE`) fails with 42501 for a role that may only SELECT the table. Use `pg_advisory_xact_lock` to serialise work on a read-only table (e.g. the worker on `change_log`). *(2026-09-25, D-067)*
+- **drizzle-kit resolves imports with Node's resolver,** without our `@ads/source` condition, so `db:generate` sets `NODE_OPTIONS=--conditions=@ads/source` (schema.ts imports contracts). *(2026-09-25)*
 
 ## External facts (checked 2026-09-25)
 

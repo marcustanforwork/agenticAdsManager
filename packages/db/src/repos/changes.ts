@@ -1,6 +1,6 @@
 // The change log (written only by the gateway) and undo proposals, which the worker and the gateway share.
-import { hashOf, undoFor, UndoContextError, WriteOp, type ApplyContext } from '@ads/contracts';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { fingerprintFieldsFor, hashOf, undoFor, UndoContextError, WriteOp, type ApplyContext } from '@ads/contracts';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError, RefusedError } from '../errors.ts';
@@ -97,8 +97,8 @@ function pick(value: unknown, fields: readonly string[]): unknown {
 }
 
 export interface UndoProposalOptions {
-  /** The fingerprint fields for the undo action (the gateway's `fieldsFor`, BLUEPRINT §3.6). By default, every
-   *  top-level field of the change's `after` state. */
+  /** The fingerprint fields for the undo action. Defaults to `fingerprintFieldsFor` from contracts, the same
+   *  definition the gateway checks against (BLUEPRINT §3.6), so the stored hash can match at apply time. */
   fieldsFor?: (op: WriteOp) => string[];
   requestId?: string | null;
   now?: Date;
@@ -114,7 +114,10 @@ export async function createUndoProposal(
   options: UndoProposalOptions = {},
 ): Promise<{ proposal: ProposalRecord; created: boolean }> {
   return db.transaction(async (tx) => {
-    const [locked] = await tx.select().from(changeLog).where(eq(changeLog.revisionId, revisionId)).for('update');
+    // Serialise undo requests for this revision. An advisory lock, not SELECT … FOR UPDATE: the worker may only
+    // read change_log (roles.sql), and Postgres requires UPDATE rights for row locks.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`undo:${revisionId}`}))`);
+    const [locked] = await tx.select().from(changeLog).where(eq(changeLog.revisionId, revisionId));
     if (!locked) throw new NotFoundError('change', revisionId);
     const change = toChange(locked);
     if (change.undo === null) throw new RefusedError(`${revisionId} (${change.action.action}) cannot be undone`);
@@ -141,12 +144,7 @@ export async function createUndoProposal(
       if (!(error instanceof UndoContextError)) throw error;
       undo = null;
     }
-    const isPlainObject = change.after !== null && typeof change.after === 'object' && !Array.isArray(change.after);
-    const fields = options.fieldsFor
-      ? options.fieldsFor(action)
-      : isPlainObject
-        ? Object.keys(change.after as Record<string, unknown>).sort()
-        : [];
+    const fields = (options.fieldsFor ?? ((op: WriteOp) => fingerprintFieldsFor(op.action)))(action);
     const proposal = await createProposal(tx, {
       productId: change.productId,
       origin: 'operator',

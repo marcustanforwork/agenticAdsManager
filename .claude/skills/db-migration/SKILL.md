@@ -27,7 +27,7 @@ generates into `packages/db/migrations/`. `sql/roles.sql` holds the three roles 
    - bigint/numeric defaults are written `default(sql\`0\`)` (drizzle-kit can't serialise a JS bigint default).
 2. Generate: `pnpm --filter @ads/db db:generate --name <what_changed>`. Read the SQL it wrote.
    - A data change, backfill, view or function goes in a custom migration:
-     `pnpm --filter @ads/db exec drizzle-kit generate --custom --name <what>`, then write the SQL.
+     `pnpm --filter @ads/db db:generate --custom --name <what>`, then write the SQL.
 3. **Never edit a migration that is on `main`.** Fix forward with a new one. (Before merge, delete and regenerate.)
 4. New table? Decide its grants in `sql/roles.sql` (BLUEPRINT §4 "Database roles") and add a case to
    `test/roles.test.ts`. roles.sql revokes everything and re-grants, so it is safe to re-run.

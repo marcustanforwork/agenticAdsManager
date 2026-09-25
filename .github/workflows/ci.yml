@@ -56,7 +56,8 @@ jobs:
 
       - name: Migrations match the schema
         run: |
-          pnpm --filter @ads/db db:generate
+          # stdin closed + a time limit: drizzle-kit asks interactive rename questions, which must fail, not hang
+          timeout 120 pnpm --filter @ads/db db:generate < /dev/null
           git status --porcelain packages/db/migrations | grep . && { echo "::error::schema.ts changed without a migration (see the db-migration skill)"; exit 1; } || true
 
       - name: Test

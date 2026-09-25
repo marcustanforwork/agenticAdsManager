@@ -23,7 +23,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "NODE_OPTIONS=--conditions=@ads/source drizzle-kit generate",
     "db:migrate": "node --conditions=@ads/source src/cli.ts migrate",
     "db:seed": "node --conditions=@ads/source src/cli.ts seed"
   },

@@ -55,10 +55,12 @@ describe('accounts', () => {
   it('refuses to move an account to another product', async () => {
     const p = await makeProduct(t.db);
     const q = await makeProduct(t.db);
-    await upsertAccount(t.db, { productId: p.id, platform: 'google', externalId: '999' });
-    await expect(upsertAccount(t.db, { productId: q.id, platform: 'google', externalId: '999' })).rejects.toThrow(
-      /another product/,
-    );
+    await upsertAccount(t.db, { productId: p.id, platform: 'google', externalId: '999', name: 'Mine' });
+    await expect(
+      upsertAccount(t.db, { productId: q.id, platform: 'google', externalId: '999', name: 'Theirs' }),
+    ).rejects.toThrow(/another product/);
+    // …and the refused upsert changed nothing (no transaction needed).
+    expect((await findAccount(t.db, 'google', '999'))?.name).toBe('Mine');
   });
 });
 
@@ -94,6 +96,45 @@ describe('ad entities', () => {
     expect(again.firstSeenAt.getTime()).toBe(adGroup.firstSeenAt.getTime());
     expect((await getEntity(t.db, adGroup.id)).parentId).toBe(campaign.id);
     expect((await listEntities(t.db, product.id, { type: 'ad_group' })).map((e) => e.id)).toEqual([adGroup.id]);
+  });
+
+  it('refuses to overwrite another product’s entity, and leaves it unchanged', async () => {
+    const a = await makeCampaign(t.db);
+    const b = await makeProduct(t.db);
+    await expect(
+      upsertAdEntity(t.db, {
+        productId: b.id,
+        accountId: a.account.id,
+        platform: 'google',
+        type: 'campaign',
+        externalId: a.campaign.externalId,
+        name: 'Hijacked',
+        status: 'paused',
+        rawStatus: 'PAUSED',
+        dailyBudgetMicros: 1n,
+      }),
+    ).rejects.toThrow(/not a google account of product/);
+    const kept = await getEntity(t.db, a.campaign.id);
+    expect(kept).toMatchObject({ name: 'Campaign', status: 'active', dailyBudgetMicros: 20_000_000n });
+  });
+
+  it('refuses an entity whose account belongs to another product or platform', async () => {
+    const a = await makeCampaign(t.db);
+    const b = await makeProduct(t.db);
+    const entity = {
+      accountId: a.account.id,
+      type: 'campaign' as const,
+      externalId: 'new-one',
+      name: 'n',
+      status: 'active',
+      rawStatus: 'ENABLED',
+    };
+    await expect(upsertAdEntity(t.db, { ...entity, productId: b.id, platform: 'google' })).rejects.toThrow(
+      /not a google account/,
+    );
+    await expect(upsertAdEntity(t.db, { ...entity, productId: a.product.id, platform: 'meta' })).rejects.toThrow(
+      /not a meta account/,
+    );
   });
 
   it('keeps money as bigint micros', async () => {
@@ -135,6 +176,18 @@ describe('snapshots', () => {
     expect((await latestSnapshot(t.db, campaign.id))?.hash).toBe(first.hash);
   });
 
+  it('orders snapshots taken in one transaction, so "latest" is the last one written', async () => {
+    const { product, campaign } = await makeCampaign(t.db);
+    const base = { productId: product.id, adEntityId: campaign.id };
+    await t.db.transaction(async (tx) => {
+      await recordSnapshot(tx, { ...base, snapshot: { status: 'A' } });
+      await recordSnapshot(tx, { ...base, snapshot: { status: 'B' } });
+      expect((await latestSnapshot(tx, campaign.id))?.hash).toBe(hashOf({ status: 'B' }));
+      expect((await recordSnapshot(tx, { ...base, snapshot: { status: 'A' } })).stored).toBe(true);
+      expect((await recordSnapshot(tx, { ...base, snapshot: { status: 'A' } })).stored).toBe(false);
+    });
+  });
+
   it('concurrent identical snapshots store one row', async () => {
     const { product, campaign } = await makeCampaign(t.db);
     const input = { productId: product.id, adEntityId: campaign.id, snapshot: { status: 'active' } };
@@ -169,6 +222,37 @@ describe('daily metrics', () => {
     expect(d21?.restatedAt.getTime()).toBeLessThan(new Date('2026-01-02').getTime());
     expect(d21?.spendMicros).toBe(3_210_000n);
   });
+
+  it('rejects two rows for the same entity and day, naming them', async () => {
+    const { product, campaign } = await makeCampaign(t.db);
+    const row: MetricsInput = {
+      productId: product.id,
+      adEntityId: campaign.id,
+      date: '2026-09-20',
+      impressions: 1,
+      clicks: 0,
+      spendMicros: 0n,
+      platformConversions: '0',
+    };
+    await expect(upsertMetricsDaily(t.db, [row, { ...row }])).rejects.toThrow(/duplicate metrics row .* 2026-09-20/);
+  });
+
+  it('writes batches larger than one statement can hold (Postgres: 65,535 parameters)', async () => {
+    const { product, campaign } = await makeCampaign(t.db);
+    const start = Date.UTC(2000, 0, 1);
+    const rows: MetricsInput[] = Array.from({ length: 10_000 }, (_, i) => ({
+      productId: product.id,
+      adEntityId: campaign.id,
+      date: new Date(start + i * 86_400_000).toISOString().slice(0, 10),
+      impressions: i,
+      clicks: 0,
+      spendMicros: BigInt(i),
+      platformConversions: '0',
+    }));
+    await upsertMetricsDaily(t.db, rows);
+    const stored = await getMetrics(t.db, { productId: product.id, from: '2000-01-01', to: '2030-01-01' });
+    expect(stored).toHaveLength(10_000);
+  }, 60_000);
 
   it('filters by date range and entity', async () => {
     const { product, campaign } = await makeCampaign(t.db);
@@ -216,6 +300,15 @@ describe('search terms and Google clicks', () => {
     const rows = await getSearchTerms(t.db, { productId: product.id, from: '2026-09-01', to: '2026-09-30' });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ term: term.term, clicks: 2, spendMicros: 900_000n });
+
+    // Google reports a term once per matched keyword: rows with the same key in one batch are summed.
+    await upsertSearchTerms(t.db, [
+      { ...term, clicks: 1, spendMicros: 100_000n, conversions: '0.5' },
+      { ...term, clicks: 3, spendMicros: 250_000n, conversions: '1.25' },
+    ]);
+    const [merged] = await getSearchTerms(t.db, { productId: product.id, from: '2026-09-01', to: '2026-09-30' });
+    expect(merged).toMatchObject({ impressions: 20, clicks: 4, spendMicros: 350_000n });
+    expect(Number(merged?.conversions)).toBe(1.75);
   });
 
   it('stores each gclid once and looks it up within the product', async () => {

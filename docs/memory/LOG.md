@@ -4,6 +4,18 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — Code review of M01a; review becomes a closing step; PR #4 merged
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4)
+- **Did:**
+  - Marcus asked whether sessions run a code review. They didn't; only preflight's self-review ran.
+  - Ran `code-review` (high) on the M01a diff: 10 findings, 9 fixed, each with a regression test (7 of the 8 new tests fail on the old code). Details are in the M01a milestone notes.
+  - `close-milestone` now includes the review step (2b).
+  - Merged PR #4 on Marcus's instruction after CI passed. The M01a live steps stay undone (T2/T3 aren't set up).
+- **Decided:** D-067 (Claude, fix): fingerprint fields move to contracts; the review fixes; `code-review` for every milestone. BLUEPRINT v3.6.
+- **Learned:** Postgres row locks (`FOR UPDATE`/`FOR SHARE`) need UPDATE rights. drizzle-kit loads `schema.ts` with Node's resolver, so it needs `--conditions=@ads/source` to import workspace packages.
+- **Next:** a clean session starts M01b.
+- **Open:** live steps M00 (SER9) and M01a (T2, T3); T1's required status checks (optional).
+
 ## 2026-09-25 — M01a built: database schema, repositories, roles, seed
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4)
 - **Did:**

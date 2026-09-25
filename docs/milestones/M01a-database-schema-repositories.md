@@ -125,6 +125,17 @@ Needs T2 (Neon project with `prod` and `dev` branches) and T3 (Doppler). Run on 
 - `pnpm --filter @ads/db db:generate` → `No schema changes, nothing to migrate`; adding a column without a migration makes the CI check fail (tried locally, then reverted).
 
 ## Notes and surprises
+- 2026-09-25 (after the build, on Marcus's question): a `code-review` (high) of the M01a diff found 10 issues. Nine are fixed, each with a test; one was left as it is (D-067):
+  - the worker's undo proposals now use an advisory lock, because `FOR UPDATE` needs UPDATE rights on `change_log`, which the worker lacks;
+  - cross-product upserts now leave the other product's row untouched (`setWhere`), and `upsertAdEntity` checks that the account belongs to the product and platform;
+  - metrics refuse duplicate keys; search-term duplicates are summed (`addDecimals`);
+  - bulk writes go in 1,000-row batches (`repos/batch.ts`);
+  - snapshots use `clock_timestamp()`;
+  - `createUndoProposal` defaults to `fingerprintFieldsFor` (contracts);
+  - `schema.ts` enums come from contracts;
+  - CI's `db:generate` runs with a timeout and closed stdin. `db:generate` now sets `--conditions=@ads/source`, because the schema imports contracts.
+  - Left as it is: `recordDecision` re-locking a proposal it already holds (efficiency only).
+  - **For M11a:** the gateway must compute its fingerprint over exactly `fingerprintFieldsFor(action)`, under those names.
 - 2026-09-25: drizzle-kit can't serialise a bigint default (`sql\`0\`` instead), and Drizzle's jsonb reader re-parses JSON strings (a stored `"true"` read back as `true`); `getFlag` reads `::text`. Both in GOTCHAS.
 - 2026-09-25: the §4 grants didn't let the gateway create undo proposals, link reverted changes or halt a product; filled in (D-066).
 - 2026-09-25: library choice. `drizzle-orm` **0.45.3** + `drizzle-kit` **0.31.11** (the stable `latest` tags; 1.0 is still `1.0.0-rc.4`), with `pg` **8.23.0** (node-postgres). Recorded in GOTCHAS.
