@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+docs/
+products/
+fixtures/
+*.md
+dist/
+coverage/
+.turbo/
+scripts/test/fixtures/
