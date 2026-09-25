@@ -26,6 +26,7 @@ No block, or it looks broken? Run `bash .claude/hooks/session-start.sh < /dev/nu
 - **The newest memory is on a work branch** (an unmerged PR): continue it.
   - Local: `git switch <branch> && git pull --ff-only`.
   - Cloud: first confirm `git log --oneline origin/main..HEAD` is **empty** (your assigned branch has no work of its own), then run `git reset --hard origin/<branch>`. At the end you will supersede its PR.
+- **Your assigned branch's PR is already merged** (a cloud session cleared and reused after the merge): the hook shows its old commits as "ahead" of `origin/main`, but their content is on `main`. Confirm the PR is merged, then `git fetch --prune origin && git reset --hard origin/main`, and make your first push `git push --force-with-lease -u origin <branch>`. Never do this while the branch has commits that aren't merged.
 - **Uncommitted leftovers in a local checkout:** ask Marcus before touching them. They may be his.
 - **Several candidate branches:** list them for Marcus and ask. Don't guess.
 

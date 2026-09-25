@@ -4,6 +4,18 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — Q12 answered; Q11 clarified; PR #1 merged
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1)
+- **Did:**
+  - Recorded Q12 as D-063, superseding D-061. The budget is S$500 a month. Marcus resets Meta's spending limit by hand and will change it during trials, so the agent reads it live, never assumes it, and never changes it.
+  - Moved the `spend_cap_headroom` check from M12 to **M04** and added a digest line (M07), because ads are live in Phase 0 and all Meta campaigns stop at the limit. The M05a live steps now enter the starting settings: test email domains and ceilings.
+  - Q11: Marcus asked which project the tracking plan is for. The answer is SnapPool (the `snappool` repo); this repo only reads what it saves. Q11 and `SNAPPOOL-TRACKING.md` §0 now say so up front. Q11 is still open.
+  - Documented how a cloud session restarts a branch whose PR is already merged (GIT-WORKFLOW §4 and §8; `start-session` §2).
+  - Squash-merged PR #1 into `main` on Marcus's instruction, after CI passed (D-057), and reset the branch to `main`.
+- **Decided:** D-063 (Marcus).
+- **Next:** a clean-context session starts M00. Marcus: T1, Q11, and the long setup tasks T4, T5 and T6a.
+- **Open:** Q11; setup tasks T1–T14.
+
 ## 2026-09-25 — Marcus's second answers; SnapPool repo read; tracking spec
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1)
 - **Did:**

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.2 — 2026-09-25 (Marcus's answers recorded; SnapPool tracking plan added) |
+| **Version** | v3.3 — 2026-09-25 (Q12 answered: S$500 a month, and Marcus resets the Meta limit by hand, D-063) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
@@ -165,7 +165,7 @@ They differ on nearly every axis, which is exactly why they make a good test. If
 | **Fact base** | Features, plan limits, pricing, supported event types | Project facts: district, MRT, PSF band, unit mix, developer, TOP date, launch dates |
 | **Compliance** | Ad-platform policy only. Claims must match the product. PDPA-appropriate wording about photo handling. | CEA rules: agent name, registration number, agency name, licence number, rules on claims and prices. **Marcus is the licensed party.** Meta's *Housing* special ad category applies (confirmed by Marcus, D-062); it limits targeting. |
 | **Platforms** | Meta/Instagram first, Google Search second, TikTok later | Google Search first, Meta second |
-| **Spend** | About 500 a month to start (Marcus, D-061). The ceilings are settings, not code. | On hold |
+| **Spend** | About **S$500 a month** to start (Marcus, D-063). The ceilings are settings, not code. | On hold |
 | **Seed data** | Live account | "Sora at Lakeside" project, as recorded fixtures |
 
 ---
@@ -372,7 +372,7 @@ These guards are tested with property-based tests: thousands of random inputs ch
 Ceilings are per-product settings: a daily and a monthly limit. They are enforced in three ways:
 1. **Blocking increases.** A budget increase or paused create is blocked if the product's ceilings are **unset**. It is also blocked if the sum of active daily budgets after the change would exceed the daily ceiling, or if month-to-date spend plus projected spend would exceed the monthly ceiling.
 2. **Alerts.** An alert fires at 80% of the monthly ceiling. At 100% there is an alert plus a pause proposal. That pause is applied automatically only if the product setting `autoPauseOnMonthlyBreach` is on (**off by default**).
-3. **Honest limits.** The system is **not** a hard spending cap. Platforms may spend above a daily budget on individual days (Google allows up to 2× on a day), and the system only controls what *it* changes. **The real backstop is platform-side:** set a Meta **account spending limit** on each ad account (Marcus, setup task T4). Meta's limit is a **lifetime total, not a monthly one**, so reset it at the start of each month, or turn on the monthly auto-reset if the billing page offers it (D-061). Google campaigns are bounded by their budgets, and the trust check warns if a Meta account has no spending limit.
+3. **Honest limits.** The system is **not** a hard spending cap. Platforms may spend above a daily budget on individual days (Google allows up to 2× on a day), and the system only controls what *it* changes. **The real backstop is platform-side:** set a Meta **account spending limit** on each ad account (Marcus, setup task T4). Meta's limit is a **lifetime total, not a monthly one**, so Marcus resets it by hand at the start of each month (or turns on auto-reset, if his billing page offers it), and may change it at any time, for example during trials (D-063). The agent reads the current limit from Meta on every sync, never assumes a figure, and never changes it. Google campaigns are bounded by their budgets. The trust check warns if a Meta account has no spending limit, or has used 80% of it.
 
 ### 6.10 Crash-safe applying
 
@@ -644,8 +644,8 @@ All decisions, with reasons and alternatives, are recorded in `docs/memory/DECIS
   - D-057: Claude merges a PR only when told to, after CI passes;
   - D-058: local sessions on the SER9, with Docker isolation;
   - D-059: SnapPool test signups identified by email domain;
-  - D-061: a Meta spend limit of about 500 a month, reset monthly;
-  - D-062: the Housing category is confirmed for property.
+  - D-062: the Housing category is confirmed for property;
+  - D-063: a budget of S$500 a month; Marcus resets and adjusts the Meta spending limit by hand, and the agent reads it live (replacing D-061).
 - **Waiting for Marcus's OK:** D-060, the SnapPool tracking plan (Q11).
 
 ---
@@ -659,7 +659,7 @@ These are done outside Claude Code. Each lists the milestone it blocks. Google a
 | T1 | **GitHub repo settings:** protect `main` (require a PR and passing checks, no force-push); squash-merge only; auto-delete merged branches | Before M00 merges | `docs/process/GIT-WORKFLOW.md` §9 |
 | T2 | **Neon:** a project for the agent with `prod` and `dev` branches | M01a live steps | On your existing paid plan (D-055), separate from SnapPool's project |
 | T3 | **Doppler:** a project with `dev`, `worker`, `gateway` and `dashboard` configs; generate the two vault master keys (read, write) | M01a live steps | Never give Claude sessions the `worker`/`gateway` configs |
-| T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). Generate a Conversions API token for SnapPool's dataset. **Set an account spending limit** on the SnapPool ad account at about your monthly budget (~500), and **reset it on the 1st of each month**, or turn on auto-reset if offered (D-061). Load the tokens with the CLI (M01b) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
+| T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). Generate a Conversions API token for SnapPool's dataset. **Set an account spending limit** on the SnapPool ad account at about your monthly budget (S$500 to start). It's a lifetime total, so **reset it by hand** at the start of each month, or turn on auto-reset if your billing page offers it. Change it whenever you like, e.g. during trials: the agent reads it from Meta (D-063). Load the tokens with the CLI (M01b) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
 | T5 | **Google:** a manager account (MCC) with the property account and a new SnapPool account under it. Get a developer token from the MCC's API Center: **Explorer access** works on real accounts immediately; also apply for **Basic**. Create an OAuth client in a GCP project. Create **two Google logins**: one with *read-only* access to the ad accounts (for sync) and one with *standard* access (for writes and uploads) **(D-046)**. Set up a separate *test* manager account with a test client account. | M03 (read), M13 (write) | Days of lead time |
 | T6 | **SnapPool:** (a) ~~schema info~~, done by Claude from the repo (`SNAPPOOL-TRACKING.md` §1–2); still needed: a **read-only connection string** in Doppler `dev`/`worker`; (b) **build the tracking change** in the SnapPool repo, per `SNAPPOOL-TRACKING.md` §3, as a SnapPool session, **early**, because attribution only works from the day it ships; (c) ~~current tracking~~, confirmed as none; (d) the test-signup **email domains**, entered as a setting in the M05a live steps | M05a (a, d), M05b and M12 (b) | (b) happens in SnapPool's repo, not this one |
 | T7 | **Telegram:** create the bot with BotFather and send Marcus's numeric user id | M07 | |

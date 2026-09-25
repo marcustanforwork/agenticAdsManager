@@ -68,6 +68,14 @@ git reset --hard origin/<work-branch>        # safe only because of the check ab
 ```
 The new PR contains all the old commits plus the new ones, so nothing is lost and the history stays linear. If the assigned branch *already* has commits (a resumed session), don't reset. Continue on it as it is.
 
+**Exception: the assigned branch's PR is already merged.** This happens when a cloud session is cleared and reused after its PR was merged. A squash merge leaves the branch's old commits counted as "ahead" of `main`, though their content is already on `main`. Confirm the PR is merged (GitHub MCP `pull_request_read`), then:
+```bash
+git fetch --prune origin
+git reset --hard origin/main
+git push --force-with-lease -u origin <assigned-branch>   # only merged history is overwritten
+```
+Never do this while the branch has commits that aren't merged.
+
 **If the work branch is behind `main`** (other PRs merged meanwhile): merge `origin/main` into it (`git merge origin/main`), resolve conflicts, run the checks, and push. Don't rebase or force-push a branch that has an open PR someone may have checked out.
 
 ---
@@ -153,7 +161,7 @@ What to look at, in order:
 
 **Merge method: squash and merge.** One commit per PR on `main`, titled like the PR. The branch is deleted automatically.
 
-After merging, nothing else is needed. The next session starts from `main` and finds everything in `docs/memory/`.
+After merging, the next session starts from `main` and finds everything in `docs/memory/`. When Claude merges from a cloud session, it then resets its assigned branch to `origin/main` and, if the branch still exists on GitHub, pushes it with `--force-with-lease` (§4, the exception), so a cleared session starts clean. A local session switches to `main` and pulls.
 
 ---
 

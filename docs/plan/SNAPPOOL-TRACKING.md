@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v1 — 2026-09-25 |
+| **Version** | v1.1 — 2026-09-25 (§0 now says first which repo the work is in) |
 | **Status** | **Proposed**. Decision D-060 needs Marcus's OK (QUESTIONS Q11). |
 | **Built in** | The **SnapPool repo** (`marcustanforwork/snappool`), by a SnapPool session following SnapPool's own process. This repo only uses what it produces. |
 | **Used by** | M05a (outcomes), M05b (attribution), M12 (Meta uploads) and M13 (Google uploads) in this repo |
@@ -12,6 +12,7 @@
 
 ## 0. In short
 
+- **This is a change to SnapPool, built in the `snappool` repo, not in the ads manager.** It's written down here because the ads manager depends on it. The ads manager's own part (reading what SnapPool saves, and sending the conversions to Google and Meta) is already in its milestones (§4).
 - **Today SnapPool can't tell which ad brought a visitor.** It records nothing about where visitors came from and sends nothing to Google or Meta: no pixel, no Google tag, no analytics, and no capture of click IDs or `utm_*` parameters.
 - **The plan:**
   1. SnapPool **remembers** the ad-click details when a visitor arrives.
@@ -123,7 +124,7 @@ Add a short paragraph along these lines: *"To learn which ads bring people to Sn
 | **M13** | Google **Data Manager API**: a click conversion for `signup`, using `gclid` (or `gbraid`/`wbraid`), with transaction id = event id. |
 | **Rhythm** | While Marcus approves uploads by hand (Phase 2), they're batched **daily**. Once auto-approval is switched on, they run **hourly**. An outcome is only ever sent to the platform its click came from. |
 
-**Why two Meta events?** At about 500 a month in ad spend, signups will be too few for Meta's optimisation to learn from quickly. `Lead` (a `/start` submit) happens more often. With both available, the campaign can optimise for `Lead` early on, and switch to `CompleteRegistration` once volume allows. That's a campaign setting in Ads Manager.
+**Why two Meta events?** At about S$500 a month in ad spend, signups will be too few for Meta's optimisation to learn from quickly. `Lead` (a `/start` submit) happens more often. With both available, the campaign can optimise for `Lead` early on, and switch to `CompleteRegistration` once volume allows. That's a campaign setting in Ads Manager.
 
 ---
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.2 — 2026-09-25 (Marcus's answers recorded; SnapPool tracking plan wired in) |
+| **Version** | v3.3 — 2026-09-25 (Meta spending limit read live and watched from M04, D-063) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1068,7 +1068,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | `outcome_source_fresh` | adapter healthy, activity within `maxOutcomeStalenessHours` | healthy but quiet | adapter unreachable | — |
 | `attribution_gap` | the gap between platform conversions and our attributed outcomes is within `maxAttributionGapPct` | above it | — (never fails alone) | fewer outcomes than `minOutcomesForGap` |
 | `id_capture` | the share of recent outcomes carrying click/platform ids ≥ `minIdCapturePct` | below it | — | no recent outcomes |
-| `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total: reset it monthly, D-061) | — | — |
+| `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total that Marcus resets by hand, D-063) | — | — |
 
 The cycle result is `fail` if any check fails, which means a diagnostic brief only. It is `degraded` if any check warns: the brief shows the warnings, and proposals are still allowed. Otherwise it is `ok`.
 
@@ -1146,6 +1146,7 @@ Methods are tried in this order, and the first match wins:
 - **Digest.** About 6 lines, with no AI:
   - yesterday's spend vs the daily ceiling;
   - month-to-date spend vs the monthly ceiling;
+  - Meta: the account spending limit and how much of it is used, as read from Meta at the last sync; on the 1st of the month, a reminder to reset it (D-063);
   - outcomes by stage;
   - cost per primary KPI;
   - open proposals;
@@ -1466,7 +1467,7 @@ Methods are tried in this order, and the first match wins:
 1. `core/cycle/runCycle(productId, kind)`: the stages are functions, `stage_reached` advances after each one, and the whole cycle is resumable.
 2. Sync stage: for each active account, read into the repositories. Snapshots are stored only on change. Also sync search terms and click ids (Google).
 3. Drift detection (§5.7). The platform is the truth; drift is surfaced, never overwritten.
-4. Trust checks (§5.8), including the `no_signal` result. A `fail` stops the cycle after the diagnostic report.
+4. Trust checks (§5.8), including the `no_signal` result and `spend_cap_headroom` (from the account info synced in M02, D-063). A `fail` stops the cycle after the diagnostic report.
 5. `ads cycle --product X --kind daily --until trust_checked` prints a summary.
 6. Recovery: unfinished cycles resume from `stage_reached`.
 
@@ -1526,6 +1527,7 @@ Methods are tried in this order, and the first match wins:
 
 **Done when (live):**
 - `ads outcomes --product snappool` prints 30 days of outcomes by stage.
+- Marcus's starting settings are entered with `ads settings set`: the test-signup email domains (D-059), a monthly ceiling of S$500 (D-063), and a daily ceiling of his choice.
 - Changing the KPI from `signup` to `paid` with `ads settings set` changes the output, with no code change.
 
 **Cut first:** the manifest publisher (moves to M05b).
@@ -2025,7 +2027,7 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
    - Marcus approves them until `autoApproveFeedback` is switched on;
    - daily caps and volume alerts apply;
    - one daily batch while Marcus approves by hand; hourly once auto-approval is on.
-5. A trust/doctor check that the Meta account spending limit is set and has headroom (`spend_cap_headroom`, §5.8). The digest shows how much of the limit is used, and on the 1st of the month reminds Marcus to reset it unless auto-reset is on (D-061).
+5. The Meta spending limit is already watched: `spend_cap_headroom` (§5.8) runs from M04, and the digest shows its usage and the reset reminder from M07 (D-063). Nothing new to build: confirm the check passes on the live account before the first live write.
 6. A runbook section: the rules denying writes that must be applied if any MCP client is ever connected to the Meta account (D-018).
 
 **Tests:**

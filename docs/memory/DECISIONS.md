@@ -14,7 +14,7 @@ Every decision that shapes the plan, with its reason and the alternative it repl
 
 **Status meanings**
 - **adopted:** in force.
-- **proposed:** Claude's recommendation; the plan is written this way, but it waits for Marcus's OK (QUESTIONS Q1).
+- **proposed:** Claude's recommendation; the plan is written this way, but it waits for Marcus's OK (the open question is in `QUESTIONS.md`).
 - **superseded:** replaced by the decision named.
 
 ---
@@ -382,7 +382,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** `docs/plan/SNAPPOOL-TRACKING.md` · PROPOSAL §8 · BLUEPRINT §3.3, §3.5, §5.13, M05a, M12, M13
 
 ### D-061 — Meta spending limit: about 500 a month, reset monthly
-- **When / who / status:** 2026-09-25 · Marcus (amount, tentative) + Claude (mechanics) · adopted (answers Q8)
+- **When / who / status:** 2026-09-25 · Marcus (amount, tentative) + Claude (mechanics) · adopted (answers Q8), then **superseded by D-063** after Q12
 - **Decision:**
   - Marcus plans about **500 a month** to start. The Meta account spending limit is set at about that amount.
   - Because Meta's limit is a **lifetime total, not monthly**, it's reset on the 1st of each month, or set to auto-reset if the billing page offers that.
@@ -394,3 +394,14 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Decision:** The property pack declares `HOUSING` on every Meta campaign it creates. The property playbook assumes the resulting targeting limits: no age, gender or postcode targeting.
 - **See:** PROPOSAL §4, §7 · BLUEPRINT M05b, M14
 
+### D-063 — Budget S$500 a month; Marcus resets and adjusts the Meta spending limit by hand
+- **When / who / status:** 2026-09-25 · Marcus (budget, resets) + Claude (mechanics) · adopted (answers Q12) · **Supersedes:** D-061
+- **Decision:**
+  - The starting budget is **S$500 a month**, in Singapore dollars (the ad accounts' currency). Marcus sets Meta's account spending limit at about that amount.
+  - He **resets the limit by hand** when needed. Whether his billing page offers auto-reset is unknown, so the plan doesn't rely on it.
+  - He will **change the limit during trials**. So the agent reads the current limit, and the amount spent against it, from Meta on every sync. It never assumes a figure, and never changes the limit: that isn't one of its write actions.
+  - The trust check `spend_cap_headroom` warns when the limit is unset, or 80% or more of it is used. It runs from M04, because ads are live in Phase 0 and every Meta campaign stops when the limit is reached. From M07 the digest shows the usage, and on the 1st of each month reminds Marcus to reset it.
+  - The agent's own monthly ceiling for SnapPool is a separate setting, entered in the M05a live steps. Both are Marcus's to change.
+- **Why:** Marcus's answer to Q12: "Yes, it's $500 dollars … I'll manually do the reset if I need to, but I will adjust the limits when we are trying as well."
+- **Instead of:** D-061, which assumed a fixed limit, possibly auto-reset, and watched it only from M12.
+- **See:** PROPOSAL §4, §6.9, §16 T4 · BLUEPRINT §5.8, §5.14, M04, M12

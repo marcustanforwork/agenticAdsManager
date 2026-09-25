@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-09-25 |
 | **Reviewed** | `docs/archive/proposal-v2.1.md` and `docs/archive/blueprint-v2.1.md` (both generated on 2026-09-14) |
-| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 (§H) and v3.2 (§I) the same day after Marcus's replies |
+| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 (§H), v3.2 (§I) and v3.3 (§J) the same day after Marcus's replies |
 | **Method** | Read both documents in full. Checked every mechanism for "what happens if…", cross-checked the two documents against each other, and re-checked external facts against current sources (2026-09-25). |
 
 **Headline.** The v2 design is sound, and its core ideas stay:
@@ -207,6 +207,14 @@ Reply "all OK", or name the ones you disagree with, in `docs/memory/QUESTIONS.md
 - **There's no checkout.** SnapPool is in a free beta (signup window to 2026-11-30, free plans honoured to 2027-01-01), so the `paid` stage has no source for now.
 - **The funnel is `/start` request → email-verified claim → first photo.** That gives the stage defaults `pool_request` / `signup` / `activated`.
 - **Activation usually happens on the event day,** weeks after the ad click. It's for reporting, not for platform feedback.
+
+## J. Marcus's third round of answers (v3.3, 2026-09-25)
+
+| # | Marcus said | What changed |
+|---|---|---|
+| J1 | Q12: "Yes, it's $500 dollars." Not sure about auto-reset: "I'll manually do the reset if I need to, but I will adjust the limits when we are trying as well." | D-063 supersedes D-061. The budget is **S$500 a month**. The agent reads Meta's limit on every sync instead of assuming it, and never changes it. `spend_cap_headroom` now runs from **M04** (it was only in M12), because ads are live in Phase 0 and every Meta campaign stops at the limit. The digest shows the usage and a reset reminder on the 1st (M07). The M05a live steps now enter the starting settings: test email domains and ceilings. |
+| J2 | Q11: "Tracking plan for which project?" | Clarified; nothing changed in substance. The tracking change is built in the **snappool** repo, and this repo only reads what it saves. Q11 and `SNAPPOOL-TRACKING.md` §0 now say so first. Q11 stays open. |
+| J3 | "After that we can merge", then a clean context for M00 | PR #1 is merged on his instruction, after CI passes (D-057). GIT-WORKFLOW §4 and §8 and the `start-session` skill now cover a cloud branch whose PR is already merged: reset it to `main` before new work. |
 
 ## What did not change
 
