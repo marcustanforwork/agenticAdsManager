@@ -6,20 +6,21 @@
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M01a: merged**; status **awaiting live acceptance** (Neon migrate + seed, below: not done yet, needs T2 + T3). Details, evidence and "Leave behind": `docs/milestones/M01a-database-schema-repositories.md`.
+- **Active milestone:** **M01b: in progress** (`docs/milestones/M01b-queue-leader-vault-requests.md`).
+- **M01a** is merged and still awaiting its live acceptance (Neon migrate + seed, below: not done yet, needs T2 + T3).
 - **M00** is merged and still awaiting its live acceptance (the SER9 Docker check).
 - **Status:** plan v3.6 (BLUEPRINT). No open questions. D-066: M01a's build choices. **D-067:** code review of M01a (9 fixes), fingerprint fields now in contracts, and `close-milestone` runs `code-review` for every milestone.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01b** (queue, leader lock, vault, request processor). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2). Start with the `db-migration` skill's test-DB recipe (`pg_ctlcluster 16 main start` + the postgres password).
+1. **Claude:** M01b Build 1, the queue (in `@ads/db`, D-068). Test DB: `pg_ctlcluster 16 main start` + the postgres password (`db-migration` skill).
 2. **Marcus, when T2 and T3 are done:** the M01a live steps (below). They don't block M01b's cloud work.
 3. **Marcus, when at the SER9:** the M00 live steps (in `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`).
 4. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`.
 5. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16).
 
 ## In flight
-- Nothing. PR #4 (M01a, with the code-review fixes) was squash-merged into `main` on 2026-09-25.
+- M01b on branch `claude/trusting-wozniak-dcdxfu` (no PR yet).
 
 ## Blocked on Marcus
 - No open questions.
@@ -46,7 +47,7 @@
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
 | M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: Neon migrate + seed (to do; needs T2, T3) |
-| M01b | Queue, leader lock, vault, request processor | 0 | **next** | — | |
+| M01b | Queue, leader lock, vault, request processor | 0 | **in progress** | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |
 | M04 | Sync, drift, trust checks | 0 | not started | — | Includes the Meta spending-limit check (D-063) |
