@@ -1,0 +1,45 @@
+# A PR that changes anything outside docs/memory/ must also update docs/memory/NOW.md and LOG.md,
+# so the next Claude session (cloud or local) can continue. See docs/process/GIT-WORKFLOW.md §6.
+# Skip it for trivial changes with the label "skip-memory-check".
+name: memory-check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  memory-check:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-memory-check') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require memory updates when anything else changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          echo "Files changed in this PR:"
+          echo "$changed" | sed 's/^/  /'
+
+          other="$(echo "$changed" | grep -v '^docs/memory/' || true)"
+          if [ -z "$other" ]; then
+            echo "Only memory files changed: OK."
+            exit 0
+          fi
+
+          missing=""
+          echo "$changed" | grep -qx 'docs/memory/NOW.md' || missing="$missing docs/memory/NOW.md"
+          echo "$changed" | grep -qx 'docs/memory/LOG.md' || missing="$missing docs/memory/LOG.md"
+          if [ -n "$missing" ]; then
+            echo "::error::This PR changes files outside docs/memory/ but does not update:$missing. Run the end-session skill (docs/process/SESSIONS.md), or add the label 'skip-memory-check' for a trivial change."
+            exit 1
+          fi
+          echo "Memory updated: OK."
