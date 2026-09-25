@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR: being opened (link below once it exists)
+**Last updated:** 2026-09-25 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1) (ready for review)
 
 ## Where we are
 - **Phase:** planning (before Phase 0).
@@ -11,14 +11,14 @@
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens. That's 25 sessions (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review the PR. Start with `docs/plan/CHANGES-v3.md` (~10 min), then `docs/plan/PROPOSAL.md` §0 (the one-page summary).
+1. **Marcus:** review PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1). Start with `docs/plan/CHANGES-v3.md` (~10 min), then `docs/plan/PROPOSAL.md` §0 (the one-page summary).
 2. **Marcus:** answer `docs/memory/QUESTIONS.md`: Q1–Q5 and Q8–Q10. Q1, the recommendations needing your OK, matters most. Q6 and Q7 are already answered.
 3. **Marcus:** merge the PR, then do setup task **T1** (GitHub repo settings: `docs/process/GIT-WORKFLOW.md` §9).
 4. **Marcus:** start the setup tasks that take days: **T5** (Google manager account and developer token), **T4** (Meta app and system users), **T6** (SnapPool schema and tracking info). The full list is in `PROPOSAL.md` §16.
 5. **Claude (next session, clean context):** run `start-milestone` for **M00**. It needs nothing from Marcus, apart from T1 before its PR is merged.
 
 ## In flight
-- `claude/gifted-franklin-hk0fku`: plan v3.1, process docs and the memory system. The PR is being opened.
+- `claude/gifted-franklin-hk0fku` → PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1): plan v3.1, process docs and the memory system. Ready for review; waiting for Marcus to merge.
 
 ## Blocked on Marcus
 - Q1–Q5 and Q8–Q10 in `QUESTIONS.md`. None of them block M00; each question lists what it blocks.

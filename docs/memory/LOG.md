@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-09-25 — Plan v3.1: Marcus's answers, sessions resized, PR opened
-- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR: opened in this session (link in `NOW.md`)
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1)
 - **Did:**
   - Recorded Marcus's answers:
     - he already has Vercel Pro, so the dashboard runs there (D-054, superseding D-050);
@@ -19,7 +19,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 - **Open:** Q1–Q5, Q8–Q10; setup tasks T1–T13.
 
 ## 2026-09-25 — Plan v3: review, rewrite, workflow and memory system
-- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR: none yet
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1) (opened later the same day)
 - **Did:**
   - Reviewed the v2 proposal and blueprint, and moved the originals to `docs/archive/` without changes.
   - Re-checked external facts: the Google Data Manager API switch, Explorer access, API v25.2, Node 24 LTS, AI SDK 6, Vercel Hobby terms, Neon's free tier, and Meta's special ad categories.
