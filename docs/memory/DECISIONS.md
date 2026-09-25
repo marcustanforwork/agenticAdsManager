@@ -372,7 +372,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** BLUEPRINT §3.3, M05a · SNAPPOOL-TRACKING §2
 
 ### D-060 — SnapPool captures the ad click; the agent uploads the conversions (no pixel for now)
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · **proposed** (Q11) · **Supersedes:** D-047
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q11, 2026-09-25) · **Supersedes:** D-047
 - **Decision:**
   - SnapPool remembers the ad-click details in a first-party cookie, and saves them on the `/start` request, together with the browser user agent and page URL (Meta requires both for website events). There's no IP address and no browser pixel or tag.
   - The agent uploads `pool_request` (Meta `Lead`) and `signup` (Meta `CompleteRegistration`; Google click conversion) server to server: one daily batch while Marcus approves them by hand, hourly once auto-approved.
@@ -405,3 +405,17 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** Marcus's answer to Q12: "Yes, it's $500 dollars … I'll manually do the reset if I need to, but I will adjust the limits when we are trying as well."
 - **Instead of:** D-061, which assumed a fixed limit, possibly auto-reset, and watched it only from M12.
 - **See:** PROPOSAL §4, §6.9, §16 T4 · BLUEPRINT §5.8, §5.14, M04, M12
+
+### D-064 — SnapPool tracking spec v1.2: fixes from reading SnapPool's code
+- **When / who / status:** 2026-09-25 · Claude (fix) · adopted
+- **Decision:** `SNAPPOOL-TRACKING.md` v1.2:
+  - keeps SnapPool's `/host` login guard unchanged, and runs the click capture only on the pages ads land on. Today's middleware is only that guard, and it redirects every matched request without a user to `/login`;
+  - keeps click ids whole: up to 512 characters, and a longer one is dropped, never cut. The whole cookie stays under ~3.5 KB;
+  - takes `page_url` from the same-origin `Referer` of the `/api/start` POST, so the form doesn't change;
+  - on a repeat `/start`, keeps the earlier attribution unless the new request has one;
+  - asks for three privacy-page edits instead of one paragraph, because the page promises "never share it with advertisers";
+  - puts the migration on production before the deploy;
+  - adds the copy-paste prompt for the SnapPool session (§7).
+  - For the agent: SnapPool deletes pending requests after 30 days, so the M05a adapter reads at least daily and keeps what it has read.
+- **Why:** Writing the prompt meant reading SnapPool's middleware, `/api/start`, `startPool()`, security headers and privacy text (commit `a6c190a`). Each point above was a gap in v1.1 that would have broken signups or `/host`, lost click ids, or left the privacy page contradicting itself.
+- **See:** `SNAPPOOL-TRACKING.md` §1, §3, §6, §7 · BLUEPRINT M05a

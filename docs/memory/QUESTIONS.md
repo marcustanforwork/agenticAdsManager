@@ -8,21 +8,7 @@ None of these block milestone **M00**. Each question says what it blocks.
 
 ## Open
 
-### Q11 — OK the SnapPool tracking change? (D-060)
-**Blocks:** the SnapPool tracking change (T6b). Attribution (M05b) and uploads (M12, M13) depend on it. It doesn't block M00–M05a.
-
-**Which project?** *(Marcus asked, 2026-09-25.)* The change is built in **SnapPool**, in the `snappool` repo: only the website can see which ad a visitor came from. The spec is kept in this repo (`docs/plan/SNAPPOOL-TRACKING.md`) because the ads manager depends on it. The ads manager's own part, reading what SnapPool saves and sending the conversions to Meta and Google, is already in its milestones (M05a, M05b, M12, M13). Nothing extra is needed here.
-
-What changes in SnapPool (one small session in the `snappool` repo):
-- when a visitor arrives from an ad, SnapPool remembers the ad details in a cookie;
-- on the `/start` request it saves them, with the browser's user agent and the page address (Meta requires both);
-- the privacy page gets a short paragraph: hashed emails and click ids are shared with Google and Meta, for ad measurement only.
-
-No tracking pixel for now: the ads manager sends the conversions itself.
-
-**Answer with:** "OK", or what to change. Also give the privacy wording, or say "use the draft in §3.4".
-
-**Answer:**
+_None right now._
 
 ---
 
@@ -57,6 +43,11 @@ No tracking pixel for now: the ads manager sends the conversions itself.
 
 ### Q10 — Who merges PRs? · answered 2026-09-25
 **Answer (Marcus):** "You can merge the PR when I instruct you to, and after CI passes." → **D-057**.
+
+### Q11 — OK the SnapPool tracking change? · answered 2026-09-25
+**Answer (Marcus):** First he asked which project it's for: SnapPool, built in the `snappool` repo, with this repo only reading what it saves. Then: "yes okay". → **D-060 adopted.** He approves the privacy-page words in the SnapPool PR. Reading SnapPool's code for the prompt turned up fixes (D-064): the page needs three edits, because it promises "never share it with advertisers".
+
+**His follow-up:** "So we don't need Meta's pixel or Google API integration?" → **Right for SnapPool:** it gets no pixel, no Google tag and no Google or Meta API code. The API work lives in this repo: reading the ad accounts (M02, M03) and sending conversions (Meta Conversions API in M12, Google Data Manager API in M13). The platforms still need setup, but no code: a Meta dataset with a Conversions API token (T4), Google "import from clicks" conversion actions with the Data Manager API on (T11), and the ad URL settings (T14).
 
 ### Q12 — The ~500 a month: which currency, and does Meta auto-reset? · answered 2026-09-25
 **Answer (Marcus):** "Yes, it's $500 dollars" (Singapore dollars). Not sure about auto-reset: "I'll manually do the reset if I need to, but I will adjust the limits when we are trying as well." → **D-063** (supersedes D-061). The agent reads the limit from Meta on every sync, never assumes a figure and never changes it. It warns at 80% used, and the digest reminds him on the 1st.

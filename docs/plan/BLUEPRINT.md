@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.3 — 2026-09-25 (Meta spending limit read live and watched from M04, D-063) |
+| **Version** | v3.4 — 2026-09-25 (SnapPool tracking approved, D-060; the adapter reads before SnapPool's 30-day clean-up, D-064) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1507,7 +1507,7 @@ Methods are tried in this order, and the first match wins:
    - fact schema: features, plans, pricing, event types;
    - thresholds: low click floors, high day floors;
    - `analystContext`;
-   - runtime: the SnapPool adapter. It uses the read-only DB URL and reads `pool_requests` (plus `events.first_upload_at` for activation). Only claimed `/start` requests count as signups. It hashes emails inside the adapter, sets `isTest` from `settings.testTraffic.emailDomains` plus the superadmin, and takes ids and `web` from `pool_requests.attribution`, `user_agent` and `page_url` once SnapPool's tracking change (T6b) has shipped. Before that they're empty.
+   - runtime: the SnapPool adapter. It uses the read-only DB URL and reads `pool_requests` (plus `events.first_upload_at` for activation). Only claimed `/start` requests count as signups. It hashes emails inside the adapter, sets `isTest` from `settings.testTraffic.emailDomains` plus the superadmin, and takes ids and `web` from `pool_requests.attribution`, `user_agent` and `page_url` once SnapPool's tracking change (T6b) has shipped. Before that they're empty. SnapPool deletes pending requests after 30 days, so the adapter reads at least daily and keeps what it has read: a pending row that disappears is not a deleted outcome (D-064).
 3. `core/settings`:
    - settings are validated on **every read**, so a bad stored value stops the cycle with an alert instead of being used;
    - `settings_patch` handling, building on M01b's processor;
