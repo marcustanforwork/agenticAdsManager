@@ -51,6 +51,10 @@ Things that surprised us, and external facts the plan depends on.
 
 These come from the v3 review. The ones marked *(training knowledge)* weren't re-verified on 2026-09-25, so verify them in the milestone named.
 
+- **drizzle-kit 0.31 can't write a JS bigint column default** (`.default(0n)` fails `generate` with "Do not know how to serialize a BigInt"). Write `.default(sql\`0\`)`. *(M01a, 2026-09-25)*
+- **Drizzle 0.45's jsonb reader re-parses string values:** a stored JSON string `"true"` reads back as boolean `true`. Store objects, or select `col::text` and `JSON.parse` once (`getFlag` does). *(M01a, 2026-09-25)*
+- **Drizzle wraps Postgres errors** (`DrizzleQueryError`, the pg error in `cause`). Match constraints with `isUniqueViolation()` in `@ads/db`, or `expectConstraint` in tests. *(M01a, 2026-09-25)*
+- **Postgres roles are cluster-wide, grants are per database.** `roles.sql` creates roles only if missing, and the test template carries the grants into every cloned test database. *(M01a, 2026-09-25)*
 - **`JSON.stringify` throws on BigInt.** Money in JSON is a decimal string of micros (BLUEPRINT §3.1).
 - **Meta money units:** budgets are in minor units (SGD cents), while insights report spend as decimal strings. Google uses micros. Convert exactly; never `parseFloat`.
 - **Meta can't map an `fbclid` to a campaign.** Put `{{campaign.id}}`, `{{adset.id}}` and `{{ad.id}}` URL parameters on every ad, and capture them at landing.
