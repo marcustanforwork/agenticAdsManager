@@ -6,7 +6,7 @@
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M00: all 9 builds done**, and so are the tests. PR #3 is ready for review once CI is green. Details and "Leave behind" notes: `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`.
+- **Active milestone:** **M00: all 9 builds done**, and so are the tests. PR #3 is ready for review, CI green; status **awaiting live acceptance**. Details and "Leave behind" notes: `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`.
 - **Status:** plan v3.4. No open questions. D-065 records M00's build choices: Node 24.21.0, TypeScript 6 (not 7), source-condition resolution, and one Doppler token per service.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
@@ -20,7 +20,7 @@
 4. **Marcus: the SnapPool tracking change (T6b), early:** paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a SnapPool session. Then the setup tasks that take days: T2 and T3 (needed for M01a's live steps), T4, T5, T6a (`PROPOSAL.md` §16).
 
 ## In flight
-- PR #3 (M00): draft until CI is green, then ready for Marcus. `memory-check` passes once this handoff is pushed.
+- PR #3 (M00): **ready for review**; CI green (`ci` incl. the Docker build and smoke test, `secret-scan`, `memory-check`). Merge only on Marcus's word (D-057).
 
 ## Blocked on Marcus
 - No open questions.
@@ -44,7 +44,7 @@ The `-p ads-agent-dev` keeps this away from the production project name (D-058).
 ## Milestone tracker (one row = one session)
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M00 | Scaffold, contracts, boundaries, CI | 0 | **PR review** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) | T1 before merge; live: compose up/stop |
+| M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) | T1 before merge; live: compose up/stop |
 | M01a | Database schema and repositories | 0 | **next** | — | Live steps: T2, T3 |
 | M01b | Queue, leader lock, vault, request processor | 0 | not started | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | in progress |
+| **Status** | awaiting live acceptance |
 | **Phase** | 0 |
 | **Started** | 2026-09-25 |
 | **Finished** | — |
@@ -24,8 +24,8 @@ A monorepo where the dependency rules are enforced by tooling before any feature
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented
   - [x] ~300k built, typecheck green
-  - [ ] ~450k tests green, self-review done
-  - [ ] ~550k committed, pushed, handed off
+  - [x] ~450k tests green, self-review done
+  - [x] ~550k committed, pushed, handed off
 
 ## Builds
 - [x] 1. Verify current versions with the `verify-external-facts` skill: Node 24 vs 26, pnpm, TypeScript, zod 4, Vitest, ESLint, Turborepo, dependency-cruiser, Drizzle, AI SDK. Record them in GOTCHAS.
@@ -77,12 +77,12 @@ A monorepo where the dependency rules are enforced by tooling before any feature
   - `mergeGuardsTightenOnly` rejects looser values.
 
 ## Done when (cloud)
-- [ ] `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test` is green locally and in CI.
-  - evidence:
-- [ ] `apps/web` builds with only `contracts` + `db` in its dependency tree.
-  - evidence:
-- [ ] The Docker image builds in CI.
-  - evidence:
+- [x] `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test` is green locally and in CI.
+  - evidence: locally: 17/17 typecheck tasks, lint clean, `check-boundaries: OK (17 packages)`, `no dependency violations found`, `Tests 91 passed (91)`. CI run [36109818266](https://github.com/marcustanforwork/agenticAdsManager/actions/runs/36109818266): `ci`, `secret-scan` and `memory-check` all succeeded.
+- [x] `apps/web` builds with only `contracts` + `db` in its dependency tree.
+  - evidence: `pnpm build` builds `@ads/app-web`; `check-boundaries` walks its internal tree (test: `web-tree` fixture fails).
+- [x] The Docker image builds in CI.
+  - evidence: the same run built `ads-agent:ci`. The smoke test logged `"msg":"ready"`, then `"msg":"stopped"`, for worker (8081) and gateway (8082), exit code 0 on `docker stop`, and `ads 0.0.0` / `ads-gw 0.0.0`.
 
 ## Done when (live, run by Marcus)
 - [ ] `docker compose up` on the SER9 prints `ready` for both services.
