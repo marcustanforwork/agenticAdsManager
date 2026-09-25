@@ -75,6 +75,6 @@ export async function rotateKeyCommand(db: DbOrTx, input: { from: MasterKey; to:
 /** Reads all of stdin as text. */
 export async function readStdin(stream: NodeJS.ReadableStream = process.stdin): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of stream) chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : (chunk));
+  for await (const chunk of stream) chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   return Buffer.concat(chunks).toString('utf8');
 }
