@@ -53,7 +53,19 @@ This is an agentic ads manager for Marcus's products: SnapPool first, with Prope
 - **Local sessions (the SER9, Linux):** `gh`, Docker and the Doppler `dev` config may be available. Docker is for **dev** only (compose project `ads-agent-dev`). Never touch the production project `ads-agent` or other projects' containers, never run global Docker clean-ups, and never use the production `worker` or `gateway` configs (D-058).
 
 ## Commands
-_M00 adds install, typecheck, lint, check:boundaries, test and build here._
+Node 24 (`.nvmrc`) and pnpm (`packageManager` in `package.json`). In cloud sessions the SessionStart hook installs both and runs `pnpm install`.
+
+| Command | What it does |
+|---|---|
+| `pnpm install` | Install dependencies (CI uses `--frozen-lockfile`) |
+| `pnpm typecheck` | `tsc` on every package, plus the repo scripts and configs |
+| `pnpm lint` | ESLint, including the boundary mirror |
+| `pnpm check:boundaries` | The dependency rules (BLUEPRINT §2): package edges, dependency-cruiser, the ESLint mirror |
+| `pnpm test` | Vitest, all packages (`pnpm test packages/contracts` for one) |
+| `pnpm build` | Compile every package to `dist/` (Turborepo) |
+| `pnpm format` / `pnpm format:check` | Prettier |
+
+Before every push: `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm format:check`. Adding a package: `scripts/boundary-rules.mjs` first (its header explains). Docker images build in CI only (no daemon in cloud sessions).
 
 ---
 @docs/memory/NOW.md

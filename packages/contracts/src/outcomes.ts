@@ -33,7 +33,7 @@ export const HashedContact = z.object({
 });
 export type HashedContact = z.infer<typeof HashedContact>;
 
-/** Captured by the product at the moment of conversion (SnapPool: at /start). No IP address, by design. */
+/** Captured by the product at the moment of conversion (e.g. at signup). No IP address, by design. */
 export const WebContext = z.object({
   userAgent: z.string().max(512).optional(), // Meta CAPI `client_user_agent` (required for website events)
   pageUrl: z.string().max(1024).optional(), // Meta CAPI `event_source_url` (required for website events)

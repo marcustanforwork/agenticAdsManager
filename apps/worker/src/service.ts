@@ -42,8 +42,8 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
 }
 
 /** Parses a port from the environment; throws on anything that isn't 0–65535. */
-export function portFromEnv(value: string | undefined, fallback: number): number {
-  if (value === undefined || value === '') return fallback;
-  if (!/^\d{1,5}$/.test(value) || Number(value) > 65_535) throw new Error(`invalid port: ${value}`);
-  return Number(value);
+export function portFromEnv(text: string | undefined, fallback: number): number {
+  if (text === undefined || text === '') return fallback;
+  if (!/^\d{1,5}$/.test(text) || Number(text) > 65_535) throw new Error(`invalid port: ${text}`);
+  return Number(text);
 }
