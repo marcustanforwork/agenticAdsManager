@@ -15,6 +15,7 @@ An AI **ads assistant with a supervised hand** for Marcus's products. It:
 |---|---|
 | The idea in one page | [`docs/plan/PROPOSAL.md`](docs/plan/PROPOSAL.md) §0 |
 | What the latest review found and changed | [`docs/plan/CHANGES-v3.md`](docs/plan/CHANGES-v3.md) |
+| How SnapPool conversions will be tracked | [`docs/plan/SNAPPOOL-TRACKING.md`](docs/plan/SNAPPOOL-TRACKING.md) |
 | The full plan: what and why | [`docs/plan/PROPOSAL.md`](docs/plan/PROPOSAL.md) |
 | How it will be built: 17 milestones, run as 25 sessions | [`docs/plan/BLUEPRINT.md`](docs/plan/BLUEPRINT.md) |
 | Where the build stands | [`docs/memory/NOW.md`](docs/memory/NOW.md) |

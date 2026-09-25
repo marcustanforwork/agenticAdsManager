@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Version** | v3.1 — 2026-09-25 (sessions resized to Marcus's budget; Vercel Pro and Neon paid confirmed) |
+| **Version** | v3.2 — 2026-09-25 (Marcus's answers recorded; SnapPool tracking plan added) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
-| **Status** | Draft for Marcus's review. Items marked **(needs OK)** are Claude's recommendations. They count as decided only after Marcus confirms them. Confirmations are tracked in `docs/memory/QUESTIONS.md`. |
+| **Status** | Reviewed by Marcus on 2026-09-25. The v3 recommendations are **approved** (D-039 to D-053). One new proposal waits for his OK: the SnapPool conversion-tracking plan (D-060, `docs/plan/SNAPPOOL-TRACKING.md`, QUESTIONS Q11). Open questions are tracked in `docs/memory/QUESTIONS.md`. |
 
 > **How to read this.** §0 is the one-page version. §1 is a glossary that defines every term once; if a word in the plan seems vague, look there. The rest explains *what* we are building and *why*. The blueprint explains *how*, and `docs/memory/NOW.md` says where the build currently stands.
 
@@ -158,14 +158,14 @@ They differ on nearly every axis, which is exactly why they make a good test. If
 | | `snappool` (pack `saas-snappool`) | `property-sg` (pack `property-sg`) |
 |---|---|---|
 | **Priority** | **First.** Phases 0–1 are validated on its live spend. | Second. Built and tested on recorded data until spending resumes. |
-| **What counts as success** (defaults, editable) | **Signup** = success; **activated** = success; **paid** (subscription or one-off) = hard success | **Contact-form fill** = success; **qualified viewing** and **booked** = hard success, if the pipeline records them |
-| **Where outcomes come from** | SnapPool's own Neon database, read-only | Tally form → Airtable (the existing pipeline, currently paused) |
+| **What counts as success** (defaults, editable) | **Pool request** (`/start` submitted) = soft; **signup** (email link clicked, request claimed) = success, the KPI during beta; **activated** (first photo in the pool) = success; **paid** = hard, but there's no checkout yet, so it has no source | **Contact-form fill** = success; **qualified viewing** and **booked** = hard success, if the pipeline records them |
+| **Where outcomes come from** | SnapPool's own Neon database, read-only: `pool_requests`, `hosts`, `events` (details in `SNAPPOOL-TRACKING.md`) | Tally form → Airtable (the existing pipeline, currently paused) |
 | **Conversion cycle** | Minutes to days, low value, higher volume | Days to weeks, high value, low volume |
-| **Lifecycle phases** | Soft launch (free, watermarked) → paid → seasonal (wedding season, year-end) | Teaser → VVIP → booking → clearing |
+| **Lifecycle phases** | Beta (free; the signup window runs to 30 Nov 2026 and free plans are honoured to 1 Jan 2027) → promo → standard. Seasonal peaks: wedding season, year-end. | Teaser → VVIP → booking → clearing |
 | **Fact base** | Features, plan limits, pricing, supported event types | Project facts: district, MRT, PSF band, unit mix, developer, TOP date, launch dates |
-| **Compliance** | Ad-platform policy only. Claims must match the product. PDPA-appropriate wording about photo handling. | CEA rules: agent name, registration number, agency name, licence number, rules on claims and prices. **Marcus is the licensed party.** Meta's *Housing* special ad category very likely applies; it limits targeting (verify for SG, see §7). |
+| **Compliance** | Ad-platform policy only. Claims must match the product. PDPA-appropriate wording about photo handling. | CEA rules: agent name, registration number, agency name, licence number, rules on claims and prices. **Marcus is the licensed party.** Meta's *Housing* special ad category applies (confirmed by Marcus, D-062); it limits targeting. |
 | **Platforms** | Meta/Instagram first, Google Search second, TikTok later | Google Search first, Meta second |
-| **Spend** | Small soft-launch budget. Ceilings are still to be set (they're settings, not code). | On hold |
+| **Spend** | About 500 a month to start (Marcus, D-061). The ceilings are settings, not code. | On hold |
 | **Seed data** | Live account | "Sora at Lakeside" project, as recorded fixtures |
 
 ---
@@ -233,17 +233,18 @@ Then, whenever Marcus decides:
 | 7 | **Approve** | Marcus approves, rejects (with a reason) or edits-and-approves in Telegram or on the dashboard. The approval binds to the proposal's version *and* the fingerprint of its action. Rejection reasons become test cases for the replay eval. |
 | 8 | **Apply** | The gateway runs its pipeline (§6). The AI is never involved, and neither surface can call it directly. |
 
-And separately, every day:
+And separately, every hour:
 
 | # | Step | What happens |
 |---|---|---|
-| 9 | **Outcomes and feedback** | Each pack's outcome adapter pulls new outcomes, and the core attributes them to campaigns (§8). Outcomes at the product's feedback stage become conversion-upload proposals. While Phase 2 is being proven, Marcus approves them. Afterwards they can be auto-approved by a setting, with daily caps. Uploads go out through the gateway like any other change. |
+| 9 | **Outcomes and feedback** | Each pack's outcome adapter pulls new outcomes, and the core attributes them to campaigns (§8). Outcomes at the product's feedback stages become conversion-upload proposals. While Phase 2 is being proven, Marcus approves them in one daily batch. Afterwards they can be auto-approved by a setting, with daily caps, and go out hourly. Uploads go out through the gateway like any other change. |
 
 ### 5.3 The rhythm
 
 | When (Singapore time) | What |
 |---|---|
-| Daily 06:00 | Sync, trust check and detectors for every active product. After that: outcomes, attribution and feedback drafting. |
+| Daily 06:00 | Sync, trust check and detectors for every active product |
+| Hourly | New outcomes are pulled and attributed. Conversion uploads go out hourly once auto-approval is on; before that, as one daily batch for Marcus to approve. |
 | After the daily sync | Daily digest, per product, only if it has live spend (setting: `auto` / `always` / `off`) |
 | Monday 07:00 | Weekly cycle: analyse, draft, brief |
 | Continuously | The gateway applies approved proposals, woken instantly by a database notification, with a poll every 30 s as a fallback |
@@ -284,8 +285,8 @@ The safety model is a set of **independent layers**. No single layer is trusted 
 - **Stops:** any part of the system other than the gateway changing an ad account, whether through a bug, prompt injection or a compromised component.
 - **Enforced by:**
   - **Code structure.** The write clients live in their own packages (`connector-google-write`, `connector-meta-write`), and only the gateway package may depend on them. An automated boundary check fails the build otherwise.
-  - **Separate processes and keys.** The gateway runs as its own container and is the only process holding the write master key. The worker, which talks to the AI and to Telegram, *cannot* decrypt write credentials even if its code tried. **(needs OK: D-043)**
-  - **Platform-side limits.** On Meta, the sync uses a system user granted `ads_read` only. On Google, the sync uses a Google login with *read-only* access to the ad account. **(needs OK: D-046)**
+  - **Separate processes and keys.** The gateway runs as its own container and is the only process holding the write master key. The worker, which talks to the AI and to Telegram, *cannot* decrypt write credentials even if its code tried. (D-043)
+  - **Platform-side limits.** On Meta, the sync uses a system user granted `ads_read` only. On Google, the sync uses a Google login with *read-only* access to the ad account. (D-046)
 - **Tested by:** the boundary check has a negative test (a deliberate illegal import must fail); and there is a test that a worker-side decrypt of a write credential fails.
 
 ### 6.2 Action allowlist
@@ -322,7 +323,7 @@ Defaults live in the core. A pack or a product's settings may only make them **s
 
 | Guard | Default |
 |---|---|
-| Maximum budget change per action | ±30%. On **Meta** the default is ±20%, because bigger jumps commonly restart the platform's learning phase. **(needs OK: D-049)** |
+| Maximum budget change per action | ±30%. On **Meta** the default is ±20%, because bigger jumps commonly restart the platform's learning phase. (D-049) |
 | Minimum meaningful change | SGD 5 or 5%, whichever is larger |
 | Cooldown | 7 days per entity per action type |
 | Budget-neutral by default | Within a product, an increase applies only after enough offsetting decreases have been applied, unless the proposal is explicitly flagged as a net increase |
@@ -371,7 +372,7 @@ These guards are tested with property-based tests: thousands of random inputs ch
 Ceilings are per-product settings: a daily and a monthly limit. They are enforced in three ways:
 1. **Blocking increases.** A budget increase or paused create is blocked if the product's ceilings are **unset**. It is also blocked if the sum of active daily budgets after the change would exceed the daily ceiling, or if month-to-date spend plus projected spend would exceed the monthly ceiling.
 2. **Alerts.** An alert fires at 80% of the monthly ceiling. At 100% there is an alert plus a pause proposal. That pause is applied automatically only if the product setting `autoPauseOnMonthlyBreach` is on (**off by default**).
-3. **Honest limits.** The system is **not** a hard spending cap. Platforms may spend above a daily budget on individual days (Google allows up to 2× on a day), and the system only controls what *it* changes. **The real backstop is platform-side:** set a Meta **account spending limit** on each ad account (Marcus, setup task T4). Google campaigns are bounded by their budgets, and the trust check warns if a Meta account has no spending limit.
+3. **Honest limits.** The system is **not** a hard spending cap. Platforms may spend above a daily budget on individual days (Google allows up to 2× on a day), and the system only controls what *it* changes. **The real backstop is platform-side:** set a Meta **account spending limit** on each ad account (Marcus, setup task T4). Meta's limit is a **lifetime total, not a monthly one**, so reset it at the start of each month, or turn on the monthly auto-reset if the billing page offers it (D-061). Google campaigns are bounded by their budgets, and the trust check warns if a Meta account has no spending limit.
 
 ### 6.10 Crash-safe applying
 
@@ -406,7 +407,7 @@ The agent never authors advertising claims. Marcus supplies three things: **sour
 - *Required elements* for property: registered name, CEA registration number, agency name and licence number.
 - *Required elements* for SnapPool: whatever disclosures Marcus decides.
 
-The AI produces **variants** of the source copy. There are two tiers, set per product **(needs OK: D-045)**:
+The AI produces **variants** of the source copy. There are two tiers, set per product (D-045):
 - **Fragments** (default for property). Variants are assembled only from fragments Marcus has approved, with fixed safe edits such as trimming, casing and punctuation. "No new claims" is then *guaranteed by construction*.
 - **Reword** (proposed for SnapPool). The AI may reword freely, but mechanical checks block the variant if it:
   - introduces any number, price, percentage, date or capitalised name not found in the facts or the source copy;
@@ -457,7 +458,7 @@ Facts in this section were checked on 2026-09-25 (sources in `docs/memory/GOTCHA
 | **Money units** | Micros everywhere | Budgets are in the currency's minor units (cents for SGD). Insights report spend as decimal strings. Converted to micros exactly, with no floating point. |
 | **Versioning** | Monthly minor releases, 3–4 majors a year, each supported ~12 months (v25 sunsets Aug 2027). Pin the version and check quarterly. | Versioned Graph API. Pin the version and check deprecation dates (*verify in M02*). |
 | **Sandbox** | A test manager account with test client accounts | **No sandbox with real delivery.** Test writes on a real account with a tiny paused campaign; test CAPI with `test_event_code`. |
-| **Special categories** | Housing ads have their own policies (*verify for SG*) | **Special ad categories** (Housing etc.) now apply in Asia too. Creating a campaign requires declaring `special_ad_categories`. The property pack declares `HOUSING` (*verify for SG*), which restricts targeting. |
+| **Special categories** | Housing ads have their own policies (*verify in M14*) | **Special ad categories** (Housing etc.) now apply in Asia too. Creating a campaign requires declaring `special_ad_categories`. The property pack declares `HOUSING` (confirmed by Marcus, D-062), which restricts targeting. |
 
 **Other constraints:**
 - **Restatement.** Platforms revise conversions for days: about 7 days for Meta attribution windows, and longer for Google conversion lag and imported conversions. The sync re-pulls 28 days and overwrites, and a brief never treats yesterday as final.
@@ -475,16 +476,18 @@ Feeding real outcomes back to the platforms is the biggest lever in the whole sy
    - platform IDs from the landing URL: Google `{campaignid}`/`{adgroupid}` and Meta `{{campaign.id}}`/`{{adset.id}}`/`{{ad.id}}`, added as URL parameters on every ad;
    - `utm_*` parameters.
 
-   **Meta offers no way to look up which campaign an `fbclid` came from**, so URL parameters are the only reliable attribution for Meta. *Setup task T6 (SnapPool) and T12 (Tally form).* Without these IDs, attribution and feedback cannot work, and the trust check will warn.
+   **Meta offers no way to look up which campaign an `fbclid` came from**, so URL parameters are the only reliable attribution for Meta. Without these IDs, attribution and feedback can't work, and the trust check will warn.
+
+   **SnapPool today captures none of this** (Q3, Q4). The fix is specified in `docs/plan/SNAPPOOL-TRACKING.md`: SnapPool remembers the click in a first-party cookie and saves it, with the browser user agent and page URL, on the `/start` request. Meta requires those two for website events. *Setup tasks T6 (SnapPool change), T14 (ad URL settings) and T12 (Tally form, for property).*
 2. **Count each conversion once.** For each stage and platform, pick **one** source:
    - Browser tag or pixel plus a server event carrying the **same event id**, so the platform de-duplicates them; **or**
    - Server upload only.
 
-   Never count one conversion through two uncoordinated paths. **Recommendation (needs OK: D-047):** SnapPool reports **signups** itself, in real time (pixel + server event with a shared event id). Real-time reporting matches best. The agent uploads the **delayed stages** (activated, paid) and property's offline stages. *Question Q3 asks what SnapPool already sends.*
-3. **Exclude test and internal signups.** Each outcome carries an `isTest` flag. Test outcomes are never uploaded and never counted in KPIs. *Question Q5: how to identify them.*
-4. **Respect time limits.** Meta rejects a whole batch if any website event is older than 7 days, so the agent uploads daily and skips events older than 6.5 days. Google imports must arrive within the conversion window after the click (*verify in M13*).
+   Never count one conversion through two uncoordinated paths. **For SnapPool (D-060, needs OK in Q11):** no browser pixel or tag for now. **The agent is the only path.** It uploads `pool_request` (Meta `Lead`) and `signup` (Meta `CompleteRegistration`; Google offline click conversion) server to server. A pixel can be added later using the same event ids. *This replaces the earlier D-047, which assumed SnapPool already had tracking. It has none.*
+3. **Exclude test and internal signups.** Each outcome carries an `isTest` flag. Test outcomes are never uploaded and never counted in KPIs. For SnapPool, a test signup is one from a listed **email domain** (a product setting, D-059) or the superadmin.
+4. **Respect time limits.** Meta rejects a whole batch if any website event is older than 7 days, so the agent uploads at least daily (hourly once auto-approved) and skips events older than 6.5 days. Google imports must arrive within the conversion window after the click (*verify in M13*).
 5. **Treat uploads as irreversible.** Meta uploads cannot be undone, and Google offers only retractions. Therefore:
-   - auto-approval stays **off** until Phase 2 has been proven **(needs OK: D-048)**;
+   - auto-approval stays **off** until Phase 2 has been proven (D-048);
    - there are daily caps, and an alert fires if volume is unusual;
    - personal data is hashed (SHA-256, normalised as each platform requires) inside the pack's adapter. Raw emails and phone numbers never leave the adapter.
 6. **Privacy (PDPA).** Uploading hashed customer data to Google and Meta must be covered by each product's privacy policy. This is Marcus's responsibility; the system only minimises what it handles.
@@ -514,7 +517,7 @@ The main tables are listed below. Full definitions are in `BLUEPRINT.md` §4.
 - **PLAYBOOK**: the pack's human-readable playbook;
 - **LEARNINGS**: what actually worked.
 
-They live **in the database and are edited on the dashboard**, with version history, so editing them needs no redeploy. The files in `products/<slug>/` in the repo are only the starting templates. **(needs OK: D-044)**
+They live **in the database and are edited on the dashboard**, with version history, so editing them needs no redeploy. The files in `products/<slug>/` in the repo are only the starting templates. (D-044)
 
 **Personal data.** Only what attribution and feedback need is stored, and contact details are stored only as hashes. Prompts to the AI and traces in Langfuse contain **aggregates only**, never individuals. Fixtures are scrubbed when recorded.
 
@@ -528,13 +531,13 @@ They live **in the database and are edited on the dashboard**, with version hist
 | Repo | **pnpm workspaces + Turborepo** monorepo | Product-agnostic code needs *enforced* package boundaries | A single package, where boundaries become conventions that erode |
 | Agent loop | **Custom TypeScript** | A small loop; guards are plain, testable code | LangGraph / CrewAI (too heavy, and they hide the guard path) |
 | AI access | **Vercel AI SDK 6**: `generateText` with `Output.object({ schema })` and zod 4 schemas. Model per stage = env var (`provider:model`). | Model-swappable (G6), in-process, structured outputs | `generateObject` (deprecated in AI SDK 6); LiteLLM (optional later); Claude Agent SDK (locks G6 to one vendor) |
-| Model choice | **Strongest available model for analysis** (the hard part). A cheaper model may do the brief and rationale wording once replay evals show no loss. Cost at this volume is a few dollars a month. **(needs OK: D-041)** | Analysis quality decides whether Phase 1 passes | v2's "cheap model for analysis" |
-| Analyst look-ups | **Typed, read-only database queries** with a per-cycle call budget. **(needs OK: D-039)** | Deterministic and replayable (evals work), no extra credentials, no API quota, no Python sidecar | Official Google/Meta MCP servers, deferred until the analyst provably needs data the sync doesn't hold |
+| Model choice | **Strongest available model for analysis** (the hard part). A cheaper model may do the brief and rationale wording once replay evals show no loss. Cost at this volume is a few dollars a month. (D-041) | Analysis quality decides whether Phase 1 passes | v2's "cheap model for analysis" |
+| Analyst look-ups | **Typed, read-only database queries** with a per-cycle call budget. (D-039) | Deterministic and replayable (evals work), no extra credentials, no API quota, no Python sidecar | Official Google/Meta MCP servers, deferred until the analyst provably needs data the sync doesn't hold |
 | Database | **Neon Postgres + Drizzle**. The worker and gateway use the **direct** connection, because advisory locks and LISTEN/NOTIFY don't work through Neon's pooler. The dashboard uses the pooled connection. | Typed schema and migrations; same platform as SnapPool (separate project) | Airtable as the system of record (it stays a *source* for property outcomes only) |
 | Google | **Google Ads API** via `google-ads-api` (pinned together with the API version); **Data Manager API** (REST) for conversion uploads | Deterministic reads; we own the write path | Official MCP for sync; third-party hosted write tools |
 | Meta | **Marketing API** (Graph) + **Conversions API**, with system users | Typed; no MCP in the money path | Community Meta MCP servers (account-ban risk) |
 | TikTok | Deferred. The connector interface is designed so it becomes a third connector package. | Matters for SnapPool eventually | — |
-| Processes | **Docker Compose on the SER9**, one image with `worker` and `gateway` services, `restart: unless-stopped`. No local state. **(needs OK: D-043)** | Restart safety; a real security boundary for write keys; the same image can later run on a cloud container service | A bare systemd process (not portable); Cloudflare Workers for the loop (wrong runtime for multi-minute cycles) |
+| Processes | **Docker Compose on the SER9**, one image with `worker` and `gateway` services, `restart: unless-stopped`. No local state. (D-043) | Restart safety; a real security boundary for write keys; the same image can later run on a cloud container service | A bare systemd process (not portable); Cloudflare Workers for the loop (wrong runtime for multi-minute cycles) |
 | Scheduling / queue | **Postgres `jobs` table** (`FOR UPDATE SKIP LOCKED`, leases, retries with backoff). One worker replica wins a **leader lock** and runs the scheduler and the Telegram poller; any replica runs jobs. | Scaling out means adding replicas, with no message broker | n8n; Vercel cron; Redis/BullMQ |
 | Recovery | Startup reconciliation; two-phase apply; heartbeats to **healthchecks.io** (worker and gateway every ~10 min, plus a daily-sync check) | The bot can't tell you the host is down | Telegram alerts alone |
 | Credentials | **Vault** with two master keys (read / write), §6.13 | Same posture for one user or a thousand | Raw tokens in env |
@@ -543,7 +546,7 @@ They live **in the database and are edited on the dashboard**, with version hist
 | Secrets | **Doppler** with separate configs for `worker`, `gateway` and `dashboard`, plus a `dev` config. It holds DB URLs, the bot token, AI and Langfuse keys, app-level platform secrets and the vault master keys (read key in `worker`, write key in `gateway` only). | One source, scoped per process | A shared `.env` across processes |
 | Observability | **Langfuse** (cloud free tier or self-hosted) via the AI SDK's telemetry, with no personal data; **pino** structured logs | Debug a bad proposal after the fact; cost per product; home for evals | console.log |
 | Testing | **Vitest + fast-check** (property tests for guards); **real Postgres** in tests (a CI service container; cloud sessions have Postgres 16 installed); recorded fixtures; Google test account; Meta `test_event_code` | The guards are the product, so they get the strongest tests | Mock-only database tests |
-| Development | **Claude Code on Opus 5.5 at medium effort**, one clean-context session per milestone part, each finishing within 400–600k tokens including tests, review and fixes (D-056). Cloud sessions have no secrets; local sessions (SER9 or laptop) are also possible. Memory lives in this repo (`docs/memory/`), with a git workflow (`docs/process/`) and project skills (`.claude/skills/`). The plan itself was written at max effort, so that build sessions can follow it rather than re-derive it. | Any session can continue where the last one stopped | Memory kept only in chat history or on one machine; sessions sized by feel |
+| Development | **Claude Code on Opus 5.5 at medium effort**, one clean-context session per milestone part, each finishing within 400–600k tokens including tests, review and fixes (D-056). Cloud sessions have no secrets. Local sessions run on the SER9 (Linux, with Docker), where Marcus plans to move once cloud tokens run out (D-058). Memory lives in this repo (`docs/memory/`), with a git workflow (`docs/process/`) and project skills (`.claude/skills/`). The plan itself was written at max effort, so that build sessions can follow it rather than re-derive it. | Any session can continue where the last one stopped | Memory kept only in chat history or on one machine; sessions sized by feel |
 
 ---
 
@@ -552,7 +555,7 @@ They live **in the database and are edited on the dashboard**, with version hist
 | Where | Holds | Can | Cannot |
 |---|---|---|---|
 | **Cloud Claude session / CI** | Code, fixtures, a throwaway local Postgres | Build, run all tests, open PRs | Read or change any ad account; see any production secret |
-| **Local Claude session** (SER9 or laptop) | Code, plus the Doppler `dev` config if Marcus provides it | Everything a cloud session can. With Marcus's explicit go-ahead: record fixtures with **read-only** credentials, run live smoke tests on **test** accounts. | Use the production `worker` or `gateway` configs; hold write credentials |
+| **Local Claude session** (the SER9) | Code, plus the Doppler `dev` config if Marcus provides it | Everything a cloud session can, plus Docker commands for **dev** stacks (compose project `ads-agent-dev`). With Marcus's explicit go-ahead: record fixtures with **read-only** credentials, and run live smoke tests on **test** accounts. | Use the production `worker` or `gateway` configs; hold write credentials; touch the production compose project `ads-agent` or other projects' containers; run global Docker clean-up (`docker system prune`, `docker volume prune`) |
 | **Production worker** (SER9 container) | Read master key, AI/Telegram/Langfuse keys, DB | Sync, analyse, draft, report, process requests | Decrypt write or feedback credentials |
 | **Production gateway** (SER9 container) | Write master key, DB | Apply approved proposals, undo, reconcile | Talk to the AI or Telegram; do anything without an approval (except policy-approved feedback uploads, once enabled) |
 | **Dashboard** | Access check, DB role limited to reading plus inserting operator requests | Show everything; record Marcus's requests | Change settings or proposals directly; hold any platform token |
@@ -595,13 +598,14 @@ Each phase ends with a **gate**: a test on real data that must pass before the n
 | **Google conversion-upload path changes** (it happened on 2026-06-15) | Uploads use the Data Manager API. The `verify-external-facts` skill re-checks platform facts at every milestone that depends on them. |
 | **Conversions are double-counted or fake** (test signups, pixel plus upload) | One counting source per stage and platform; shared event ids; the `isTest` flag; daily caps; auto-approval off until Phase 2 is proven |
 | **No click or platform IDs are captured**, so attribution is blind | Setup tasks T6 and T12; a trust-check warning when capture drops |
-| Meta's Housing category limits property targeting | Declared in the property pack; the playbook is written with it in mind (verify for SG) |
+| Meta's Housing category limits property targeting | Declared in the property pack (confirmed, D-062); the playbook is written with it in mind |
 | Google API breaking change | Version pinned together with the library; quarterly upgrade check; integration test on the test account |
 | A copy variant drops a required element or invents a claim | Fail-closed checks; the fragments tier for property; Marcus approves every variant; ads are created paused |
 | Too few proposals during SnapPool's low-volume launch | Always-on campaign from Phase 0; extend the window rather than lower the bar |
 | The second pack forces special cases into the core | G8 is an explicit gate: zero core changes, or the interface gets fixed in the core |
 | Building too much before validating | Phase gates |
-| The SER9 goes down or restarts mid-cycle | Containers with a restart policy; startup reconciliation; two-phase apply; external heartbeats; nothing stateful on disk. *Check that Docker starts on boot without anyone logging in (Q2).* |
+| The SER9 goes down or restarts mid-cycle | Containers with a restart policy; startup reconciliation; two-phase apply; external heartbeats; nothing stateful on disk. The SER9 runs Linux with no login needed, so Docker starts at boot (Q2). |
+| Local dev sessions share the SER9 with production | Separate compose projects (`ads-agent-dev` vs `ads-agent`), the Doppler `dev` config only, and no global Docker clean-up (D-058) |
 | Expecting the model to "learn" the account | §5.5 |
 | Costs creep | Per-product AI cost in Langfuse; a per-cycle look-up budget; §14 |
 | **Plan and code drift apart; a session loses the thread** | The plan is kept in the repo and changed only via the `update-plan` skill; memory files are updated every session; the SessionStart hook finds the newest memory even on unmerged branches |
@@ -632,8 +636,17 @@ All decisions, with reasons and alternatives, are recorded in `docs/memory/DECIS
 
 - **Standing (Marcus, 2026-09-14):** D-001 to D-019. The two-pack core, no n8n, typed sync, the AI SDK, feedback to platforms, fingerprint checks, evidence thresholds, replay evals, Marcus as content authority, Telegram plus dashboard, per-product outcome config, SnapPool first, ceilings as settings, containerised worker, vault, honest "learning", and the stack.
 - **v3 fixes (Claude, 2026-09-25):** D-020 to D-038. These correct errors, contradictions and outdated facts. They count as adopted, but Marcus can object to any of them.
-- **v3 recommendations needing Marcus's OK:** D-039 to D-053, except D-050 (see below). Listed in `QUESTIONS.md` Q1.
-- **Marcus's answers on 2026-09-25:** D-054 (the dashboard runs on his Vercel Pro account, replacing D-050), D-055 (Neon on his existing paid plan) and D-056 (session model: clean-context Opus 5.5 at medium effort, each session within 400–600k tokens).
+- **v3 recommendations:** D-039 to D-053, **approved by Marcus on 2026-09-25** (Q1). D-050 was replaced by D-054, and D-047 by D-060.
+- **Marcus's answers on 2026-09-25:**
+  - D-054: the dashboard runs on his Vercel Pro account, replacing D-050;
+  - D-055: Neon on his existing paid plan;
+  - D-056: the session model (clean-context Opus 5.5 at medium effort, each session within 400–600k tokens);
+  - D-057: Claude merges a PR only when told to, after CI passes;
+  - D-058: local sessions on the SER9, with Docker isolation;
+  - D-059: SnapPool test signups identified by email domain;
+  - D-061: a Meta spend limit of about 500 a month, reset monthly;
+  - D-062: the Housing category is confirmed for property.
+- **Waiting for Marcus's OK:** D-060, the SnapPool tracking plan (Q11).
 
 ---
 
@@ -646,9 +659,9 @@ These are done outside Claude Code. Each lists the milestone it blocks. Google a
 | T1 | **GitHub repo settings:** protect `main` (require a PR and passing checks, no force-push); squash-merge only; auto-delete merged branches | Before M00 merges | `docs/process/GIT-WORKFLOW.md` §9 |
 | T2 | **Neon:** a project for the agent with `prod` and `dev` branches | M01a live steps | On your existing paid plan (D-055), separate from SnapPool's project |
 | T3 | **Doppler:** a project with `dev`, `worker`, `gateway` and `dashboard` configs; generate the two vault master keys (read, write) | M01a live steps | Never give Claude sessions the `worker`/`gateway` configs |
-| T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). Generate a Conversions API token for SnapPool's dataset. **Set an account spending limit** on the SnapPool ad account. Load the tokens with the CLI (M01) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
+| T4 | **Meta:** a developer app with the Marketing API. In Business Settings create system users `ads-agent-read` (`ads_read`, "View performance" on the SnapPool ad account) and `ads-agent-write` (`ads_management`, "Manage campaigns"). Generate a Conversions API token for SnapPool's dataset. **Set an account spending limit** on the SnapPool ad account at about your monthly budget (~500), and **reset it on the 1st of each month**, or turn on auto-reset if offered (D-061). Load the tokens with the CLI (M01b) into the vault, not into Doppler. | M02 (read), M12 (write, feedback) | Check the system-user limit and the app's rate-limit tier |
 | T5 | **Google:** a manager account (MCC) with the property account and a new SnapPool account under it. Get a developer token from the MCC's API Center: **Explorer access** works on real accounts immediately; also apply for **Basic**. Create an OAuth client in a GCP project. Create **two Google logins**: one with *read-only* access to the ad accounts (for sync) and one with *standard* access (for writes and uploads) **(D-046)**. Set up a separate *test* manager account with a test client account. | M03 (read), M13 (write) | Days of lead time |
-| T6 | **SnapPool:** (a) table/column names for signups, activations, subscriptions and one-off payments, plus a read-only connection string; (b) confirm, or add in SnapPool's code, that each signup stores click IDs, platform IDs from the URL and `utm_*` (§8, rule 1); (c) list what tracking already fires (pixel, CAPI, Google tag) and for which events; (d) how to identify test/internal signups | M05a (a, c, d), M05b (b) | (b) and (c) are in SnapPool's codebase, not this repo |
+| T6 | **SnapPool:** (a) ~~schema info~~, done by Claude from the repo (`SNAPPOOL-TRACKING.md` §1–2); still needed: a **read-only connection string** in Doppler `dev`/`worker`; (b) **build the tracking change** in the SnapPool repo, per `SNAPPOOL-TRACKING.md` §3, as a SnapPool session, **early**, because attribution only works from the day it ships; (c) ~~current tracking~~, confirmed as none; (d) the test-signup **email domains**, entered as a setting in the M05a live steps | M05a (a, d), M05b and M12 (b) | (b) happens in SnapPool's repo, not this one |
 | T7 | **Telegram:** create the bot with BotFather and send Marcus's numeric user id | M07 | |
 | T8 | **healthchecks.io:** three checks (worker alive, gateway alive, daily sync) | M07 | |
 | T9 | **Langfuse:** a project and API keys | M06a | |
@@ -656,3 +669,4 @@ These are done outside Claude Code. Each lists the milestone it blocks. Google a
 | T11 | **Google conversions:** enable the Data Manager API in the GCP project; create "import from clicks" conversion actions for the feedback stages; turn on auto-tagging | M13 | |
 | T12 | **Property (when it resumes):** hidden fields on the Tally form for click IDs, platform IDs and `utm_*` | Property go-live | |
 | T13 | **Property required elements:** exact registered name, CEA registration number, agency name, licence number, plus any banned phrases | M15a (property rules) | Low urgency while on hold |
+| T14 | **Ad URL settings** (`SNAPPOOL-TRACKING.md` §3.1): Google auto-tagging on, plus the final URL suffix; Meta URL parameters on every ad | Before SnapPool ads spend | Set once per account (Google) or per ad (Meta) |

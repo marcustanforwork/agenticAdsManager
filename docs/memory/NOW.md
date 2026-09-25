@@ -2,27 +2,27 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1) (ready for review)
+**Last updated:** 2026-09-25 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1) (ready for review; merge only on Marcus's say-so, D-057)
 
 ## Where we are
 - **Phase:** planning (before Phase 0).
 - **Active milestone:** none. M00 is next.
-- **Status:** plan v3.1 is written. That's `docs/plan/PROPOSAL.md`, `BLUEPRINT.md` and `CHANGES-v3.md` (the review, with §H for Marcus's first answers). The git workflow, memory system, skills and hooks are set up. Waiting for Marcus's review and answers.
-- **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens. That's 25 sessions (BLUEPRINT §9).
+- **Status:** plan v3.2. Marcus's answers are recorded (D-039–D-053 adopted; D-054–D-062). Claude read the SnapPool repo and wrote `docs/plan/SNAPPOOL-TRACKING.md`: SnapPool has **no tracking at all** today, so it needs a small change before attribution can work.
+- **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens. That's 25 sessions (BLUEPRINT §9). Local sessions will later run on the SER9 (D-058).
 
 ## Next action
-1. **Marcus:** review PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1). Start with `docs/plan/CHANGES-v3.md` (~10 min), then `docs/plan/PROPOSAL.md` §0 (the one-page summary).
-2. **Marcus:** answer `docs/memory/QUESTIONS.md`: Q1–Q5 and Q8–Q10. Q1, the recommendations needing your OK, matters most. Q6 and Q7 are already answered.
-3. **Marcus:** merge the PR, then do setup task **T1** (GitHub repo settings: `docs/process/GIT-WORKFLOW.md` §9).
-4. **Marcus:** start the setup tasks that take days: **T5** (Google manager account and developer token), **T4** (Meta app and system users), **T6** (SnapPool schema and tracking info). The full list is in `PROPOSAL.md` §16.
+1. **Marcus:** answer **Q11** (OK the SnapPool tracking plan, and the privacy wording) and **Q12** (the currency of the ~500 a month, and whether Meta's spending limit can auto-reset).
+2. **Marcus:** review PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1), then say "merge" (Claude merges after CI passes) or merge it yourself. Then do setup task **T1** (GitHub repo settings: `docs/process/GIT-WORKFLOW.md` §9).
+3. **SnapPool tracking change (T6b), as soon as Q11 is OK:** start a session in the **snappool** repo with `docs/plan/SNAPPOOL-TRACKING.md` §3 as its brief. **Do it early:** attribution only works for visitors who arrive after it ships.
+4. **Marcus:** the setup tasks that take days: **T5** (Google), **T4** (Meta, including a spending limit of ~500 reset monthly), **T6a** (a read-only SnapPool DB connection string); and **T14** (ad URL settings) when the ads are created. The full list is in `PROPOSAL.md` §16.
 5. **Claude (next session, clean context):** run `start-milestone` for **M00**. It needs nothing from Marcus, apart from T1 before its PR is merged.
 
 ## In flight
-- `claude/gifted-franklin-hk0fku` → PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1): plan v3.1, process docs and the memory system. Ready for review; waiting for Marcus to merge.
+- `claude/gifted-franklin-hk0fku` → PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1): plan v3.2, process docs, the memory system and the SnapPool tracking spec. Ready for review; merged only when Marcus says so.
 
 ## Blocked on Marcus
-- Q1–Q5 and Q8–Q10 in `QUESTIONS.md`. None of them block M00; each question lists what it blocks.
-- Setup tasks T1–T13 (`PROPOSAL.md` §16).
+- Q11 and Q12 in `QUESTIONS.md`. Neither blocks M00.
+- Setup tasks T1–T14 (`PROPOSAL.md` §16).
 
 ## Live steps for Marcus
 - None yet.
@@ -39,11 +39,11 @@
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |
 | M04 | Sync, drift, trust checks | 0 | not started | — | |
-| M05a | Pack SDK, SnapPool pack, settings | 0 | not started | — | T6; Q3, Q5 |
-| M05b | Property pack (G8), attribution, product docs | 0 | not started | — | Q4, Q9 |
+| M05a | Pack SDK, SnapPool pack, settings | 0 | not started | — | T6a (read-only DB URL); SnapPool facts in SNAPPOOL-TRACKING |
+| M05b | Property pack (G8), attribution, product docs | 0 | not started | — | Real attribution needs T6b shipped |
 | M06a | AI layer, finding registry, detectors | 0 | not started | — | T9 |
 | M06b | Analyst input, look-ups, analyse stage | 0 | not started | — | |
-| M07 | Digest, brief, services (Phase 0 exit) | 0 | not started | — | T7, T8; Q2 |
+| M07 | Digest, brief, services (Phase 0 exit) | 0 | not started | — | T7, T8 |
 | M08 | Draft stage, proposals, replay v0 | 1 | not started | — | Phase 0 gate |
 | M09a | Telegram bot core and proposal cards | 1 | not started | — | |
 | M09b | Telegram operator commands | 1 | not started | — | |
@@ -51,8 +51,8 @@
 | M10b | Dashboard: review views | 1 | not started | — | |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | not started | — | Phase 1 gate |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | not started | — | |
-| M12 | Meta writes + CAPI | 2 | not started | — | T4 (write side); Q8 |
-| M13 | Google writes + Data Manager (Phase 2 exit) | 2 | not started | — | T5, T11 |
+| M12 | Meta writes + CAPI | 2 | not started | — | T4 (write side); Q12; T6b |
+| M13 | Google writes + Data Manager (Phase 2 exit) | 2 | not started | — | T5, T11; T6b |
 | M14 | Budgets, creates, pacing | 3 | not started | — | Phase 2 gate |
 | M15a | Source copy and claim checks | 4 | not started | — | Phase 3 gate; T13 |
 | M15b | Format checks, variants, proposals | 4 | not started | — | |

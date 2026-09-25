@@ -11,7 +11,7 @@ This is an agentic ads manager for Marcus's products: SnapPool first, with Prope
 
 ## Standing instructions from Marcus
 - Write for Marcus in plain, simple English. Explain jargon and keep summaries short.
-- **Every working session ends with a PR**, opened or updated (a draft if the work is unfinished). Marcus reviews and merges.
+- **Every working session ends with a PR**, opened or updated (a draft if the work is unfinished). Marcus reviews it. **Merge only when Marcus explicitly says so, and only after CI passes** (D-057).
 - Decisions marked **(Marcus)** or **needs OK** change only with his explicit answer. Record answers with the **`update-plan`** skill.
 - Never put secrets or personal data in the repo, logs, prompts or PR text.
 - Live steps on real ad accounts or the SER9 are Marcus's to run. A local session may run them only with his explicit go-ahead, and never with production write credentials.
@@ -22,6 +22,7 @@ This is an agentic ads manager for Marcus's products: SnapPool first, with Prope
 | The plan: what and why | `docs/plan/PROPOSAL.md` (§0 is the one-page summary; §1 is the glossary) |
 | The plan: how (contracts, schema, milestones M00–M16, invariants) | `docs/plan/BLUEPRINT.md` |
 | What changed in v3 and why | `docs/plan/CHANGES-v3.md` |
+| How SnapPool conversions get tracked (SnapPool-side changes) | `docs/plan/SNAPPOOL-TRACKING.md` |
 | Memory: NOW, LOG, DECISIONS, GOTCHAS, QUESTIONS | `docs/memory/` |
 | Progress per milestone | `docs/milestones/` |
 | How sessions and the memory work | `docs/process/SESSIONS.md` |
@@ -49,7 +50,7 @@ This is an agentic ads manager for Marcus's products: SnapPool first, with Prope
   - PostgreSQL 16 is installed; start it with `pg_ctlcluster 16 main start`;
   - some documentation sites are blocked (see GOTCHAS);
   - push only to the assigned branch.
-- **Local sessions:** `gh`, Docker and the Doppler `dev` config may be available. Never use the production `worker` or `gateway` configs.
+- **Local sessions (the SER9, Linux):** `gh`, Docker and the Doppler `dev` config may be available. Docker is for **dev** only (compose project `ads-agent-dev`). Never touch the production project `ads-agent` or other projects' containers, never run global Docker clean-ups, and never use the production `worker` or `gateway` configs (D-058).
 
 ## Commands
 _M00 adds install, typecheck, lint, check:boundaries, test and build here._

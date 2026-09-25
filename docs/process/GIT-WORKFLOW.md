@@ -8,7 +8,7 @@ How work moves from a Claude session (cloud or local) into `main`, so that **any
 
 1. **GitHub is the only shared memory.** Cloud containers are wiped and local machines differ. Work that isn't pushed doesn't exist for the next session.
 2. **`main` is always green.** It is only changed through PRs with passing checks, so every session can safely start from it.
-3. **Small PRs, one per session.** One session = one milestone (or milestone part) = one PR (D-056). Each working session ends with a PR (draft if unfinished). This is a **standing instruction from Marcus** (also stated in `CLAUDE.md`). Marcus reviews and merges.
+3. **Small PRs, one per session.** One session = one milestone (or milestone part) = one PR (D-056). Each working session ends with a PR (draft if unfinished). This is a **standing instruction from Marcus** (also stated in `CLAUDE.md`). Marcus reviews. A PR is merged only when he says so, after CI passes (D-057, §8).
 4. **Every PR updates the memory.** A PR that changes code or the plan also changes `docs/memory/NOW.md` and `docs/memory/LOG.md`. CI checks this.
 5. **The plan is code.** `PROPOSAL.md` and `BLUEPRINT.md` change only through PRs, with a decision recorded in `DECISIONS.md` (the `update-plan` skill).
 6. **No secrets, ever.** Not in commits, fixtures, logs, PR text or memory files.
@@ -143,7 +143,7 @@ Examples:
 
 ## 8. Review and merge
 
-**Marcus reviews and merges** (unless Q10 in `QUESTIONS.md` changes that for memory-only PRs).
+**Marcus reviews every PR.** It's merged when he says so: either he merges it, or he tells Claude to. Claude merges **only on his explicit instruction, and only after every check is green** (D-057). Otherwise the PR waits, however long.
 
 What to look at, in order:
 1. the PR body's **Live steps** (do they need doing now?);

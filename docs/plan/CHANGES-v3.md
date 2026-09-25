@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-09-25 |
 | **Reviewed** | `docs/archive/proposal-v2.1.md` and `docs/archive/blueprint-v2.1.md` (both generated on 2026-09-14) |
-| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 the same day after Marcus's reply (§H) |
+| **Result** | `docs/plan/PROPOSAL.md` and `docs/plan/BLUEPRINT.md`, v3.0; updated to v3.1 (§H) and v3.2 (§I) the same day after Marcus's replies |
 | **Method** | Read both documents in full. Checked every mechanism for "what happens if…", cross-checked the two documents against each other, and re-checked external facts against current sources (2026-09-25). |
 
 **Headline.** The v2 design is sound, and its core ideas stay:
@@ -108,7 +108,7 @@ Severity: **Critical** = would cause wrong changes, money loss, or a blocked mil
 | D5 | AI SDK `generateObject` | Deprecated in AI SDK 6, replaced by `generateText` + `Output.object` | M06 |
 | D6 | Dashboard on Vercel (implicitly the free tier) | Vercel's Hobby plan forbids commercial use | **Settled:** Marcus already has Vercel Pro, so the dashboard runs there (D-054) |
 | D7 | Neon (cost not considered) | The free plan has 100 compute-hours a month and sleeps when idle. An always-on worker uses about 730. | **Settled:** Marcus is already on Neon's paid plan (D-055) |
-| D8 | Special ad categories not mentioned | Meta's special ad categories (Housing etc.) now apply beyond the US, including Asia | The property pack declares HOUSING (verify for SG) |
+| D8 | Special ad categories not mentioned | Meta's special ad categories (Housing etc.) now apply beyond the US, including Asia | The property pack declares HOUSING (confirmed by Marcus, D-062) |
 | D9 | Google MCP read-only, 3 tools | Confirmed. It also had a July 2026 fix for OAuth credentials being written to logs. | Supports keeping MCP out of the core path (D-039) |
 | D10 | Meta MCP "since July 2026" | Launched April 2026; developer availability July 2026; writes need `ads_management` | No change; D-018 narrowed |
 | D11 | `.eslintrc.cjs`, `vitest.workspace.ts`, zod 3 idioms | ESLint flat config; Vitest `projects`; zod 4 (`z.iso.datetime`, two-argument `z.record`) | M00 verifies and uses current idioms |
@@ -189,6 +189,24 @@ Reply "all OK", or name the ones you disagree with, in `docs/memory/QUESTIONS.md
 | M00, M02–M04, M07, M08, M12–M14 | 1,400–1,750 lines each | Kept whole, each re-estimated at ~500k |
 
 **Total:** 25 sessions, about 11.6M tokens (v2 had 17 sessions and about 9.05M). The difference comes from the review's safety additions, the headroom left for fixes, and the orientation cost each clean session pays (~30–50k).
+
+## I. Marcus's second round of answers (v3.2, 2026-09-25)
+
+| # | Marcus said | What changed |
+|---|---|---|
+| I1 | Q1: the v3 recommendations "look okay" | D-039 to D-053 **adopted**. The "needs OK" markers are removed from PROPOSAL. |
+| I2 | Q2: the SER9 is Linux with Docker; no login needed; local sessions there once cloud tokens run out | D-058. Local sessions may run Docker for **dev** (project `ads-agent-dev`), never touch production (`ads-agent`) or other projects' containers, and never run global clean-ups. The reboot risk is resolved. |
+| I3 | Q3/Q4: SnapPool has no pixel and no Conversions API, and doesn't store click ids. "Think of something; check the SnapPool repo." | Claude read the SnapPool repo (commit `a6c190a`). New spec, **`docs/plan/SNAPPOOL-TRACKING.md`**: SnapPool remembers the ad click in a cookie and saves it, with the user agent and page URL (both required by Meta for website events), on the `/start` request. The agent uploads `Lead` and `CompleteRegistration` (Meta) and `signup` (Google) itself; no pixel for now. **D-060, which needs OK (Q11), supersedes D-047.** The contracts gained feedback **routes** and a `web` context. |
+| I4 | Q5: test signups are recognised by email domain | D-059: a `testTraffic.emailDomains` setting, plus the superadmin |
+| I5 | Q8: about $500 a month for starters | D-061. **Correction found while checking:** Meta's account spending limit is a **lifetime total, not monthly**, so it needs a monthly reset (or auto-reset where offered). The trust check became `spend_cap_headroom`, and the digest reminds on the 1st. Currency and auto-reset are asked in Q12. |
+| I6 | Q9: the Housing category is required | D-062. The "verify for SG" hedges are removed. |
+| I7 | Q10: Claude merges only when told to, after CI passes | D-057, in GIT-WORKFLOW §8, `CLAUDE.md` and the `end-session` skill |
+
+**Found in the SnapPool repo that the plan didn't know:**
+- **Signup is open on production** (since 2026-09-20), so ads won't hit a closed door.
+- **There's no checkout.** SnapPool is in a free beta (signup window to 2026-11-30, free plans honoured to 2027-01-01), so the `paid` stage has no source for now.
+- **The funnel is `/start` request → email-verified claim → first photo.** That gives the stage defaults `pool_request` / `signup` / `activated`.
+- **Activation usually happens on the event day,** weeks after the ad click. It's for reporting, not for platform feedback.
 
 ## What did not change
 

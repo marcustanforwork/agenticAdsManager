@@ -235,10 +235,10 @@ These correct errors, contradictions and outdated facts found in the review. Det
 
 ---
 
-## v3 recommendations (Claude, 2026-09-25). Proposed: waiting for Marcus's OK (QUESTIONS Q1)
+## v3 recommendations (Claude, 2026-09-25). Approved by Marcus in Q1 on 2026-09-25
 
 ### D-039 — The analyst looks things up with typed database queries; the official MCP servers are deferred
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:**
   - Deterministic and replayable, so evals work.
   - No extra credentials, API quota or Python sidecar.
@@ -247,56 +247,56 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** PROPOSAL §10 · BLUEPRINT §5.10
 
 ### D-040 — Fixed detectors first; the AI reviews, ranks and explains
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** Findings become reproducible and testable, and this raises the chance of passing the Phase 1 agree-rate gate.
 - **Instead of:** the AI finding everything itself.
 - **See:** PROPOSAL §5.2 · BLUEPRINT §5.9
 
 ### D-041 — The strongest model does the analysis
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** Analysis is the hard step, and it costs a few dollars a month at this volume. The wording can move to a cheaper model once evals show no loss.
 - **Instead of:** a cheap model for analysis and a frontier model for prose (v2).
 
 ### D-042 — Trust checks are named pass/warn/fail/no-signal checks
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** Understandable, testable, and aware of low traffic.
 - **Instead of:** an undefined 0–1 confidence score with a floor of 0.7.
 - **See:** BLUEPRINT §5.8
 
 ### D-043 — The gateway is its own container and holds the only write key; write clients live in separate packages
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** A real security boundary. The process that can spend money never talks to the AI or reads untrusted text, and the worker *cannot* decrypt write credentials. The cost is one extra compose service built from the same image.
 - **Instead of:** the gateway as a module inside the worker process, protected only by lint rules.
 - **See:** PROPOSAL §6.1, §6.13 · BLUEPRINT §2, §5.1, M11
 
 ### D-044 — STRATEGY, PLAYBOOK and LEARNINGS live in the DB and are edited on the dashboard
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** Editing them needs no redeploy, and they keep version history. The repo files become starting templates.
 - **See:** PROPOSAL §9 · BLUEPRINT M05, M10
 
 ### D-045 — Two copy tiers: `fragments` (property) and `reword` (SnapPool)
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** "No new claims" can be *guaranteed* only when variants are assembled from approved fragments. Free rewording can only be checked mechanically, so Marcus's approval remains the final check.
 - **See:** PROPOSAL §6.12 · BLUEPRINT M15
 
 ### D-046 — Two Google logins: read-only for sync, standard for writes and uploads
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** It gives a real token-level split on Google. v2 said this wasn't possible because the OAuth scope is shared.
 - **See:** PROPOSAL §6.1, §16 T5
 
 ### D-047 — SnapPool reports signups itself, in real time; the agent uploads the delayed stages
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed (depends on Q3)
+- **When / who / status:** 2026-09-25 · Claude · approved in Q1, then **superseded by D-060**, because Q3 showed SnapPool has no tracking at all
 - **Why:** Real-time browser + server events with a shared event id match best and avoid double counting. The agent adds value on the stages that happen later (activated, paid) and on property's offline stages.
 - **Instead of:** the agent uploading signups in batches (v2).
 - **See:** PROPOSAL §8
 
 ### D-048 — Conversion-upload auto-approval stays off until the Phase 2 gate; daily caps apply
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** Uploads are irreversible on Meta, and wrong conversions mis-train bidding.
 - **Instead of:** auto-approval from the start (v2).
 
 ### D-049 — Meta budget changes are limited to ±20% by default
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Why:** Larger jumps commonly restart Meta's learning phase. Google keeps ±30%.
 
 ### D-050 — The dashboard is hosted on the SER9 behind a Cloudflare Tunnel and Access
@@ -305,15 +305,15 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Instead of:** Vercel (v2 "decided"); the alternative is Vercel Pro at about USD 20/month.
 
 ### D-051 — Marcus's confirmed pauses execute immediately
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Decision:** They go to the front of the queue and wake the gateway, instead of waiting for the 5-minute loop.
 
 ### D-052 — Proposal expiry depends on the action
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Decision:** Budget changes expire after 72 h; other actions after 7 days; operator confirm cards after 30 min.
 
 ### D-053 — Measurable phase gates
-- **When / who / status:** 2026-09-25 · Claude (needs OK) · proposed
+- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
 - **Decision:**
   - 👍/💡 buttons on every brief measure the Phase 0 gate.
   - An exact agree-rate definition, excluding expired and operator proposals and failing if more than 20% expire.
@@ -347,4 +347,50 @@ These correct errors, contradictions and outdated facts found in the review. Det
   - The token-budget checkpoints from v2 are restored (SESSIONS §4). The hard stop is at 600k.
 - **Why:** This is Marcus's operating model. v2's yardstick (500k ≈ 1,500–2,500 lines including tests) shows that eight v3 milestones, which grew with the review's safety additions, would overrun one session.
 - **See:** BLUEPRINT §0, §7, §9 · SESSIONS §4 · CHANGES §H
+
+---
+
+## Marcus's answers, second round (2026-09-25)
+
+### D-057 — Claude merges a PR only when Marcus says so, and only after CI passes
+- **When / who / status:** 2026-09-25 · Marcus · adopted (answers Q10)
+- **Decision:** Marcus reviews every PR. Claude may merge one, with a squash merge, **only when Marcus explicitly says to**, and only once all checks are green. Otherwise the PR waits.
+- **See:** GIT-WORKFLOW §8 · CLAUDE.md
+
+### D-058 — Local sessions run on the SER9, isolated from production
+- **When / who / status:** 2026-09-25 · Marcus (setup) + Claude (rules) · adopted (answers Q2)
+- **Decision:**
+  - The SER9 runs Linux with Docker, and no login is needed after a reboot. Marcus is using cloud sessions for now and will move to **local sessions on the SER9** when cloud tokens run out.
+  - Local sessions may run Docker commands for **dev** work only, using the compose project `ads-agent-dev`.
+  - They never touch the production project `ads-agent` or other projects' containers (e.g. SnapPool's `snappool-worker`), never use the production Doppler configs, and never run global clean-ups (`docker system prune`, `docker volume prune`).
+- **Why:** Dev and production share one machine.
+- **See:** SESSIONS §6 · PROPOSAL §11, §13 · BLUEPRINT M00
+
+### D-059 — SnapPool test and internal signups are recognised by email domain
+- **When / who / status:** 2026-09-25 · Marcus · adopted (answers Q5)
+- **Decision:** A signup whose email domain is in the product setting `testTraffic.emailDomains`, or from the superadmin, is a test outcome: never uploaded, never counted. The domain list lives in the database settings, not in the repo.
+- **See:** BLUEPRINT §3.3, M05a · SNAPPOOL-TRACKING §2
+
+### D-060 — SnapPool captures the ad click; the agent uploads the conversions (no pixel for now)
+- **When / who / status:** 2026-09-25 · Claude (needs OK) · **proposed** (Q11) · **Supersedes:** D-047
+- **Decision:**
+  - SnapPool remembers the ad-click details in a first-party cookie, and saves them on the `/start` request, together with the browser user agent and page URL (Meta requires both for website events). There's no IP address and no browser pixel or tag.
+  - The agent uploads `pool_request` (Meta `Lead`) and `signup` (Meta `CompleteRegistration`; Google click conversion) server to server: one daily batch while Marcus approves them by hand, hourly once auto-approved.
+  - Feedback is configured as **routes**, so a stage can go to several platforms, and a platform can take several stages.
+- **Why:** SnapPool has no tracking today (Q3) and doesn't store click ids (Q4). This is the smallest SnapPool change, it needs no CSP or cookie-consent work, and it gives one tested, capped path, so nothing is counted twice.
+- **Instead of:** D-047 (SnapPool reports signups itself in real time), which assumed existing tracking.
+- **See:** `docs/plan/SNAPPOOL-TRACKING.md` · PROPOSAL §8 · BLUEPRINT §3.3, §3.5, §5.13, M05a, M12, M13
+
+### D-061 — Meta spending limit: about 500 a month, reset monthly
+- **When / who / status:** 2026-09-25 · Marcus (amount, tentative) + Claude (mechanics) · adopted (answers Q8)
+- **Decision:**
+  - Marcus plans about **500 a month** to start. The Meta account spending limit is set at about that amount.
+  - Because Meta's limit is a **lifetime total, not monthly**, it's reset on the 1st of each month, or set to auto-reset if the billing page offers that.
+  - The trust check `spend_cap_headroom` warns when the limit is unset or 80% used. The digest shows its usage and gives a reset reminder on the 1st.
+- **See:** PROPOSAL §6.9, §16 T4 · BLUEPRINT §5.8, M12
+
+### D-062 — The Meta Housing special ad category applies to property ads
+- **When / who / status:** 2026-09-25 · Marcus · adopted (answers Q9)
+- **Decision:** The property pack declares `HOUSING` on every Meta campaign it creates. The property playbook assumes the resulting targeting limits: no age, gender or postcode targeting.
+- **See:** PROPOSAL §4, §7 · BLUEPRINT M05b, M14
 

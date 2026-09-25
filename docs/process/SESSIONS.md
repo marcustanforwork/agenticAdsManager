@@ -37,7 +37,7 @@ How any Claude session, **in the cloud (Claude Code on the web) or on Marcus's o
 | Where | How |
 |---|---|
 | **Cloud** (claude.ai/code, app, mobile) | Start a **new** session on this repo (Opus 5.5, medium effort) and say **"continue"**, or give a specific task. |
-| **Local** (SER9 or laptop) | `cd agenticAdsManager && git fetch && claude`, then say **"continue"**. You don't need to pull first; the start-session skill handles branches. |
+| **Local** (the SER9, Linux) | `cd agenticAdsManager && git fetch && claude`, then say **"continue"**. You don't need to pull first; the start-session skill handles branches. Marcus plans to switch to this once cloud tokens run out (D-058). |
 
 **One session per milestone part, each with a clean context.** Don't carry a long conversation from one milestone into the next: the memory files carry everything needed.
 
@@ -118,13 +118,13 @@ Milestones are estimated at 400–500k (BLUEPRINT §9), which leaves room for re
 
 ## 6. Cloud sessions vs local sessions
 
-| | Cloud session | Local session (SER9 / laptop) |
+| | Cloud session | Local session (the SER9: Linux, Docker) |
 |---|---|---|
 | Branch | Assigned by the harness (`claude/…`); push only there | Choose `m<NN>/<slug>`, or continue a work branch |
 | GitHub | GitHub MCP tools (no `gh`) | `gh` if installed, or the GitHub web UI |
 | Secrets | **None.** No platform tokens, no Doppler. | The Doppler `dev` config at most, only if Marcus provides it. **Never** the `worker` or `gateway` production configs. |
 | Database | Local Postgres 16 in the container (`pg_ctlcluster 16 main start`) for tests | Local Postgres or Docker; the Neon `dev` branch with Marcus's OK |
-| Docker | Client only, **no daemon**: images are built in CI | Available |
+| Docker | Client only, **no daemon**: images are built in CI | Available, and Claude may run Docker commands (D-058). **Dev only:** compose project `ads-agent-dev`. Never touch the production project `ads-agent` or other projects' containers (e.g. SnapPool's `snappool-worker`). **Never** run global clean-ups (`docker system prune`, `docker volume prune`). |
 | Live platform APIs | No | Only with Marcus's explicit go-ahead: **read-only** credentials to record fixtures; test accounts for smoke tests |
 | Good for | All code, tests, fixtures, docs, plan changes | The same, plus recording fixtures, live smoke tests, deploy help (M07+) |
 | Ends with | The harness's own Stop hook enforces commit + push | This repo's Stop hook reminds you to update memory and push |

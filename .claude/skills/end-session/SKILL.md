@@ -62,7 +62,7 @@ At the **600k hard stop**, commit whatever state you're in anyway. Start the sub
 
 ## 7. Open or update the PR
 
-Marcus's standing instruction (`CLAUDE.md`) is that every working session ends with a PR.
+Marcus's standing instruction (`CLAUDE.md`) is that every working session ends with a PR. **Never merge it yourself** unless Marcus explicitly says so, and then only after every check is green (D-057).
 - **No PR yet:** create one (a draft if the work is unfinished) using `.github/pull_request_template.md`. Cloud: GitHub MCP `create_pull_request`. Local: `gh pr create --draft`, or the web UI.
 - **A PR already exists:** update its title and body (`update_pull_request` or `gh pr edit`).
 - **You continued someone else's unmerged branch from a cloud session:** open a new PR "… (continues #N)", then close #N with the comment "Superseded by #M".

@@ -4,6 +4,20 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-25 — Marcus's second answers; SnapPool repo read; tracking spec
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1)
+- **Did:**
+  - Recorded Q1–Q5 and Q8–Q10: D-039–D-053 adopted, and D-057–D-062 added.
+  - Attached `marcustanforwork/snappool` (read-only) and read its schema, signup, pricing, security headers and memory.
+  - Wrote `docs/plan/SNAPPOOL-TRACKING.md` (D-060, proposed).
+  - Contracts: feedback **routes** (`FeedbackRoute`), a `web` context (user agent and page URL), and `testTraffic.emailDomains`.
+  - Trust check `spend_cap_headroom`. Hourly uploads once auto-approved.
+  - Local-session Docker isolation rules; the merge policy.
+- **Decided:** D-057 (merge on instruction, after CI), D-058 (SER9 local sessions, isolation), D-059 (test signups by email domain), D-060 (SnapPool captures, the agent uploads; proposed), D-061 (Meta limit ~500, reset monthly), D-062 (Housing confirmed).
+- **Learned:** GOTCHAS gained two verified Meta facts: CAPI website events **require** user agent and page URL, and the account spending limit is a **lifetime** total. It also gained the SER9 Docker rules and a pointer to the SnapPool facts.
+- **Next:** Marcus answers Q11 and Q12 and says when to merge PR #1. Then the SnapPool tracking session (in the snappool repo) and M00.
+- **Open:** Q11, Q12; setup tasks T1–T14.
+
 ## 2026-09-25 — Plan v3.1: Marcus's answers, sessions resized, PR opened
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#1](https://github.com/marcustanforwork/agenticAdsManager/pull/1)
 - **Did:**

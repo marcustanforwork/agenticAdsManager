@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.1 — 2026-09-25 (sessions resized to Marcus's budget; Vercel Pro and Neon paid confirmed) |
+| **Version** | v3.2 — 2026-09-25 (Marcus's answers recorded; SnapPool tracking plan wired in) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -184,14 +184,20 @@ export const OutcomeStage = z.object({
   valueMicros: MicrosJson.optional(),            // optional value per stage, for value-based feedback
 });
 
+/** One conversion upload route: this stage goes to this platform destination (D-060).
+ *  A stage may have routes to both platforms, and a platform may take several stages (e.g. Meta Lead + CompleteRegistration). */
+export const FeedbackRoute = z.object({
+  stage: z.string(),
+  platform: Platform,
+  destinationId: z.string(),                     // Meta dataset (pixel) id, or Google conversion action id
+  eventName: z.string().optional(),              // Meta event name, e.g. 'Lead', 'CompleteRegistration'
+});
+
 export const OutcomeConfig = z.object({
   stages: z.array(OutcomeStage).min(1),
   primaryKpiStage: z.string(),                   // the KPI is "cost per <this stage>"
-  feedbackStages: z.object({                     // stage uploaded to each platform; null = don't upload
-    google: z.string().nullable(),
-    meta: z.string().nullable(),
-  }),
-});  // + cross-field checks: primaryKpiStage and feedbackStages must be ids from `stages`
+  feedback: z.array(FeedbackRoute),              // which stages are uploaded where; empty = no uploads
+});  // + cross-field checks: primaryKpiStage and every feedback[].stage must be ids from `stages`
 
 export const GuardConfig = z.object({
   maxBudgetChangePct: z.number().positive().max(100),   // core 30; Meta platform default 20
@@ -233,6 +239,9 @@ export const ProductSettings = z.object({
     requiredStrings: z.array(z.string().min(1)),
     bannedPhrases: z.array(z.string().min(1)),
   }),
+  testTraffic: z.object({                                // D-059: outcomes from these are never uploaded or counted
+    emailDomains: z.array(z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/)),   // e.g. Marcus's own domains; kept in the DB, not the repo
+  }),
   guardOverrides: GuardConfig.partial(),                 // tighten-only
   disabledActions: z.array(ActionType),                  // may only remove actions
 });
@@ -265,14 +274,14 @@ export interface PackManifest {
   thresholds: Partial<Record<FindingTypeId, z.infer<typeof EvidenceThreshold>>>;
   guardOverrides?: Partial<z.infer<typeof GuardConfig>>; // tighten-only (definePack rejects looser)
   disabledActions?: Array<z.infer<typeof ActionType>>;
-  platformPolicy: { meta?: { specialAdCategories: string[] } };   // property: ['HOUSING'] (verify for SG)
+  platformPolicy: { meta?: { specialAdCategories: string[] } };   // property: ['HOUSING'] (confirmed, D-062)
   analystContext: string;                                // trusted guidance written by Marcus
   briefSections?: { id: string; title: string; query: NamedQueryId }[];   // named core queries, never SQL
 }
 
 /** Runtime part: may do I/O. Loaded only by the worker. */
 export interface PackRuntime {
-  outcomeAdapter(env: Readonly<Record<string, string | undefined>>): OutcomeAdapter;
+  outcomeAdapter(env: Readonly<Record<string, string | undefined>>, settings: z.infer<typeof ProductSettings>): OutcomeAdapter;   // settings carry testTraffic
   detectPhase(ctx: LifecycleContext): string;            // pure; ctx (offering facts, dates, spend) supplied by core
 }
 
@@ -295,6 +304,12 @@ export const HashedContact = z.object({            // SHA-256 of normalised valu
   phoneSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 });
 
+/** Captured by the product at the moment of conversion (SnapPool: at /start). No IP address, by design. */
+export const WebContext = z.object({
+  userAgent: z.string().max(512).optional(),  // Meta CAPI `client_user_agent` (required for website events)
+  pageUrl: z.string().max(1024).optional(),   // Meta CAPI `event_source_url` (required for website events)
+});
+
 export const OutcomeEvent = z.object({
   sourceId: z.string(),                    // stable id in the source system (also the basis of the upload event id)
   stage: z.string(),                       // one of the product's outcome stage ids
@@ -304,6 +319,7 @@ export const OutcomeEvent = z.object({
   isTest: z.boolean(),                     // test/internal: never uploaded, excluded from KPIs
   ids: ClickAndPlatformIds,
   hashedContact: HashedContact.optional(),
+  web: WebContext.optional(),              // browser context captured with the conversion (Meta requires it for website events)
 });
 
 export interface OutcomeAdapter {
@@ -342,6 +358,7 @@ export const ConversionEvent = z.object({
   valueMicros: MicrosJson.optional(), currency: z.string().length(3).optional(),
   ids: ClickAndPlatformIds,
   hashedContact: HashedContact.optional(),
+  web: WebContext.optional(),
 });
 
 export const WriteOp = z.discriminatedUnion('action', [
@@ -355,6 +372,7 @@ export const WriteOp = z.discriminatedUnion('action', [
              spec: z.record(z.string(), z.unknown()), idempotencyTag: z.string() }),
   z.object({ action: z.literal('upload_conversions'), platform: Platform, accountId: z.string(),
              destinationId: z.string(),                                                // Google conversion action id / Meta dataset id
+             eventName: z.string().optional(),                                         // Meta event name for this route
              events: z.array(ConversionEvent).min(1).max(500) }),
   // Undo-only actions: never produced from a finding. They exist only as the stored undo of a change we made.
   z.object({ action: z.literal('resume_entity'), target: EntityRef }),
@@ -1050,7 +1068,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | `outcome_source_fresh` | adapter healthy, activity within `maxOutcomeStalenessHours` | healthy but quiet | adapter unreachable | — |
 | `attribution_gap` | the gap between platform conversions and our attributed outcomes is within `maxAttributionGapPct` | above it | — (never fails alone) | fewer outcomes than `minOutcomesForGap` |
 | `id_capture` | the share of recent outcomes carrying click/platform ids ≥ `minIdCapturePct` | below it | — | no recent outcomes |
-| `spend_cap_set` (Meta) | account spending limit is set | not set | — | — |
+| `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total: reset it monthly, D-061) | — | — |
 
 The cycle result is `fail` if any check fails, which means a diagnostic brief only. It is `degraded` if any check warns: the brief shows the warnings, and proposals are still allowed. Otherwise it is `ok`.
 
@@ -1110,8 +1128,10 @@ Methods are tried in this order, and the first match wins:
 
 ### 5.13 Feedback uploads
 
-- **Event ids** have the form `<sourceId>:<stage>`. The same id goes to both platforms, and to SnapPool's pixel if it reports the same event.
-- **Meta.** `action_source` depends on the stage (verify in M12). Events older than 6.5 days are skipped. Batches hold at most 500 events.
+- **Routes.** `settings.outcomes.feedback` lists which stage goes to which platform destination, with Meta's event name (SnapPool defaults: `pool_request → Lead`, `signup → CompleteRegistration` on Meta; `signup` on Google). An outcome goes only to the platform its click came from.
+- **Event ids** have the form `<sourceId>:<stage>`. If a browser pixel is ever added, it must send the same id so the platform de-duplicates.
+- **Rhythm.** One daily batch while Marcus approves uploads by hand; hourly once `autoApproveFeedback` is on.
+- **Meta.** Website events send `action_source=website` with `event_source_url` and `client_user_agent`, both required, taken from `web`, plus `fbc` and the hashed email. CRM-stage events use `system_generated` (verify in M12). Events older than 6.5 days are skipped. Batches hold at most 500 events.
 - **Google.** Uploads go to the Data Manager API with destination = the Google Ads account + the conversion action. `transaction_id` = the event id.
 - **Marking done.** `fed_back_*_at` is set only after the platform accepts the upload. Retries are safe because of de-duplication.
 - **Safety.** Daily caps apply. Test outcomes are excluded. An alert fires if volume exceeds 3× the trailing daily average.
@@ -1230,7 +1250,7 @@ Methods are tried in this order, and the first match wins:
 6. `apps/worker` and `apps/gateway` entry points that log `ready`, serve a localhost health endpoint and exit cleanly on SIGTERM. CLIs `ads` and `ads-gw` (commander) with `--product` and `version`.
 7. Docker files:
    - `Dockerfile`: multi-stage, pnpm, non-root, one image, two entry points;
-   - `docker-compose.yml`: `worker` and `gateway` services, `restart: unless-stopped`, healthchecks, env via `doppler run`;
+   - `docker-compose.yml`: project `name: ads-agent`, with `worker` and `gateway` services, `restart: unless-stopped`, healthchecks, env via `doppler run`. Local development uses the separate project name `ads-agent-dev` (D-058);
    - `.dockerignore`.
 8. CI (`.github/workflows/ci.yml`): install → typecheck → lint → check:boundaries → test → build → docker build (no push); plus a secret scan (gitleaks). Keep `memory-check.yml`.
 9. Session tooling:
@@ -1356,7 +1376,7 @@ Methods are tried in this order, and the first match wins:
 **Builds:**
 1. Graph client: typed fetch, pagination, `appsecret_proof`, and back-off driven by the rate-limit headers. The API version is pinned in one constant.
 2. Read methods:
-   - `getAccountInfo` (timezone, currency, spend cap);
+   - `getAccountInfo` (timezone, currency, spending limit and the amount spent against it: `spend_cap` / `amount_spent`, verify the field names);
    - `listEntities` for campaigns, ad sets and ads, with status normalisation;
    - `getMetricsDaily` at campaign, ad set and ad level, recording the attribution settings;
    - `snapshot`;
@@ -1468,11 +1488,11 @@ Methods are tried in this order, and the first match wins:
 ---
 
 ### M05a — Pack SDK, SnapPool pack, settings
-**Phase 0 · Size ~500k · Needs:** T6: SnapPool schema, read-only connection string, and the rule for test signups (Q3, Q5)
+**Phase 0 · Size ~500k · Needs:** a read-only SnapPool connection string (T6a). The SnapPool facts are already recorded in `SNAPPOOL-TRACKING.md`.
 
 **Goal:** the first real pack loads through the registry, SnapPool's outcomes flow in, and settings are one validated document.
 
-**Read first:** this file §3.3–3.5; PROPOSAL §4 and §8; DECISIONS D-012, D-013, D-047.
+**Read first:** this file §3.3–3.5; `docs/plan/SNAPPOOL-TRACKING.md` §1, §2 and §4; PROPOSAL §4 and §8; DECISIONS D-012, D-013, D-059, D-060.
 
 **Builds:**
 1. `pack-sdk`:
@@ -1481,12 +1501,12 @@ Methods are tried in this order, and the first match wins:
    - the threshold engine, working on computed evidence;
    - the manifest publisher (`pack_manifests`, facts as JSON Schema via zod's JSON-Schema export).
 2. `packs/saas-snappool`:
-   - defaults: signup = success, activated = success, paid = hard; KPI = signup; feedback stages per D-047;
-   - phases: soft_launch / paid / seasonal;
+   - defaults (`SNAPPOOL-TRACKING.md` §2): `pool_request` = soft, `signup` = success (the KPI), `activated` = success, `paid` = hard (no source until SnapPool has a checkout); feedback routes `pool_request → Meta Lead`, `signup → Meta CompleteRegistration` and `signup → Google`;
+   - phases: beta → promo → standard, following SnapPool's own pricing phases (beta signup window to 2026-11-30), plus notes on seasonal peaks;
    - fact schema: features, plans, pricing, event types;
    - thresholds: low click floors, high day floors;
    - `analystContext`;
-   - runtime: the SnapPool adapter, using the read-only DB URL, hashing inside the adapter, the `isTest` rule, and `paid` for both subscriptions and one-off payments.
+   - runtime: the SnapPool adapter. It uses the read-only DB URL and reads `pool_requests` (plus `events.first_upload_at` for activation). Only claimed `/start` requests count as signups. It hashes emails inside the adapter, sets `isTest` from `settings.testTraffic.emailDomains` plus the superadmin, and takes ids and `web` from `pool_requests.attribution`, `user_agent` and `page_url` once SnapPool's tracking change (T6b) has shipped. Before that they're empty.
 3. `core/settings`:
    - settings are validated on **every read**, so a bad stored value stops the cycle with an alert instead of being used;
    - `settings_patch` handling, building on M01b's processor;
@@ -1515,11 +1535,11 @@ Methods are tried in this order, and the first match wins:
 ---
 
 ### M05b — Property pack (the G8 test), attribution, product docs
-**Phase 0 · Size ~450k · Needs:** M05a; Q4 (click-ID capture) and Q9 (Housing category)
+**Phase 0 · Size ~450k · Needs:** M05a. For real attribution data, SnapPool's tracking change (T6b) must have shipped; before that, attribution is proven on fixtures only.
 
 **Goal:** the second pack is added with zero changes to the core, outcomes are attributed to campaigns, and the product documents live in the database.
 
-**Read first:** this file §3.4 and §5.12; PROPOSAL §4 and §8; M05a's milestone file.
+**Read first:** this file §3.4 and §5.12; `docs/plan/SNAPPOOL-TRACKING.md` §3–4; PROPOSAL §4 and §8; M05a's milestone file.
 
 **Builds:**
 1. `packs/property-sg`, as **its own commit, made first. This is the G8 test.**
@@ -1527,7 +1547,7 @@ Methods are tried in this order, and the first match wins:
    - phases: teaser / vvip / booking / clearing, with `detectPhase` reading `offerings.facts.launchDates`;
    - fact schema: district, mrt, psfBand, unitMix, developer, top, launchDates;
    - thresholds;
-   - `platformPolicy.meta.specialAdCategories = ['HOUSING']` (verify for SG, Q9);
+   - `platformPolicy.meta.specialAdCategories = ['HOUSING']` (confirmed by Marcus, D-062);
    - copy tier `fragments`, with placeholder required strings;
    - runtime: an Airtable adapter built against a recorded fixture of the existing base.
 2. `core/attribution` (§5.12). `ads outcomes` gains the attribution rate.
@@ -1993,18 +2013,19 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
    - `findByIdempotencyTag`.
 2. `pause_entity` and `resume_entity` for campaigns, ad sets and ads.
 3. `upload_conversions` through CAPI (§5.13):
-   - `event_id` shared with the pixel where one exists;
-   - `action_source` set per stage;
-   - `fbc` and `fbp`, plus hashed contact data;
+   - `event_id` = `<sourceId>:<stage>`; the event name comes from the feedback route;
+   - website events: `action_source=website`, `event_source_url` and `client_user_agent` from `web` (both required by Meta);
+   - `fbc`, plus the hashed email;
    - events older than 6.5 days are skipped;
    - batches of at most 500;
    - the **first run uses `test_event_code`**.
 4. The feedback job:
-   - takes outcomes not yet uploaded, at `feedbackStages.meta`, that carry Meta ids and are not tests;
+   - takes outcomes not yet uploaded, for each Meta feedback route, that carry a Meta click id and are not tests;
    - turns them into `policy` proposals;
    - Marcus approves them until `autoApproveFeedback` is switched on;
-   - daily caps and volume alerts apply.
-5. A trust/doctor check that the Meta account spending limit is set.
+   - daily caps and volume alerts apply;
+   - one daily batch while Marcus approves by hand; hourly once auto-approval is on.
+5. A trust/doctor check that the Meta account spending limit is set and has headroom (`spend_cap_headroom`, §5.8). The digest shows how much of the limit is used, and on the 1st of the month reminds Marcus to reset it unless auto-reset is on (D-061).
 6. A runbook section: the rules denying writes that must be applied if any MCP client is ever connected to the Meta account (D-018).
 
 **Tests:**
@@ -2050,7 +2071,7 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
    - gclid, gbraid or wbraid;
    - timestamps with timezone offset;
    - transaction id = the event id.
-4. The feedback job is extended to `feedbackStages.google`.
+4. The feedback job is extended to the Google feedback routes (SnapPool default: `signup`, with `gclid`/`gbraid`/`wbraid`).
 5. An integration suite on the Google test account, run with `LIVE_TEST=1`: add a negative keyword, pause something, and resume it via undo.
 
 **Tests:**
