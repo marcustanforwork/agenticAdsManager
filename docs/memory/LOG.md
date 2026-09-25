@@ -18,9 +18,10 @@ Newest entry on top. One entry per working session, written by the `end-session`
     - the migration must reach production before the deploy.
   - The prompt is §7. It has the SnapPool session add the work to SnapPool's own blueprint as its next session.
   - M05a: SnapPool deletes pending requests after 30 days, so the adapter reads at least daily.
+  - Squash-merged PR #2 into `main` on Marcus's instruction, after CI passed (D-057), and reset the branch to `main`.
 - **Decided:** D-060 adopted (Marcus); D-064 (Claude, fix).
 - **Learned:** `gh api … -H 'Accept: application/vnd.github.raw'` returns a file's raw text (tested against this repo). SnapPool is on Next.js 15.5; its middleware lives in `middleware.ts`.
-- **Next:** Marcus merges PR #2, then runs the SnapPool session with the §7 prompt. A clean session starts M00.
+- **Next:** Marcus runs the SnapPool session with the §7 prompt. A clean session starts M00.
 - **Open:** no questions; the SnapPool change (T6b); setup tasks T1–T14.
 
 ## 2026-09-25 — Q12 answered; Q11 clarified; PR #1 merged
