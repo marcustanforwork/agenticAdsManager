@@ -5,9 +5,9 @@
   "type": "module",
   "exports": {
     ".": {
-      "@ads/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "@ads/source": "./src/main.ts",
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
     }
   },
   "files": [
@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@ads/contracts": "workspace:*",
@@ -24,6 +25,11 @@
     "@ads/core": "workspace:*",
     "@ads/pack-sdk": "workspace:*",
     "@ads/pack-saas-snappool": "workspace:*",
-    "@ads/pack-property-sg": "workspace:*"
+    "@ads/pack-property-sg": "workspace:*",
+    "commander": "15.0.0",
+    "pino": "10.3.1"
+  },
+  "bin": {
+    "ads": "./dist/cli.js"
   }
 }
