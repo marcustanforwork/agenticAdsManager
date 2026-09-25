@@ -16,6 +16,8 @@ Things that surprised us, and external facts the plan depends on.
 
   *(2026-09-25)*
 - **The network proxy in cloud sessions blocks some documentation sites:** `developers.facebook.com`, `developers.google.com` and `ads-developers.googleblog.com` (WebFetch returns `EGRESS_BLOCKED`). WebSearch works and usually quotes those pages. *(2026-09-25)*
+- **In cloud sessions, `api.github.com` answers only for this repo** (other repos get "GitHub access to this repository is not enabled"). `git ls-remote --tags https://github.com/<owner>/<repo>` and GitHub release downloads still work, e.g. to check action and CLI versions. `cli.doppler.com` is blocked. *(2026-09-25)*
+- **Node's built-in TypeScript** (type stripping in Node 24) runs `scripts/*.ts` directly, with no build step: `node scripts/check-boundaries.ts`. Only erasable syntax is allowed (`erasableSyntaxOnly` in tsconfig): no enums, no parameter properties. *(2026-09-25)*
 - **The cloud harness has its own Stop hook,** which blocks stopping while changes are uncommitted or unpushed. This repo's Stop hook only adds the memory check, plus a push check for local sessions. *(2026-09-25)*
 - **The SER9 (local sessions, D-058)** runs Linux with Docker, and no login is needed after a reboot. It's shared with production (`ads-agent`) and possibly other projects' containers (e.g. SnapPool's `snappool-worker`). Use the compose project `ads-agent-dev` for dev, and **never** run `docker system prune` or `docker volume prune`. *(2026-09-25)*
 - **Project hooks load at session start.** Edits to `.claude/settings.json` take effect in the *next* session. *(2026-09-25)*

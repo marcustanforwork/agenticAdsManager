@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-09-25 |
 | **Finished** | — |
-| **PRs** | — |
+| **PRs** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) |
 
 ## Goal
 A monorepo where the dependency rules are enforced by tooling before any feature exists.
@@ -22,42 +22,54 @@ A monorepo where the dependency rules are enforced by tooling before any feature
 - Build order: 1 (versions) → 2 (workspace) → 5 (empty packages, so there is something to check) → 4 (contracts + tests) → 3 (boundaries + fixture tests) → 6 (entry points, CLIs) → 7 (Docker) → 8 (CI) → 9 (session tooling).
 - Cut first, if behind at ~300k: the formatter; CLI commands beyond `version`. Never cut: the boundary checks and the Dockerfile.
 - Checkpoints (`docs/process/SESSIONS.md` §4):
-  - [ ] ~50k oriented
-  - [ ] ~300k built, typecheck green
+  - [x] ~50k oriented
+  - [x] ~300k built, typecheck green
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
-- [ ] 1. Verify current versions with the `verify-external-facts` skill: Node 24 vs 26, pnpm, TypeScript, zod 4, Vitest, ESLint, Turborepo, dependency-cruiser, Drizzle, AI SDK. Record them in GOTCHAS.
-- [ ] 2. Workspace setup:
+- [x] 1. Verify current versions with the `verify-external-facts` skill: Node 24 vs 26, pnpm, TypeScript, zod 4, Vitest, ESLint, Turborepo, dependency-cruiser, Drizzle, AI SDK. Record them in GOTCHAS.
+- [x] 2. Workspace setup:
   - pnpm workspace + Turborepo;
   - `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`);
   - `vitest.config.ts` using projects;
   - `eslint.config.js` (flat config);
   - a formatter;
   - Node version pinned (`engines` + `.nvmrc`).
-- [ ] 3. Boundaries: `scripts/check-boundaries.ts`, `.dependency-cruiser.cjs` and the ESLint mirror, all run by `pnpm check:boundaries` (§2).
-- [ ] 4. `packages/contracts` contains everything in §3:
+- [x] 3. Boundaries: `scripts/check-boundaries.ts`, `.dependency-cruiser.cjs` and the ESLint mirror, all run by `pnpm check:boundaries` (§2).
+- [x] 4. `packages/contracts` contains everything in §3:
   - money helpers and the JSON codec;
   - `canonicalJson` and `sha256Hex`;
   - `mergeGuardsTightenOnly`;
   - the undo table;
   - an SGD formatter.
-- [ ] 5. Empty but compiling packages and apps for every path in §1. Each has a `README.md` stating its single job and its allowed dependencies.
-- [ ] 6. `apps/worker` and `apps/gateway` entry points that log `ready`, serve a localhost health endpoint and exit cleanly on SIGTERM. CLIs `ads` and `ads-gw` (commander) with `--product` and `version`.
-- [ ] 7. Docker files:
+- [x] 5. Empty but compiling packages and apps for every path in §1. Each has a `README.md` stating its single job and its allowed dependencies.
+- [x] 6. `apps/worker` and `apps/gateway` entry points that log `ready`, serve a localhost health endpoint and exit cleanly on SIGTERM. CLIs `ads` and `ads-gw` (commander) with `--product` and `version`.
+- [x] 7. Docker files:
   - `Dockerfile`: multi-stage, pnpm, non-root, one image, two entry points;
   - `docker-compose.yml`: project `name: ads-agent`, with `worker` and `gateway` services, `restart: unless-stopped`, healthchecks, env via `doppler run`. Local development uses the separate project name `ads-agent-dev` (D-058);
   - `.dockerignore`.
-- [ ] 8. CI (`.github/workflows/ci.yml`): install → typecheck → lint → check:boundaries → test → build → docker build (no push); plus a secret scan (gitleaks). Keep `memory-check.yml`.
-- [ ] 9. Session tooling:
+- [x] 8. CI (`.github/workflows/ci.yml`): install → typecheck → lint → check:boundaries → test → build → docker build (no push); plus a secret scan (gitleaks). Keep `memory-check.yml`.
+- [x] 9. Session tooling:
   - add dependency installation for cloud sessions to `.claude/hooks/session-start.sh`, following the `session-start-hook` skill's conventions;
   - fill in "Commands" in `CLAUDE.md`;
   - put the real commands into the `preflight` skill.
 
+
+### Build notes (2026-09-25)
+- **1:** versions in GOTCHAS. Node 24.21.0, pnpm 10.34.5, TypeScript 6.0.3 (not 7), zod 4.6.5, Vitest 5.0.1, ESLint 10.11, Turborepo 2.11.4, dependency-cruiser 18.4. Drizzle and the AI SDK aren't installed yet; their versions are recorded for M01a and M06a.
+- **2:** packages resolve each other's **TypeScript sources** through the custom export condition `@ads/source` (used by tsconfig `customConditions`, Vitest, dependency-cruiser and Node's `--conditions`). Builds switch it off (`tsconfig.build.json`) and emit `dist/`, which is what production uses. So typecheck and tests never need a build first. Relative imports use `.ts` extensions (`rewriteRelativeImportExtensions`).
+- **3:** one rules file, `scripts/boundary-rules.mjs`, drives all three checks. `check-boundaries.ts` also checks each package's name, fails on a package with no rule, and walks apps/web's whole internal dependency tree.
+- **4:** `packages/contracts/src/*`. Beyond BLUEPRINT §3: `MicrosCodec` (zod codec), `microsToMetaMinor`, `hashOf`, `CORE_GUARD_DEFAULTS`, `PLATFORM_GUARD_DEFAULTS`, `GuardLoosenedError`, `undoFor()` with `ApplyContext`, and minimal read-row shapes (`DateRange`, `AdEntityRecord`, `MetricRow`, `SearchTermRow`, `ClickRow`, `TrustSignalRow`) that §3.6 names but doesn't define. M02/M03 may add fields to those.
+- **5:** 17 packages. Each has a README with its job and allowed dependencies. apps/web is a plain TypeScript package until M10a adds Next.js.
+- **6:** the health endpoint listens on 127.0.0.1 (`HEALTH_HOST`, `HEALTH_PORT`; worker 8081, gateway 8082). A child-process test proves `ready`, then exit 0 on SIGTERM.
+- **7:** `docker/entrypoint.sh` wraps the process in `doppler run --forward-signals --no-fallback` only when `DOPPLER_TOKEN` is set. Each compose service gets its own token (`DOPPLER_TOKEN_WORKER`, `DOPPLER_TOKEN_GATEWAY` in a git-ignored `.env`), so the gateway's write key never reaches the worker. Doppler CLI 3.76.6 is downloaded from GitHub releases and checksum-verified. `pnpm deploy --legacy` was tested locally: the pruned gateway app runs.
+- **8:** CI adds `format:check` and a Docker smoke test (both entry points log `ready` and exit 0 on `docker stop`; both CLIs print a version) on top of the plan's steps. gitleaks needs `pull-requests: read`; PR comments are off.
+- **9:** the hook's setup is tested both warm (~2 s) and from a clean cache. `.claude/settings.json` hook timeout is 300 s.
+
 ## Tests
-- [ ] A fixture package where `core` depends on `connector-google-write` makes `check:boundaries` fail. A relative cross-package import fails dependency-cruiser.
-- [ ] Contracts:
+- [x] A fixture package where `core` depends on `connector-google-write` makes `check:boundaries` fail. A relative cross-package import fails dependency-cruiser.
+- [x] Contracts:
   - every schema round-trips (parse → serialise → parse);
   - the bigint JSON codec works;
   - `canonicalJson` is stable regardless of key order;
@@ -85,7 +97,16 @@ _Filled in at close._
 | | | | |
 
 ## Leave behind (for later milestones)
-- How to add a package without breaking the boundary rules, and the boundary configuration explained. _(written at close)_
+- **Adding a package:**
+  1. Add its directory and allowed `@ads/*` dependencies to `scripts/boundary-rules.mjs` (a pack needs nothing: every `packages/packs/*` gets the pack rule).
+  2. Create `package.json` named as the rule says (`@ads/<dir>`, apps `@ads/app-<dir>`, packs `@ads/pack-<dir>`), with `exports` `{ "@ads/source": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" }`, `files: ["dist"]`, and `typecheck` + `build` scripts. Copy `tsconfig.json` and `tsconfig.build.json` from a sibling.
+  3. Add a README with its job and allowed dependencies. Tests go in `test/*.test.ts`; Vitest finds them.
+  4. Run `pnpm install && pnpm check:boundaries`.
+- **The boundary configuration:**
+  - `check-boundaries.ts`: package.json edges (all dependency fields), package names, and the apps/web tree.
+  - `.dependency-cruiser.cjs`: relative imports that escape a package; I/O, Node built-ins or `runtime.ts` imported from a pack's `src/manifest.ts`; unresolvable imports. It uses `preserveSymlinks`, so a workspace import resolves to `node_modules/@ads/...`, and only a real relative escape lands in another package's directory.
+  - ESLint `no-restricted-imports` blocks, generated per package for editor feedback; `ADS_LINT_BOUNDARIES_ONLY=1` runs just those.
+- **Money lint:** ESLint bans `parseFloat` and `Number.parseFloat` everywhere.
 
 ## Skills to create
 - none listed for M00.

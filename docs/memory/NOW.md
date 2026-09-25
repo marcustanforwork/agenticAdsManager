@@ -2,33 +2,40 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · plan v3.4, merged into `main` through PR [#2](https://github.com/marcustanforwork/agenticAdsManager/pull/2) on Marcus's instruction, after CI passed (D-057). PR #1 (plan v3.3) was merged earlier the same day.
+**Last updated:** 2026-09-25 · cloud session · branch `claude/trusting-wozniak-dcdxfu` · PR [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (M00)
 
 ## Where we are
-- **Phase:** planning is done. Phase 0 starts with M00.
-- **Active milestone:** none. **M00 is next.**
-- **Status:** plan v3.4. **Every question is answered** (D-039–D-064). The SnapPool tracking plan is approved (D-060). Its spec, `docs/plan/SNAPPOOL-TRACKING.md` v1.2, now has fixes from reading SnapPool's code (D-064), and in §7 **the prompt Marcus pastes into a SnapPool session** to build it. Budget: S$500 a month; Marcus resets the Meta limit by hand, and the agent reads it live (D-063).
-- **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens: 25 sessions (BLUEPRINT §9). Local sessions will later run on the SER9 (D-058).
+- **Phase:** 0.
+- **Active milestone:** **M00: all 9 builds done**, and so are the tests. PR #3 is ready for review once CI is green. Details and "Leave behind" notes: `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`.
+- **Status:** plan v3.4. No open questions. D-065 records M00's build choices: Node 24.21.0, TypeScript 6 (not 7), source-condition resolution, and one Doppler token per service.
+- **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus: the SnapPool tracking change (T6b), early.**
-   - Paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a Claude Code session in the **snappool** repo, on a machine where `gh` is signed in.
-   - Apply its migration to production **before** deploying.
-   - Approve the privacy wording in its PR.
-   - When it's live, tell Claude the date, and record it under **Deployed** below. Attribution data starts that day.
-2. **Claude (next session: clean context, Opus 5.5, medium effort):** run `start-milestone` for **M00**. It needs nothing from Marcus, except T1 before its PR is merged. Cloud: if your assigned branch's PR is already merged, reset the branch to `origin/main` first (`start-session` §2).
-3. **Marcus:** setup task **T1** (GitHub repo settings: `docs/process/GIT-WORKFLOW.md` §9), before M00's PR is merged.
-4. **Marcus:** the setup tasks that take days: **T5** (Google), **T4** (Meta: a dataset with a Conversions API token, no pixel code on the site, and a spending limit of about S$500 that you reset by hand), **T6a** (a read-only SnapPool DB connection string); and **T14** (ad URL settings) when the ads are created. The full list is in `PROPOSAL.md` §16.
+1. **Marcus: finish T1** (GitHub → Settings), then review and merge PR #3:
+   - in the `main` ruleset, tick **Require status checks to pass** and add `memory-check`, `ci` and `secret-scan`;
+   - General → Pull Requests: untick merge commits and rebase merging (**squash only**), and tick **Automatically delete head branches**;
+   - Actions → General: workflow permissions **Read repository contents**.
+2. **Marcus: M00 live steps on the SER9**, when convenient (below). They don't block M01a.
+3. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M01a** (database schema and repositories). If PR #3 is merged by then, reset the branch to `origin/main` first (`start-session` §2). Cloud sessions now get Node 24 and the dependencies from the SessionStart hook.
+4. **Marcus: the SnapPool tracking change (T6b), early:** paste the prompt from `SNAPPOOL-TRACKING.md` §7 into a SnapPool session. Then the setup tasks that take days: T2 and T3 (needed for M01a's live steps), T4, T5, T6a (`PROPOSAL.md` §16).
 
 ## In flight
-- Nothing. PR #2 (Q11 recorded, spec v1.2 with fixes and the SnapPool prompt) was squash-merged into `main` on 2026-09-25.
+- PR #3 (M00): draft until CI is green, then ready for Marcus. `memory-check` passes once this handoff is pushed.
 
 ## Blocked on Marcus
 - No open questions.
-- The SnapPool tracking change (T6b), and setup tasks T1–T14 (`PROPOSAL.md` §16).
+- T1 (the rest of it) before PR #3 merges; the SnapPool tracking change (T6b); setup tasks T2–T14.
 
 ## Live steps for Marcus
-- The SnapPool session (Next action 1).
+M00 on the SER9 (Linux, Docker). These use **no secrets**:
+1. `git clone https://github.com/marcustanforwork/agenticAdsManager && cd agenticAdsManager` (or `git pull` on `main` after the merge).
+2. `docker compose -p ads-agent-dev up --build`. Expect two log lines containing `"msg":"ready"`, one from `worker` and one from `gateway`.
+3. In another terminal: `docker compose -p ads-agent-dev ps`. Both should say `healthy` after about 30 s.
+4. `docker compose -p ads-agent-dev stop`. Expect `"msg":"stopped"` from both, and exit code 0 (`docker compose -p ads-agent-dev ps -a`).
+5. Clean up: `docker compose -p ads-agent-dev down`.
+6. Report: "ready, healthy, stopped", or paste the output.
+
+The `-p ads-agent-dev` keeps this away from the production project name (D-058). Production runs as `docker compose up -d` from M07.
 
 ## Deployed
 - Ads Agent: nothing yet.
@@ -37,8 +44,8 @@
 ## Milestone tracker (one row = one session)
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M00 | Scaffold, contracts, boundaries, CI | 0 | **next** | — | Needs nothing (T1 before merge) |
-| M01a | Database schema and repositories | 0 | not started | — | Live steps: T2, T3 |
+| M00 | Scaffold, contracts, boundaries, CI | 0 | **PR review** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) | T1 before merge; live: compose up/stop |
+| M01a | Database schema and repositories | 0 | **next** | — | Live steps: T2, T3 |
 | M01b | Queue, leader lock, vault, request processor | 0 | not started | — | |
 | M02 | Meta read connector | 0 | not started | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |

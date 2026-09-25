@@ -27,7 +27,7 @@ export default defineConfig({
       test: {
         name: dir,
         root: dir,
-        include: dir === 'scripts' ? ['test/**/*.test.ts'] : ['test/**/*.test.ts'],
+        include: ['test/**/*.test.ts'],
         exclude: ['**/fixtures/**', '**/node_modules/**'],
       },
     })),
