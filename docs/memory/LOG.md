@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-09-26 — PR #5 (M01b) merged; Marcus starts his to-do list
+- **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5)
+- **Did:** squash-merged PR #5 on Marcus's instruction after CI passed (D-057). Guided Marcus through the open setup tasks and live steps (T1 status checks, M00 SER9 check, T2 Neon, T3 Doppler, M01a migrate + seed, T6b, T4, T5, T6a).
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus reports each live step's result; a clean session starts M02.
+- **Open:** live steps M00, M01a; setup tasks.
+
 ## 2026-09-25 — M01b built: queue, leader lock, vault, request processor
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5)
 - **Did:**

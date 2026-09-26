@@ -2,26 +2,25 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-25 · cloud session · branch `claude/trusting-wozniak-dcdxfu` · M01b built, reviewed and closed; PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) awaits Marcus's review.
+**Last updated:** 2026-09-26 · cloud session · M01b squash-merged into `main` through PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) on Marcus's instruction, after CI passed (D-057). Marcus is now working through his to-do list (setup tasks and live steps).
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M01b: done** (no live steps); PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) open for review. Details: `docs/milestones/M01b-queue-leader-vault-requests.md`. Next: **M02** (Meta read connector).
+- **Active milestone:** **M01b: done and merged** (no live steps). Details: `docs/milestones/M01b-queue-leader-vault-requests.md`. Next: **M02** (Meta read connector).
 - **M01a** is merged and still awaiting its live acceptance (Neon migrate + seed, below: not done yet, needs T2 + T3).
 - **M00** is merged and still awaiting its live acceptance (the SER9 Docker check).
 - **Status:** plan v3.7 (BLUEPRINT). No open questions. D-066: M01a's build choices. **D-067:** code review of M01a. **D-068:** M01b build choices (the queue lives in `@ads/db`; the gateway may write `credentials`; request semantics; M10a must bind requests to the role that inserted them).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (M01b). Merge only when CI is green and you say so (D-057).
-2. **Claude (next session: clean context, Opus 5.5, medium effort):** after the merge, `start-milestone` for **M02** (Meta read connector), against Meta's documented shapes with hand-written fixtures. Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2). The M01b "Leave behind" explains the vault (`get` returns unvalidated JSON; the connector validates it) and the queue runner.
-3. **Marcus, when T2 and T3 are done:** the M01a live steps (below). They don't block M02's cloud work.
-4. **Marcus, when at the SER9:** the M00 live steps (in `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`).
-5. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`.
-6. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16). For M02's live steps you'll also need a vault read key: `echo "read-v1:$(openssl rand -base64 32)"` into Doppler `worker` as `VAULT_READ_KEY` (never into the repo).
+1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M02** (Meta read connector), against Meta's documented shapes with hand-written fixtures. Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2). The M01b "Leave behind" explains the vault (`get` returns unvalidated JSON; the connector validates it) and the queue runner.
+2. **Marcus, when T2 and T3 are done:** the M01a live steps (below). They don't block M02's cloud work.
+3. **Marcus, when at the SER9:** the M00 live steps (in `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`).
+4. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`.
+5. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16). For M02's live steps you'll also need a vault read key: `echo "read-v1:$(openssl rand -base64 32)"` into Doppler `worker` as `VAULT_READ_KEY` (never into the repo).
 
 ## In flight
-- PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5): M01b (queue, leader lock, vault, request processor), ready for review; branch `claude/trusting-wozniak-dcdxfu`.
+- Nothing. PR #5 (M01b) was squash-merged into `main` on 2026-09-26.
 
 ## Blocked on Marcus
 - No open questions.
@@ -48,7 +47,7 @@
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
 | M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: Neon migrate + seed (to do; needs T2, T3) |
-| M01b | Queue, leader lock, vault, request processor | 0 | **done** (PR open) | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) | No live steps; tokens are loaded in M02/M03 |
+| M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
 | M02 | Meta read connector | 0 | **next** | — | T4 (read side) |
 | M03 | Google read connector | 0 | not started | — | T5 |
 | M04 | Sync, drift, trust checks | 0 | not started | — | Includes the Meta spending-limit check (D-063) |
