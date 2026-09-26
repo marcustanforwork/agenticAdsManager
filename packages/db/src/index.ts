@@ -12,3 +12,7 @@ export * from './repos/cycles.ts';
 export * from './repos/proposals.ts';
 export * from './repos/changes.ts';
 export * from './repos/plumbing.ts';
+export * from './queue/jobs.ts';
+export * from './queue/listener.ts';
+export * from './queue/runner.ts';
+export * from './queue/leader.ts';

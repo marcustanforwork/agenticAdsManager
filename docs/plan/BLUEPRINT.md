@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.6 — 2026-09-25 (code review of M01a: fingerprint fields move to contracts, D-067) |
+| **Version** | v3.7 — 2026-09-25 (M01b: the queue lives in `db`; the gateway may write credentials, D-068) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -52,7 +52,8 @@ agenticAdsManager/
 │   └── property-sg/  STRATEGY.md · PLAYBOOK.md · LEARNINGS.md
 ├── packages/
 │   ├── contracts/                 # zod schemas, types, pure helpers. Depends on zod only.
-│   ├── db/                        # Drizzle schema, migrations, repositories (incl. the proposal state machine)
+│   ├── db/                        # Drizzle schema, migrations, repositories (incl. the proposal state machine),
+│   │                              # the job queue + runner + leader lock (D-068: the gateway needs them too)
 │   ├── vault/                     # envelope encryption for platform tokens
 │   ├── connector-testing/         # fixture recorder / replayer / redactor
 │   ├── connector-google/          # Google READ client
@@ -60,7 +61,7 @@ agenticAdsManager/
 │   ├── connector-google-write/    # Google WRITE client + Data Manager uploads  (gateway only)
 │   ├── connector-meta-write/      # Meta WRITE client + Conversions API         (gateway only)
 │   ├── core/                      # cycle, sync, trust, detectors, AI layer, analyst, drafting,
-│   │                              # briefs, settings, operator requests, attribution, queue, recovery
+│   │                              # briefs, settings, operator requests, attribution, recovery
 │   ├── gateway/                   # the only write path
 │   ├── pack-sdk/                  # definePack, registry, threshold + copy-check engines, manifest publisher
 │   ├── packs/
@@ -982,7 +983,7 @@ create index on source_copy (product_id);
 | Role | Used by | Grants |
 |---|---|---|
 | `agent_worker` | worker | Read and write on everything; `change_log` is read-only. Optional hardening in M16b. |
-| `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066) |
+| `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066); insert/update `credentials` (`ads-gw credentials put`, rotation; D-068) |
 | `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access` and `outcomes`; outcomes through the view `dashboard_outcomes` (no `hashed_contact`); `INSERT` on `operator_requests` only |
 
 The grants are `packages/db/sql/roles.sql`, applied by `db:migrate` after the migrations.
@@ -1336,7 +1337,7 @@ Methods are tried in this order, and the first match wins:
 **Read first:** this file §3.8 (`OperatorRequest`) and §5.2–5.5; M01a's milestone file.
 
 **Builds:**
-1. `core/queue`: enqueue, claim, heartbeat, complete, fail with backoff, reclaim expired; two queues; priorities; NOTIFY wake-ups with a polling fallback.
+1. The queue (in `db`, D-068; was `core/queue`): enqueue, claim, heartbeat, complete, fail with backoff, reclaim expired; two queues; priorities; NOTIFY wake-ups with a polling fallback.
 2. The leader-lock helper (§5.2).
 3. `packages/vault`:
    - AES-256-GCM envelope encryption with Node `crypto`;
@@ -1854,6 +1855,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
    - anything else gets a 401 (fail closed), which also closes the raw `*.vercel.app` address;
    - Vercel preview deployments are protected, and never get the production DB URL.
 3. The request round-trip: submit the request, poll its status, and show the result. Polling is used because LISTEN/NOTIFY doesn't work through Neon's pooler.
+   - **Bind the actor to who inserted the row (D-068).** The M01b processor trusts the `actor` column, which the inserting role sets freely. So a leaked dashboard DB URL could act as Marcus on any channel. Add an `inserted_by` column (default `session_user`, not settable by the dashboard role), and have the processor accept a row from the dashboard role only with `channel = 'web'` and a `web:` actor. The dashboard sets the actor from the verified Access email.
 4. Settings, per product. Every change goes through `settings_patch`, and the page shows the worker's verdict:
    - ceilings, trust thresholds and digest mode;
    - outcome stages, tiers, KPI and feedback stages;
@@ -1867,6 +1869,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 - Middleware: a missing, invalid or wrong-audience token gets a 401.
 - The dashboard role cannot UPDATE or DELETE anything, and cannot INSERT outside `operator_requests`.
 - Request round-trips: a valid request comes back `done`; a looser guard is refused, with the reason; a stale `baseVersion` is refused.
+- A row the dashboard role inserts with a `telegram:` actor or channel is refused.
 - The fact editor rejects anything the pack's schema rejects.
 
 **Done when (cloud):** all tests are green, and `apps/web`'s dependency tree contains only `contracts` + `db`.

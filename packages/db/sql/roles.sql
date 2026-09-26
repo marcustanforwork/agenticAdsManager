@@ -29,6 +29,7 @@ revoke insert, update, delete on change_log from agent_worker;
 grant select on all tables in schema public to agent_gateway;
 grant update on proposals to agent_gateway;
 grant insert on change_log, notifications, credential_access to agent_gateway;
+grant insert, update on credentials to agent_gateway;                  -- `ads-gw credentials put` and key rotation (M01b)
 grant update (reverted_by_revision_id) on change_log to agent_gateway; -- links a change to the undo that reverted it
 grant update (status) on products to agent_gateway;                    -- halts the product on needs_attention
 -- `ads-gw revert` creates the undo proposal and its approval inside the gateway (BLUEPRINT §6, "Undo").

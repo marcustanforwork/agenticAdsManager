@@ -461,3 +461,17 @@ These correct errors, contradictions and outdated facts found in the review. Det
   - **The `close-milestone` skill now runs `code-review` (high)** over the milestone's diff, and every confirmed finding is fixed or answered before the PR is marked ready.
 - **Not changed:** `recordDecision` still re-locks a proposal it already holds. That costs one extra savepoint per decision, and the change isn't worth the risk.
 - **See:** BLUEPRINT §3.6, §6 · `.claude/skills/close-milestone/SKILL.md` · `docs/milestones/M01a-database-schema-repositories.md`
+
+### D-068 — M01b build choices: the queue lives in db, gateway may write credentials, request semantics
+- **When / who / status:** 2026-09-25 · Claude (fix) · adopted
+- **Decision:**
+  - **The job queue, its runner, the LISTEN helper and the leader lock live in `@ads/db`** (`packages/db/src/queue/`), not `core/queue`. The gateway runs the `gateway` queue, and the gateway may not depend on `core` (BLUEPRINT §2). `core` keeps the request processor and recovery.
+  - **Queue details:** a claim counts as an attempt, so a job that keeps crashing its process still reaches `max_attempts`. Backoff is 1 min × 2^(attempt−1). A job that fails for good queues a `job_failed` notification (the alert to Marcus). The runner reclaims expired leases on its queue at every poll, claims only kinds it has handlers for (so an older replica never fails a newer job kind), and releases a job interrupted by shutdown without counting the attempt.
+  - **Leader lock:** the leader pings its connection every retry interval and steps down if the ping fails; TCP keepalive on both sides, so a silently dead network doesn't leave two leaders or a stuck lock.
+  - **Vault:** master keys are `<id>:<base64 32 bytes>` with ids `read-vN` / `write-vN`; the class decides which roles a key opens. Ciphertexts are bound to their account and role (AAD). **`agent_gateway` gets `INSERT, UPDATE` on `credentials`**, for `ads-gw credentials put` and key rotation.
+  - **Requests:** allowed actors come from `OPERATOR_ACTORS` (comma-separated `channel:id`, kept in Doppler). `halt` with no product halts every *active* product (dormant ones stay dormant); `resume_agent` resumes only *halted* ones. `settings_patch` merges plain objects key by key and replaces anything else (`null` unsets); unknown keys are refused by name; tighten-only is checked against the core defaults **and each platform's defaults** (M05a adds the pack layer). Telegram and the CLIs record and process a request in one transaction.
+  - **From the M01b security review:** the processor trusts the `actor` column, which whoever inserts the row sets. M10a (when the dashboard starts inserting rows) binds each row to the database role that inserted it. Until then only the worker and CLIs insert rows, and they hold full DB rights anyway.
+- **Why:** building M01b needed these choices, and the dependency rules made `core/queue` impossible for the gateway. None changes a product decision.
+- **Instead of:** `core/queue` (the gateway couldn't use it); a separate credentials role for the CLI (more setup for Marcus, no extra safety: the gateway can't read read-rows without the read key).
+- **See:** `docs/milestones/M01b-queue-leader-vault-requests.md` · BLUEPRINT §1, §4 "Database roles", §5.2–5.4
+

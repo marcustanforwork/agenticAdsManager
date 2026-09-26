@@ -65,6 +65,7 @@ describe('agent_gateway', () => {
     expect(await as('agent_gateway', insertChange, [ids.product, ids.proposal])).toBe('ok');
     expect(await as('agent_gateway', `insert into notifications (kind, payload) values ('x', '{}')`)).toBe('ok');
     expect(await as('agent_gateway', `update products set status = 'halted' where id = $1`, [ids.product])).toBe('ok');
+    expect(await as('agent_gateway', `update credentials set rotated_at = now()`)).toBe('ok'); // ads-gw credentials put
   });
 
   it('cannot change settings, requests or flags, or rewrite the change log', async () => {
@@ -77,6 +78,7 @@ describe('agent_gateway', () => {
     );
     expect(await as('agent_gateway', `update change_log set after = '{}'`)).toBe('denied');
     expect(await as('agent_gateway', `delete from proposals`)).toBe('denied');
+    expect(await as('agent_gateway', `delete from credentials`)).toBe('denied');
   });
 });
 
