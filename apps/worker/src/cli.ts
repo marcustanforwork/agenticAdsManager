@@ -3,6 +3,8 @@
 // commands are setup: they store tokens in the vault and never touch an ad account.
 import { readFileSync } from 'node:fs';
 import { dryRunSync } from '@ads/core';
+import type { DbOrTx } from '@ads/db';
+import { accountsCommand } from './accounts.ts';
 import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, type CliDeps } from '@ads/vault';
 import { Command, InvalidArgumentError, Option } from 'commander';
 
@@ -32,6 +34,24 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
       console.log(`ads ${pkg.version}`);
     });
 
+  const requireProduct = (): string => {
+    const product = program.opts<{ product?: string }>().product;
+    if (product === undefined) throw new InvalidArgumentError('--product <slug> is required');
+    return product;
+  };
+  const withDb = async <T>(run: (db: DbOrTx) => Promise<T>): Promise<T> => {
+    const url = deps.env['DATABASE_URL'];
+    if (url === undefined || url === '') throw new Error('DATABASE_URL is not set');
+    const database = deps.connect(url);
+    try {
+      return await run(database.db);
+    } finally {
+      await database.close();
+    }
+  };
+
+  program.addCommand(accountsCommand(withDb, requireProduct, deps.print));
+
   program
     .command('sync')
     .description(
@@ -40,16 +60,12 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
     .addOption(new Option('--platform <platform>', 'which platform').choices(['meta', 'google']).makeOptionMandatory())
     .option('--dry', 'read only, store nothing')
     .action(async (opts: { platform: 'meta' | 'google'; dry?: boolean }) => {
-      const product = program.opts<{ product?: string }>().product;
-      if (product === undefined) throw new InvalidArgumentError('--product <slug> is required');
+      const product = requireProduct();
       if (opts.dry !== true) throw new InvalidArgumentError('only --dry is available until M04 (the sync stage)');
       const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', deps.env);
-      const url = deps.env['DATABASE_URL'];
-      if (url === undefined || url === '') throw new Error('DATABASE_URL is not set');
-      const database = deps.connect(url);
-      try {
+      await withDb(async (db) => {
         const report = await dryRunSync({
-          db: database.db,
+          db,
           productSlug: product,
           platform: opts.platform,
           masterKey,
@@ -58,9 +74,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
         });
         deps.print(JSON.stringify(report, null, 2));
         if (report.accounts.some((a) => a.outcome === 'error')) process.exitCode = 1;
-      } finally {
-        await database.close();
-      }
+      });
     });
 
   program.addCommand(credentialsCommand(deps, { keyEnv: 'VAULT_READ_KEY', keyClass: 'read', roles: ['read'] }));

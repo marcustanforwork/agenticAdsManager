@@ -1058,7 +1058,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | limited | limited/ineligible serving (primary status) | `WITH_ISSUES`, `DISAPPROVED` |
 | unknown | anything else | anything else |
 
-- **Meta specifics (M02, D-069).** Clicks are link clicks (`inline_link_clicks`). Platform conversions are the sum of the insights action types the pack's Meta feedback routes map to (`offsite_conversion.fb_pixel_<event>`), with each row's `attribution_setting` recorded. Meta has no shared budgets, so `budget_shared` is always false; daily vs lifetime budget and the configured status go in `attributes`.
+- **Meta specifics (M02, D-069).** Clicks are link clicks (`inline_link_clicks`). Platform conversions are the sum of the insights action types that the Meta feedback routes of the primary KPI stage map to (`offsite_conversion.fb_pixel_<event>`), with each row's `attribution_setting` recorded. Meta has no shared budgets, so `budget_shared` is always false; daily vs lifetime budget and the configured status go in `attributes`.
 - **Money.** Conversions follow §3.1. **Timezones:** metric dates are in the account's local day, which must equal the product's timezone (trust check).
 - **Quota.** Every Google request increments `api_usage`. A soft cap stops the sync with a clear error.
 
@@ -1391,7 +1391,7 @@ Methods are tried in this order, and the first match wins:
    - `RECORD=1` writes responses to `fixtures/meta/*.json` (M02: `RECORD=1 META_CREDENTIAL=<token file> pnpm --filter @ads/connector-meta record -- --account act_…` writes `packages/connector-meta/fixtures/meta/recorded/`);
    - redaction removes tokens, `appsecret_proof`, and any names or emails;
    - a replayer serves the fixtures in tests.
-5. `ads sync --product snappool --platform meta --dry` prints what would be stored.
+5. `ads sync --product snappool --platform meta --dry` prints what would be stored. (M02 also adds `ads accounts link | list | set-status`, the setup command that links an ad account to a product, D-069.)
 
 **Tests:**
 - Replay tests for every method.
