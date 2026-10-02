@@ -11,7 +11,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - `packages/connector-testing`: cassettes, `replayFetch`, `recordingFetch` + `saveCassette`, `Redactor` + `findSecrets`.
   - `packages/connector-meta`: `GraphClient` (Graph API v26.0, `appsecret_proof`, cursor paging, rate-limit back-off), `MetaReadClient` (account, entities, daily metrics at 3 levels, snapshots, trust signals), exact money, status table, hand-written fixtures, the `record` script and a record→replay round-trip test.
   - `packages/core/src/sync/dryRun.ts` + `ads sync --dry`; `ads accounts link | list | set-status`; `localDate`/`minusDays` in contracts; contract fields added (D-069).
-  - Code review (high): 9 findings, 7 fixed, 2 recorded (milestone Notes). 78 new tests (463 in the repo).
+  - Code review (high), twice: the whole diff (9 findings, 7 fixed), then the code added after it (9 candidates, 7 fixed); the rest are recorded in the milestone Notes. 81 new tests (466 in the repo).
   - `record-fixture` skill created.
 - **Decided:** D-069 (Claude, fix). BLUEPRINT v3.8.
 - **Learned:** GOTCHAS: Graph v26.0 and its 2026-10-27 changes, rate-limit headers, access-tier rename, ad account fields, attribution changes, dataset stats, `appsecret_proof`, `effective_status`; unverified: action-type mapping and archived listings.

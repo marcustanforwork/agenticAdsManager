@@ -2,6 +2,8 @@
 // Meta "ad set" = `ad_group` everywhere in this system. Meta has no keywords and no separate budget objects
 // (budgets live on campaigns or ad sets), so those entity types return nothing.
 import {
+  ACCOUNT_ID_HINTS,
+  ACCOUNT_ID_PATTERNS,
   type AdEntityRecord,
   type DateRange,
   type EntityRef,
@@ -19,7 +21,6 @@ import { GraphClient, type GraphClientOptions } from './graph.ts';
 import { minorStringToMicros, unitsStringToMicros } from './money.ts';
 import { normaliseMetaStatus } from './status.ts';
 
-const ACCOUNT_ID = /^act_\d+$/;
 const DIGITS = /^\d+$/;
 const MinorString = z.string().regex(/^\d{1,19}$/);
 const CountString = z.string().regex(/^\d{1,15}$/);
@@ -372,7 +373,7 @@ export class MetaReadClient implements PlatformReadClient {
 }
 
 function assertAccountId(accountId: string): void {
-  if (!ACCOUNT_ID.test(accountId)) throw new Error(`a Meta ad account id looks like act_<digits>`);
+  if (!ACCOUNT_ID_PATTERNS.meta.test(accountId)) throw new Error(ACCOUNT_ID_HINTS.meta);
 }
 
 function assertRange(range: DateRange): void {

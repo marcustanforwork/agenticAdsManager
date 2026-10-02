@@ -59,7 +59,7 @@ Typed, deterministic Meta reads for everything the cycle needs.
 
 ## Done when (cloud)
 - [x] All replay tests are green.
-  - evidence: `pnpm test` → `Test Files 36 passed (36)`, `Tests 463 passed | 1 skipped` (the skipped one waits for the recorded fixtures).
+  - evidence: `pnpm test` → `Test Files 36 passed (36)`, `Tests 466 passed | 1 skipped` (the skipped one waits for the recorded fixtures).
 
 ## Done when (live, run by Marcus)
 - [ ] Real fixtures are recorded and committed.
@@ -127,12 +127,24 @@ Typed, deterministic Meta reads for everything the cycle needs.
 - `pnpm typecheck` → `Tasks: 17 successful, 17 total`
 - `pnpm lint` → clean; `pnpm check:boundaries` → `check-boundaries: OK (17 packages)`, `no dependency violations found`
 - `pnpm format:check` → `All matched files use Prettier code style!`
-- `pnpm test` → `Test Files 36 passed (36)`, `Tests 463 passed | 1 skipped (464)`
+- `pnpm test` → `Test Files 36 passed (36)`, `Tests 466 passed | 1 skipped (467)`
 - `pnpm build` → `Tasks: 17 successful, 17 total`
 - Preflight greps: no write-connector dependency, no product names in shared code, no token pattern, no email in fixtures.
 
 ## Notes and surprises
 - 2026-10-02: Marcus confirmed M01b is complete; the M00 and M01a live-step checklists stay unticked (he hasn't run them).
 - 2026-10-02: code review (high) over the milestone diff found 9 items. Fixed 7: a next page without a cursor now throws instead of returning a partial list; a failure while the body downloads is retried; conversions count only the primary KPI stage (no double counting across funnel stages); a Meta route without `eventName` now warns; replay clients never sleep for real; no hashing just to count; the date helpers moved to contracts (`localDate`, `minusDays`). Not fixed: archived/deleted listing (needs the live recording; left for M04, see Leave behind); `trustSignals` re-reading the account (one call, kept for a self-contained method).
+- 2026-10-02: a **second code review (high)** covered the code added after the first one (`c258803..HEAD`: the review fixes, `ads accounts`, the record argv handling). 9 candidates. Fixed 7:
+  - the trust check falls back to any Meta dataset when the KPI stage isn't routed to Meta (the first fix had dropped it);
+  - `minusDays` refuses impossible days such as 2026-02-30;
+  - `ads … -- …` through pnpm works;
+  - `ads accounts` checks its arguments before opening the database;
+  - the worker CLI reuses `withDatabase` from `@ads/vault`;
+  - the account-id formats live once, in contracts (`ACCOUNT_ID_PATTERNS`);
+  - `listAccounts` has a stable order.
+
+  Not changed:
+  - a next page without a cursor still fails the account read, on purpose: a silently truncated list is worse, and the live recording shows whether Meta ever does this;
+  - two `ads accounts link` runs racing each other is unrealistic for a hand-run setup command.
 - 2026-10-02: there was no way to link an ad account to a product, so the live steps couldn't work. Added `ads accounts link | list | set-status` (setup, D-069).
 - 2026-10-02: Graph API **v26.0** is current (released 2026-07-29). Its breaking changes apply to **every** version from 2026-10-27: a request carrying `date_format` errors, and root `GET /?ids=` errors. The client never sends either. Details in GOTCHAS.

@@ -149,6 +149,24 @@ describe('metaReadConfig', () => {
     });
   });
 
+  it('still watches a Meta dataset when the KPI stage is not routed to Meta', () => {
+    const otherStage = {
+      ...SETTINGS,
+      outcomes: {
+        stages: [
+          { id: 'lead', label: 'Lead', tier: 'soft' as const },
+          { id: 'signup', label: 'Signup', tier: 'success' as const },
+        ],
+        primaryKpiStage: 'signup',
+        feedback: [{ stage: 'lead', platform: 'meta' as const, destinationId: '111', eventName: 'Lead' }],
+      },
+    };
+    const c = metaReadConfig(otherStage);
+    expect(c.datasetId).toBe('111');
+    expect(c.conversionActionTypes).toEqual([]); // conversions stay KPI-stage only
+    expect(c.warnings[0]).toMatch(/no Meta route for the KPI stage/);
+  });
+
   it('warns, rather than fails, when the settings have no usable Meta route', () => {
     expect(metaReadConfig(TEST_SETTINGS).warnings[0]).toMatch(/no Meta route for the KPI stage "signup"/);
     const noEvent = {

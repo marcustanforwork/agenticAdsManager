@@ -2,7 +2,7 @@ import { connect, createProduct } from '@ads/db';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
 import type { Command } from 'commander';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildProgram, type WorkerCliDeps } from '../src/cli.ts';
+import { buildProgram, withoutLeadingDashes, type WorkerCliDeps } from '../src/cli.ts';
 
 function quiet(cmd: Command): Command {
   cmd.exitOverride().configureOutput({ writeErr: () => undefined, writeOut: () => undefined });
@@ -83,5 +83,43 @@ describe('ads accounts', () => {
     ).rejects.toThrow(/10 digits/);
     await expect(run(['accounts', 'list'])).rejects.toThrow(/--product/);
     expect(await run(['accounts', 'list', '--product', 'acc-b'])).toEqual(['no accounts are linked to acc-b']);
+  });
+
+  it('checks arguments before opening the database', async () => {
+    const printed: string[] = [];
+    const deps: WorkerCliDeps = {
+      env: {}, // no DATABASE_URL: an argument error must come first
+      readStdin: () => Promise.resolve(''),
+      print: (line) => printed.push(line),
+      connect: () => {
+        throw new Error('connected');
+      },
+    };
+    const program = () => quiet(buildProgram(deps));
+    await expect(program().parseAsync(['node', 'ads', 'accounts', 'list'])).rejects.toThrow(/--product/);
+    await expect(
+      program().parseAsync([
+        'node',
+        'ads',
+        'accounts',
+        'link',
+        '--product',
+        'x',
+        '--platform',
+        'meta',
+        '--account',
+        '9',
+      ]),
+    ).rejects.toThrow(/act_<digits>/);
+  });
+
+  it('drops the -- that pnpm passes on', () => {
+    expect(withoutLeadingDashes(['node', 'ads', '--', 'accounts', 'list'])).toEqual([
+      'node',
+      'ads',
+      'accounts',
+      'list',
+    ]);
+    expect(withoutLeadingDashes(['node', 'ads', 'sync', '--', 'x'])).toEqual(['node', 'ads', 'sync', '--', 'x']);
   });
 });

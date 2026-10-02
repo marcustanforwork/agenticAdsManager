@@ -8,7 +8,10 @@ export function localDate(now: Date, timeZone: string): string {
 /** `day` minus `n` calendar days (pure date arithmetic, no timezone involved). */
 export function minusDays(day: string, n: number): string {
   const d = new Date(`${day}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) throw new RangeError(`not a date: ${JSON.stringify(day)}`);
+  // The round trip refuses impossible days such as 2026-02-30, which Date would roll into March.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== day) {
+    throw new RangeError(`not a date: ${JSON.stringify(day)}`);
+  }
   d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().slice(0, 10);
 }

@@ -10,19 +10,14 @@ import {
   upsertAccount,
   type DbOrTx,
 } from '@ads/db';
+import { ACCOUNT_ID_HINTS, ACCOUNT_ID_PATTERNS } from '@ads/contracts';
 import { Command, InvalidArgumentError, Option } from 'commander';
 
 type Platform = 'meta' | 'google';
 type AccountStatus = (typeof schema.ACCOUNT_STATUSES)[number];
 
-const ACCOUNT_ID: Record<Platform, RegExp> = { meta: /^act_\d+$/, google: /^\d{10}$/ };
-
-function checkAccountId(platform: Platform, id: string): string {
-  if (!ACCOUNT_ID[platform].test(id)) {
-    throw new InvalidArgumentError(
-      platform === 'meta' ? 'a Meta ad account id looks like act_<digits>' : 'a Google customer id is 10 digits',
-    );
-  }
+export function checkAccountId(platform: Platform, id: string): string {
+  if (!ACCOUNT_ID_PATTERNS[platform].test(id)) throw new InvalidArgumentError(ACCOUNT_ID_HINTS[platform]);
   return id;
 }
 
@@ -83,14 +78,20 @@ export function accountsCommand(
     .addOption(platform())
     .requiredOption('--account <id>', 'Meta act_<digits> or Google customer id')
     .action(async (opts: { platform: Platform; account: string }) => {
-      print(await withDb((db) => linkAccount(db, { product: product(), ...opts })));
+      const input = {
+        product: product(),
+        platform: opts.platform,
+        account: checkAccountId(opts.platform, opts.account),
+      };
+      print(await withDb((db) => linkAccount(db, input)));
     });
 
   accounts
     .command('list')
     .description("list the product's accounts")
     .action(async () => {
-      for (const line of await withDb((db) => listProductAccounts(db, product()))) print(line);
+      const slug = product();
+      for (const line of await withDb((db) => listProductAccounts(db, slug))) print(line);
     });
 
   accounts
@@ -102,7 +103,8 @@ export function accountsCommand(
       new Option('--status <status>', 'the new status').choices([...schema.ACCOUNT_STATUSES]).makeOptionMandatory(),
     )
     .action(async (opts: { platform: Platform; account: string; status: AccountStatus }) => {
-      print(await withDb((db) => setStatus(db, { product: product(), ...opts })));
+      const input = { product: product(), ...opts, account: checkAccountId(opts.platform, opts.account) };
+      print(await withDb((db) => setStatus(db, input)));
     });
 
   return accounts;

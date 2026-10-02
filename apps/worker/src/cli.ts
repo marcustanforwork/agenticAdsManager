@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dryRunSync } from '@ads/core';
 import type { DbOrTx } from '@ads/db';
 import { accountsCommand } from './accounts.ts';
-import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, type CliDeps } from '@ads/vault';
+import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, withDatabase, type CliDeps } from '@ads/vault';
 import { Command, InvalidArgumentError, Option } from 'commander';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
@@ -39,16 +39,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
     if (product === undefined) throw new InvalidArgumentError('--product <slug> is required');
     return product;
   };
-  const withDb = async <T>(run: (db: DbOrTx) => Promise<T>): Promise<T> => {
-    const url = deps.env['DATABASE_URL'];
-    if (url === undefined || url === '') throw new Error('DATABASE_URL is not set');
-    const database = deps.connect(url);
-    try {
-      return await run(database.db);
-    } finally {
-      await database.close();
-    }
-  };
+  const withDb = <T>(run: (db: DbOrTx) => Promise<T>): Promise<T> => withDatabase(deps, run);
 
   program.addCommand(accountsCommand(withDb, requireProduct, deps.print));
 
@@ -82,6 +73,10 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   return program;
 }
 
+/** `pnpm --filter @ads/app-worker ads -- …` passes the `--` on; drop it so the flags after it still parse. */
+export const withoutLeadingDashes = (argv: string[]): string[] =>
+  argv[2] === '--' ? [...argv.slice(0, 2), ...argv.slice(3)] : argv;
+
 if (import.meta.main) {
-  await buildProgram().parseAsync(process.argv);
+  await buildProgram().parseAsync(withoutLeadingDashes(process.argv));
 }

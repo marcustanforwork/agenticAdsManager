@@ -12,6 +12,7 @@ describe('dates', () => {
     expect(minusDays('2026-03-01', 1)).toBe('2026-02-28');
     expect(minusDays('2028-03-01', 1)).toBe('2028-02-29');
     expect(minusDays('2026-10-01', 27)).toBe('2026-09-04');
-    expect(() => minusDays('nope', 1)).toThrow(RangeError);
+    for (const bad of ['nope', '2026-02-30', '2026-04-31', '2026-1-01'])
+      expect(() => minusDays(bad, 1)).toThrow(RangeError);
   });
 });

@@ -8,6 +8,13 @@ export type Platform = z.infer<typeof Platform>;
 export const EntityType = z.enum(['campaign', 'ad_group', 'ad', 'keyword', 'budget']); // Meta "ad set" = ad_group
 export type EntityType = z.infer<typeof EntityType>;
 
+/** Ad account id formats: Meta `act_<digits>`, Google a 10-digit customer id (no dashes). */
+export const ACCOUNT_ID_PATTERNS: Readonly<Record<Platform, RegExp>> = { meta: /^act_\d+$/, google: /^\d{10}$/ };
+export const ACCOUNT_ID_HINTS: Readonly<Record<Platform, string>> = {
+  meta: 'a Meta ad account id looks like act_<digits>',
+  google: 'a Google customer id is 10 digits, without dashes',
+};
+
 export const EntityRef = z.object({
   platform: Platform,
   accountId: z.string(), // Google customer id (digits) / Meta 'act_…'
