@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsoDate } from './hash.ts';
+import { IsoDate, IsoDateTime } from './hash.ts';
 import { MicrosJson } from './money.ts';
 
 export const Platform = z.enum(['google', 'meta']);
@@ -37,6 +37,9 @@ export const AdEntityRecord = z.object({
   rawStatus: z.string(),
   dailyBudgetMicros: MicrosJson.nullable(),
   budgetShared: z.boolean().nullable(), // Google shared budgets are never changed by this system
+  /** The tracked, non-status fields the sync stores as `ad_entities.attributes` (objective, bid strategy type,
+   *  special ad categories, attribution setting…). Added in M02. */
+  attributes: z.record(z.string(), z.unknown()).optional(),
   raw: z.record(z.string(), z.unknown()),
 });
 export type AdEntityRecord = z.infer<typeof AdEntityRecord>;
@@ -48,6 +51,10 @@ export const MetricRow = z.object({
   clicks: z.number().int().min(0),
   spendMicros: MicrosJson,
   platformConversions: z.number().min(0), // the platform's own (possibly fractional) count; never a decision number
+  /** The platform's own value for those conversions (`metrics_daily.platform_conversion_value_micros`). Added in M02. */
+  platformConversionValueMicros: MicrosJson.optional(),
+  /** The attribution setting the platform used for this row, e.g. Meta `7d_click_1d_view` or `mixed`. Added in M02. */
+  attributionSetting: z.string().nullable().optional(),
 });
 export type MetricRow = z.infer<typeof MetricRow>;
 
@@ -78,5 +85,9 @@ export const TrustSignalRow = z.object({
   spendMicros: MicrosJson,
   spendCapMicros: MicrosJson.nullable(), // Meta account spending limit; null = unset (D-063)
   amountSpentMicros: MicrosJson.nullable(), // spent against that limit
+  /** Meta: events the conversion dataset received in the last 7 days; null = no dataset configured. Added in M02. */
+  datasetEventsReceived: z.number().int().min(0).nullable().optional(),
+  /** Meta: when the dataset last received an event; null = never or not configured. Added in M02. */
+  datasetLastEventAt: IsoDateTime.nullable().optional(),
 });
 export type TrustSignalRow = z.infer<typeof TrustSignalRow>;

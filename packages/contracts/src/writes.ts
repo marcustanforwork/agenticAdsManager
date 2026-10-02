@@ -17,7 +17,7 @@ export interface PlatformReadClient {
   platform: Platform;
   getAccountInfo(
     accountId: string,
-  ): Promise<{ name: string; timezone: string; currency: string; spendCapMicros?: bigint }>;
+  ): Promise<{ name: string; timezone: string; currency: string; spendCapMicros?: bigint; amountSpentMicros?: bigint }>;
   listEntities(accountId: string, types: EntityType[]): Promise<AdEntityRecord[]>; // normalised + raw status
   getMetricsDaily(accountId: string, range: DateRange, level: EntityType): Promise<MetricRow[]>;
   getSearchTerms?(accountId: string, range: DateRange): Promise<SearchTermRow[]>; // Google only

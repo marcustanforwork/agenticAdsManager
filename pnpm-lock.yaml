@@ -125,6 +125,13 @@ importers:
       '@ads/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@ads/connector-testing':
+        specifier: workspace:*
+        version: link:../connector-testing
 
   packages/connector-meta-write:
     dependencies:
@@ -140,6 +147,9 @@ importers:
       '@ads/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
 
   packages/contracts:
     dependencies:
