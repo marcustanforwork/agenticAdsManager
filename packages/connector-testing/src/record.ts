@@ -37,7 +37,7 @@ export function recordingFetch(inner: typeof fetch, redactor: Redactor = new Red
     );
     return res;
   };
-  return { fetch: record as typeof fetch, exchanges };
+  return { fetch: record, exchanges };
 }
 
 /** Writes a cassette, refusing if the secret scanner finds anything. */

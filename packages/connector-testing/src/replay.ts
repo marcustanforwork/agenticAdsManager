@@ -44,7 +44,7 @@ export function replayFetch(cassettes: Cassette | Cassette[]): ReplayFetch {
   };
 
   return {
-    fetch: replay as typeof fetch,
+    fetch: replay,
     calls,
     remaining: () => [...queues.values()].reduce((n, q) => n + q.length, 0),
   };
