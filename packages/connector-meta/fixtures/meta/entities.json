@@ -1,0 +1,240 @@
+{
+  "source": "hand-written from Meta Marketing API v26.0 documented shapes (2026-10-02); replace with recorded fixtures in the M02 live steps",
+  "notes": "Campaigns come in two pages, to test pagination. ad3 has a status Meta might add later (normalised to unknown).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890",
+        "query": {
+          "fields": "id,name,currency,timezone_name,spend_cap,amount_spent,account_status"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "id": "act_1234567890",
+          "name": "Test Ad Account",
+          "currency": "SGD",
+          "timezone_name": "Asia/Singapore",
+          "spend_cap": "50000",
+          "amount_spent": "41234",
+          "account_status": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890/campaigns",
+        "query": {
+          "fields": "id,name,status,effective_status,account_id,daily_budget,lifetime_budget,bid_strategy,updated_time,objective,buying_type,special_ad_categories",
+          "limit": "500"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "data": [
+            {
+              "id": "120200000000000001",
+              "name": "Signups - Advantage+",
+              "status": "ACTIVE",
+              "effective_status": "ACTIVE",
+              "account_id": "1234567890",
+              "daily_budget": "2000",
+              "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+              "objective": "OUTCOME_LEADS",
+              "buying_type": "AUCTION",
+              "special_ad_categories": [],
+              "updated_time": "2026-09-20T10:00:00+0800"
+            },
+            {
+              "id": "120200000000000002",
+              "name": "Retargeting",
+              "status": "PAUSED",
+              "effective_status": "PAUSED",
+              "account_id": "1234567890",
+              "objective": "OUTCOME_TRAFFIC",
+              "buying_type": "AUCTION",
+              "special_ad_categories": [],
+              "updated_time": "2026-09-21T10:00:00+0800"
+            }
+          ],
+          "paging": {
+            "cursors": {
+              "before": "QVFIUb4",
+              "after": "MjAyMDAwMDAwMDAwMDAwMDI="
+            },
+            "next": "https://graph.facebook.com/v26.0/act_1234567890/x?access_token=REDACTED&after=MjAyMDAwMDAwMDAwMDAwMDI="
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890/campaigns",
+        "query": {
+          "fields": "id,name,status,effective_status,account_id,daily_budget,lifetime_budget,bid_strategy,updated_time,objective,buying_type,special_ad_categories",
+          "limit": "500",
+          "after": "MjAyMDAwMDAwMDAwMDAwMDI="
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "data": [
+            {
+              "id": "120200000000000003",
+              "name": "Old test",
+              "status": "ARCHIVED",
+              "effective_status": "ARCHIVED",
+              "account_id": "1234567890",
+              "objective": "OUTCOME_LEADS",
+              "buying_type": "AUCTION",
+              "special_ad_categories": [],
+              "updated_time": "2026-08-01T10:00:00+0800"
+            }
+          ],
+          "paging": {
+            "cursors": {
+              "before": "QVFIUb4",
+              "after": "MjAyMDAwMDAwMDAwMDAwMDM="
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890/adsets",
+        "query": {
+          "fields": "id,name,status,effective_status,account_id,daily_budget,lifetime_budget,bid_strategy,updated_time,campaign_id,optimization_goal,billing_event,attribution_spec",
+          "limit": "500"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "data": [
+            {
+              "id": "120210000000000001",
+              "name": "Hosts SG 25-45",
+              "status": "ACTIVE",
+              "effective_status": "ACTIVE",
+              "account_id": "1234567890",
+              "campaign_id": "120200000000000001",
+              "optimization_goal": "OFFSITE_CONVERSIONS",
+              "billing_event": "IMPRESSIONS",
+              "attribution_spec": [
+                {
+                  "event_type": "CLICK_THROUGH",
+                  "window_days": 7
+                },
+                {
+                  "event_type": "VIEW_THROUGH",
+                  "window_days": 1
+                }
+              ],
+              "updated_time": "2026-09-20T10:00:00+0800"
+            },
+            {
+              "id": "120210000000000002",
+              "name": "Visitors 30d",
+              "status": "ACTIVE",
+              "effective_status": "CAMPAIGN_PAUSED",
+              "account_id": "1234567890",
+              "campaign_id": "120200000000000002",
+              "lifetime_budget": "30000",
+              "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+              "optimization_goal": "LINK_CLICKS",
+              "billing_event": "IMPRESSIONS",
+              "updated_time": "2026-09-21T10:00:00+0800"
+            }
+          ],
+          "paging": {
+            "cursors": {
+              "before": "QVFIUb4",
+              "after": "YTI="
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890/ads",
+        "query": {
+          "fields": "id,name,status,effective_status,account_id,daily_budget,lifetime_budget,bid_strategy,updated_time,campaign_id,adset_id",
+          "limit": "500"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "data": [
+            {
+              "id": "120220000000000001",
+              "name": "Video - pool of photos",
+              "status": "ACTIVE",
+              "effective_status": "ACTIVE",
+              "account_id": "1234567890",
+              "campaign_id": "120200000000000001",
+              "adset_id": "120210000000000001",
+              "updated_time": "2026-09-20T10:00:00+0800"
+            },
+            {
+              "id": "120220000000000002",
+              "name": "Static - QR at the venue",
+              "status": "ACTIVE",
+              "effective_status": "PENDING_REVIEW",
+              "account_id": "1234567890",
+              "campaign_id": "120200000000000001",
+              "adset_id": "120210000000000001",
+              "updated_time": "2026-09-29T10:00:00+0800"
+            },
+            {
+              "id": "120220000000000003",
+              "name": "Carousel",
+              "status": "ACTIVE",
+              "effective_status": "SOME_NEW_STATUS",
+              "account_id": "1234567890",
+              "campaign_id": "120200000000000002",
+              "adset_id": "120210000000000002",
+              "updated_time": "2026-09-21T10:00:00+0800"
+            }
+          ],
+          "paging": {
+            "cursors": {
+              "before": "QVFIUb4",
+              "after": "YWQz="
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -16,7 +16,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "ads": "node --conditions=@ads/source src/cli.ts"
   },
   "dependencies": {
     "@ads/contracts": "workspace:*",

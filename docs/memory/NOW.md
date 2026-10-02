@@ -2,31 +2,43 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-09-26 · cloud session · M01b squash-merged into `main` through PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) on Marcus's instruction, after CI passed (D-057). Marcus is now working through his to-do list (setup tasks and live steps).
+**Last updated:** 2026-10-02 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (M02, ready for review). Marcus confirmed M01b complete; the M00/M01a live steps aren't done yet and stay unticked. Later the same day: Marcus created the Google manager account (T5) and found that Google no longer issues developer tokens (D-070); **Q13 asked**.
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M01b: done and merged** (no live steps). Details: `docs/milestones/M01b-queue-leader-vault-requests.md`. Next: **M02** (Meta read connector).
-- **M01a** is merged and still awaiting its live acceptance (Neon migrate + seed, below: not done yet, needs T2 + T3).
-- **M00** is merged and still awaiting its live acceptance (the SER9 Docker check).
-- **Status:** plan v3.7 (BLUEPRINT). No open questions. D-066: M01a's build choices. **D-067:** code review of M01a. **D-068:** M01b build choices (the queue lives in `@ads/db`; the gateway may write `credentials`; request semantics; M10a must bind requests to the role that inserted them).
+- **Active milestone:** **M02 (Meta read connector): built, awaiting live acceptance.** Cloud work done: Graph client, read methods, `connector-testing`, `ads sync --dry`, `ads accounts`, the recorder. Details: `docs/milestones/M02-meta-read.md`.
+- **M01a** and **M00** are merged and still awaiting their live acceptance (below).
+- **Status:** BLUEPRINT v3.10, PROPOSAL v3.6. **Open: Q13** (Google service accounts vs logins). **D-069:** M02 build choices (Graph API v26.0; link clicks; KPI-stage conversions; at most a 60 s rate-limit wait; `ads accounts`). **D-070:** Google API access now comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client (the `google-ads-api` library is dropped).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M02** (Meta read connector), against Meta's documented shapes with hand-written fixtures. Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2). The M01b "Leave behind" explains the vault (`get` returns unvalidated JSON; the connector validates it) and the queue runner.
-2. **Marcus, when T2 and T3 are done:** the M01a live steps (below). They don't block M02's cloud work.
-3. **Marcus, when at the SER9:** the M00 live steps (in `docs/milestones/M00-scaffold-contracts-boundaries-ci.md`).
-4. **Marcus, optional part of T1:** in the `main` ruleset, turn on "Require status checks to pass" with `memory-check`, `ci` and `secret-scan`.
-5. **Marcus:** the SnapPool tracking change (T6b), early (prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16). For M02's live steps you'll also need a vault read key: `echo "read-v1:$(openssl rand -base64 32)"` into Doppler `worker` as `VAULT_READ_KEY` (never into the repo).
+1. **Marcus:** review PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (CI green on 2026-10-02); merge only on his word (D-057). M02's live steps don't block the merge.
+2. **Marcus:** answer **Q13**, then continue T5 as rewritten (`PROPOSAL.md` §16): the manager account is **done** (2026-10-02); next, a Google Cloud project with the Google Ads API enabled (no developer token), the SnapPool ad account under the manager account, and the agent's two identities per Q13.
+3. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M03** (Google read connector); it doesn't wait for Q13 (the identity type only changes the auth step). Reuse `@ads/connector-testing` and copy M02's fixture layout (M02 "Leave behind"). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2).
+4. **Marcus, when T4 (read side) and the M01a steps 1–4 are done:** the M02 live steps (below).
+5. **Marcus, when T2 and T3 are done:** the M01a live steps (below). **When at the SER9:** the M00 live steps.
+6. **Marcus:** the SnapPool tracking change (T6b, prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16); optional part of T1 (require `memory-check`, `ci`, `secret-scan` in the `main` ruleset).
+7. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- Nothing. PR #5 (M01b) was squash-merged into `main` on 2026-09-26.
+- PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6): M02, branch `claude/gifted-franklin-hk0fku`, ready for review.
 
 ## Blocked on Marcus
-- No open questions.
-- Live steps: M01a (needs T2, T3), M00 (SER9). Setup tasks T1 (optional part), T2–T14; the SnapPool tracking change (T6b).
+- **Q13:** Google service accounts (recommended) or Google logins.
+- Live steps: M02 (needs T4 read side + M01a), M01a (needs T2, T3), M00 (SER9). Setup tasks T1 (optional part), T2–T14; T6b.
 
 ## Live steps for Marcus
+**M02** (to do; needs T4 read side and the M01a steps 1–4; uses Doppler `dev` and the Neon dev branch; read token only). Full text in the M02 milestone file:
+1. `git pull` on `main`, `pnpm install`.
+2. `echo "read-v1:$(openssl rand -base64 32)"` → paste into Doppler `dev` as `VAULT_READ_KEY`.
+3. Token file outside the repo: `~/meta-read.json` = `{ "accessToken": "…", "appSecret": "…" }`, `chmod 600`.
+4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads accounts link --product snappool --platform meta --account act_<id>`
+5. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads credentials put --account meta:act_<id> --role read < ~/meta-read.json`
+6. `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads sync --product snappool --platform meta --dry` → `"outcome": "read"`, under 1 min. Paste the JSON (counts only) and the time.
+7. `RECORD=1 META_CREDENTIAL=~/meta-read.json pnpm --filter @ads/connector-meta record --account act_<id> --dataset <id> --events CompleteRegistration`, then `pnpm test`, then push the `recorded/` files on a branch `m02/recorded-fixtures` and tell Claude.
+8. If property-sg has a Meta account: link it, `set-status … --status paused`, dry sync property-sg → `skipped`.
+9. `rm ~/meta-read.json`.
+
 **M01a** (to do; needs T2 + T3). Use the Neon **owner** connection strings, **direct** host (no `-pooler`):
 1. `git pull` on `main`, then `pnpm install`.
 2. Add `DATABASE_URL` (Neon **dev** branch, owner) to Doppler's `dev` config.
@@ -48,8 +60,8 @@
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
 | M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: Neon migrate + seed (to do; needs T2, T3) |
 | M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
-| M02 | Meta read connector | 0 | **next** | — | T4 (read side) |
-| M03 | Google read connector | 0 | not started | — | T5 |
+| M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
+| M03 | Google read connector | 0 | **next** | — | T5 for live steps only |
 | M04 | Sync, drift, trust checks | 0 | not started | — | Includes the Meta spending-limit check (D-063) |
 | M05a | Pack SDK, SnapPool pack, settings | 0 | not started | — | T6a (read-only DB URL); SnapPool facts in SNAPPOOL-TRACKING |
 | M05b | Property pack (G8), attribution, product docs | 0 | not started | — | Real attribution needs T6b shipped |

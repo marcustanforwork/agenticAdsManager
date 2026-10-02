@@ -475,3 +475,52 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Instead of:** `core/queue` (the gateway couldn't use it); a separate credentials role for the CLI (more setup for Marcus, no extra safety: the gateway can't read read-rows without the read key).
 - **See:** `docs/milestones/M01b-queue-leader-vault-requests.md` · BLUEPRINT §1, §4 "Database roles", §5.2–5.4
 
+### D-069 — M02 build choices: the Meta read connector
+- **When / who / status:** 2026-10-02 · Claude (fix) · adopted
+- **Decision:**
+  - **Graph API `v26.0`**, pinned in `GRAPH_API_VERSION` (`connector-meta/src/version.ts`). The client never sends `date_format` and never uses root `GET /?ids=`: both error on every version from 2026-10-27.
+  - **Transport:** GET only; `appsecret_proof` on every call; cursor pagination (`paging.cursors.after` while `paging.next` exists, capped at 200 pages); a 60 s per-request timeout. Throttling (HTTP 429, codes 4/17/32/613/80000–80014) waits for the longer of Meta's `estimated_time_to_regain_access` and an exponential back-off (1 s doubling, cap 30 s), but **never more than 60 s**: a longer wait throws `MetaRateLimitError` with the retry time. At 90% usage the client pauses 10 s. Only network failures, timeouts, 5xx and Meta's transient codes are retried; anything else surfaces at once. Error messages are scrubbed of tokens and name fields, never values.
+  - **Mapping:** ad set = `ad_group`. **Clicks = link clicks** (`inline_link_clicks`), comparable to Google clicks. **Platform conversions** = the sum of the insights action types for the Meta feedback routes of the **primary KPI stage** only (`eventName` → `offsite_conversion.fb_pixel_<event>`, standard events only; the live recording confirms the mapping), so funnel stages are never added together; the trust check watches that stage's dataset, or any Meta dataset in the settings if that stage has no Meta route. Counts beyond 6 decimals are truncated (a count is never money); conversion values are exact micros. `budget_shared` is always false (Meta has no shared budgets); `attributes` holds the configured status, budget type, lifetime budget, bid strategy, objective, special ad categories and the ad set's attribution spec. A snapshot is the tracked fields (name, statuses, budgets, budget type, bid strategy), so it includes the fingerprint fields.
+  - **Money:** only currencies with a confirmed Meta offset are accepted (SGD and other 100-offset currencies); any other currency is refused, never guessed.
+  - **Contracts (fields added, nothing renamed):** `AdEntityRecord.attributes`; `MetricRow.platformConversionValueMicros` and `attributionSetting`; `TrustSignalRow.datasetEventsReceived` and `datasetLastEventAt`; `getAccountInfo` returns `amountSpentMicros`.
+  - **Fixtures:** hand-written cassettes in `packages/connector-meta/fixtures/meta/`; real ones are recorded by `pnpm --filter @ads/connector-meta record` (needs `RECORD=1` and the read-token JSON file) into `fixtures/meta/recorded/`, and `test/recorded.test.ts` replays them automatically. The recorder is dev tooling in the connector, not part of `ads sync`, because the worker app may not depend on `connector-testing` (BLUEPRINT §2).
+  - **`ads accounts link | list | set-status`** (worker CLI): setup, like `ads credentials`. It writes only the `accounts` table, so Marcus can link an ad account for the live steps. Nothing else in the plan links accounts.
+  - **`ads sync --dry`** is `dryRunSync` in `core/src/sync/dryRun.ts`: the trailing 28 days in the account's timezone, trust signals over the last 7, paused or disconnected accounts skipped, one error per account without stopping the others, counts only (no names).
+- **Why:** building M02 needed these choices. None changes a product decision.
+- **Instead of:** `clicks` (all clicks, including likes and profile clicks); sleeping for as long as Meta asks (a sync could hang for an hour); guessing a currency offset.
+- **See:** `docs/milestones/M02-meta-read.md` · BLUEPRINT §3.6, §5.7 · GOTCHAS "Meta …" rows
+
+### D-070 — Google API access comes from the Cloud project; no developer token
+- **When / who / status:** 2026-10-02 · Claude (fix) · adopted. Marcus found it while setting up T5: the manager account's API Center now offers only a form for a different, app-only API.
+- **Decision:**
+  - **No developer token.** On 2026-09-09/10 Google moved Google Ads API access from the manager account's API Center to the Google Cloud project. The access level belongs to the Cloud project whose credentials sign in; the `developer-token` header is optional and ignored (a future major API version will reject it); the API Center no longer issues tokens. Nothing in this system sends or stores one.
+  - **Explorer access is the plan.** It comes with enabling the Google Ads API in the Cloud project, reaches real accounts, and allows 2,880 operations a day; our sync needs well under 500. Apply for **Basic** (15,000 a day) only if `api_usage` nears the cap: an application now needs the Cloud project's **brand verification** (homepage, privacy policy and terms on a verified domain), after which Basic is reviewed in minutes, so there's no lead time to beat.
+  - **The manager account (MCC) stays.** It holds the property and SnapPool ad accounts, and the agent reaches both through it (`login-customer-id`).
+  - **If Google user logins are used** (D-046 as written): each login needs a **passkey** before it can create a new API sign-in (mandatory since 2026-08-05; a new passkey may take up to 7 days to be fully trusted), and the Cloud project's OAuth app must be published **In production** (in "Testing", sign-ins expire after 7 days).
+- **Why:** the plan told Marcus to get a developer token from the API Center, which no longer issues them for the Google Ads API.
+- **Instead of:** a developer token from the MCC's API Center, plus an early Basic application (PROPOSAL v3.4, T5).
+- **See:** PROPOSAL §6.13, §7, §16 T5 · BLUEPRINT M03 · GOTCHAS "Google Ads API" rows
+
+### D-071 — Two Google service accounts instead of two Google logins
+- **When / who / status:** 2026-10-02 · Claude (needs OK) · **proposed** (Q13). Supersedes D-046 if approved.
+- **Decision:** the agent signs in to Google Ads as two **service accounts** (robot identities in the Cloud project), added directly as users of the manager account (Admin → Access and security; Google has supported this since 2024-11-27): `ads-agent-read` with **Read only** access for sync, and `ads-agent-write` with **Standard** access for writes and uploads. Each one's key file goes into the vault (`read` and `write` roles), like Meta's system-user tokens. D-046's read/write split stays exactly as it is.
+- **Why:** no refresh tokens, no OAuth consent screen, no passkeys, and nothing that expires; it matches the Meta setup (system users). Google's passkey rule doesn't apply to service accounts.
+- **Risks / to verify:** whether the **Data Manager API** (conversion uploads, M13) accepts a service account (unverified; if not, the write side adds one Google login for uploads only); a Cloud *organization* created after mid-2024 may block service-account key creation by default (an org policy), which doesn't affect a project without an organization.
+- **Instead of:** two Google logins, each with a passkey and an OAuth refresh token (D-046).
+- **See:** QUESTIONS Q13 · PROPOSAL §6.1, §16 T5 · BLUEPRINT M03
+
+### D-072 — The Google connector calls the Google Ads REST API with its own fetch client
+- **When / who / status:** 2026-10-02 · Claude (fix) · adopted (M03 confirms the details when it starts). Marcus asked what code or design D-070 changes.
+- **Decision:** `connector-google` (and later `connector-google-write`) call the Google Ads **REST** API directly with `fetch`, the same pattern as M02's Meta `GraphClient`: `POST https://googleads.googleapis.com/<version>/customers/<id>/googleAds:searchStream` for reads, and the `:mutate` endpoints with `validateOnly` for writes (M13). The API version is pinned in one constant. **No developer token** is sent. Signing in goes through one small token-provider interface, so Q13's answer changes only that piece: a service account's key (D-071) or a login's refresh token (D-046). The token exchange happens outside the recorded `fetch`, so fixtures never hold it.
+- **Also for M03:**
+  - the Explorer cap (2,880 operations a day) belongs to the **Cloud project**, so the soft cap sums every Google account's `api_usage` for the day;
+  - the manager account's id goes in the `login-customer-id` header (where it's stored is M03's call);
+  - the redactor and the secret scanner also catch PEM private keys and `private_key` fields (service-account key files).
+- **Why:** the planned library, `google-ads-api` 25.1.0 (its published code, checked 2026-10-02):
+  - requires `client_id`, `client_secret`, `developer_token` and a per-customer `refresh_token`, so it can't use service accounts;
+  - always sends a `developer-token` header, which a future major API version will reject;
+  - sends reads through axios and everything else over gRPC, which `connector-testing`'s `fetch` recorder and replayer can't capture;
+  - lags Google by 1–2 months, with one API version per release.
+- **Instead of:** `google-ads-api`, pinned together with the API version (PROPOSAL §7 and §10, v3.5).
+- **See:** BLUEPRINT M03, M13 · PROPOSAL §7, §10 · GOTCHAS `google-ads-api` row
+

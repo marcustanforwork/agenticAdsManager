@@ -1,0 +1,11 @@
+# Findings that gitleaks (CI job `secret-scan`) may ignore. Each line is ONE finding's fingerprint
+# (commit:file:rule:line), so it can never hide a different or later secret. Add a line only for a value
+# that is certainly not a secret, and say why in a comment above it.
+
+# A made-up app secret ('live-secret-…') in a test, in commit 9115918 of PR #6 (M02). The test now builds
+# its fake value at run time; this line only clears the old commit, which the PR scan still reads.
+9115918febd32f5f5a04be7a420d3c5599a4cd58:packages/connector-meta/test/recorded.test.ts:generic-api-key:80
+
+# The GOTCHAS note about the finding above quoted the same made-up value (commit c080aa5, PR #6). The note no
+# longer quotes it.
+c080aa5f5ef58c8eea11f493e91a45e73d087e28:docs/memory/GOTCHAS.md:generic-api-key:71

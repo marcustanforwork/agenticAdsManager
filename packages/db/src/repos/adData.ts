@@ -55,7 +55,11 @@ export async function findAccount(db: DbOrTx, platform: Platform, externalId: st
 }
 
 export async function listAccounts(db: DbOrTx, productId: string): Promise<Account[]> {
-  return db.select().from(accounts).where(eq(accounts.productId, productId)).orderBy(accounts.platform);
+  return db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.productId, productId))
+    .orderBy(accounts.platform, accounts.externalId);
 }
 
 export async function setAccountStatus(

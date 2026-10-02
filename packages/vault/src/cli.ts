@@ -28,7 +28,8 @@ export interface CredentialsCliSpec {
   roles: [CredentialRole, ...CredentialRole[]];
 }
 
-async function withDatabase<T>(deps: CliDeps, run: (db: Database['db']) => Promise<T>): Promise<T> {
+/** Opens the database named by DATABASE_URL, runs `run`, and always closes it. */
+export async function withDatabase<T>(deps: CliDeps, run: (db: Database['db']) => Promise<T>): Promise<T> {
   const url = deps.env['DATABASE_URL'];
   if (url === undefined || url === '') throw new Error('DATABASE_URL is not set');
   const database = deps.connect(url);
