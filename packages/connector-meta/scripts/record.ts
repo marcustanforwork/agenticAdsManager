@@ -1,7 +1,7 @@
 // Records real Meta fixtures (BLUEPRINT M02, the `record-fixture` skill). Read credentials only.
 //
 //   RECORD=1 META_CREDENTIAL=/path/to/token.json \
-//     pnpm --filter @ads/connector-meta record -- --account act_123 [--dataset 456] [--events Lead] [--days 7]
+//     pnpm --filter @ads/connector-meta record --account act_123 [--dataset 456] [--events Lead] [--days 7]
 //
 // META_CREDENTIAL is the same JSON file given to `ads credentials put --role read`: { accessToken, appSecret }.
 // Every exchange is redacted (tokens, appsecret_proof, names, emails) and the files are scanned before they're
@@ -15,7 +15,9 @@ import { recordMetaFixtures } from './recordFixtures.ts';
 
 async function main(): Promise<void> {
   if (!isRecording()) throw new Error('set RECORD=1 to call the real Meta API');
+  const argv = process.argv.slice(2);
   const { values } = parseArgs({
+    args: argv[0] === '--' ? argv.slice(1) : argv, // `pnpm … record -- --account …` passes the `--` on
     options: {
       account: { type: 'string' },
       dataset: { type: 'string' },

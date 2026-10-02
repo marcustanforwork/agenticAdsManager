@@ -4,6 +4,20 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-02 — M02 built: Meta read connector
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR PRLINK
+- **Did:**
+  - Marcus confirmed M01b complete; M00/M01a live-step checklists left unticked as he asked.
+  - `packages/connector-testing`: cassettes, `replayFetch`, `recordingFetch` + `saveCassette`, `Redactor` + `findSecrets`.
+  - `packages/connector-meta`: `GraphClient` (Graph API v26.0, `appsecret_proof`, cursor paging, rate-limit back-off), `MetaReadClient` (account, entities, daily metrics at 3 levels, snapshots, trust signals), exact money, status table, hand-written fixtures, the `record` script and a record→replay round-trip test.
+  - `packages/core/src/sync/dryRun.ts` + `ads sync --dry`; `ads accounts link | list | set-status`; `localDate`/`minusDays` in contracts; contract fields added (D-069).
+  - Code review (high): 9 findings, 7 fixed, 2 recorded (milestone Notes). 78 new tests (463 in the repo).
+  - `record-fixture` skill created.
+- **Decided:** D-069 (Claude, fix). BLUEPRINT v3.8.
+- **Learned:** GOTCHAS: Graph v26.0 and its 2026-10-27 changes, rate-limit headers, access-tier rename, ad account fields, attribution changes, dataset stats, `appsecret_proof`, `effective_status`; unverified: action-type mapping and archived listings.
+- **Next:** Marcus reviews the PR; then a clean session starts M03.
+- **Open:** live steps M02, M01a, M00; setup tasks.
+
 ## 2026-09-26 — PR #5 (M01b) merged; Marcus starts his to-do list
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5)
 - **Did:** squash-merged PR #5 on Marcus's instruction after CI passed (D-057). Guided Marcus through the open setup tasks and live steps (T1 status checks, M00 SER9 check, T2 Neon, T3 Doppler, M01a migrate + seed, T6b, T4, T5, T6a).

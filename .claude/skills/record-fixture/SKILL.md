@@ -36,7 +36,7 @@ bump or a different token still matches.
 - Meta:
   ```bash
   RECORD=1 META_CREDENTIAL=/path/to/token.json \
-    pnpm --filter @ads/connector-meta record -- --account act_… [--dataset <id>] [--events Lead] [--days 7]
+    pnpm --filter @ads/connector-meta record --account act_… [--dataset <id>] [--events Lead] [--days 7]
   ```
   `token.json` is `{ "accessToken": "…", "appSecret": "…" }`, the same file given to `ads credentials put`.
   Keep it outside the repo and delete it afterwards.

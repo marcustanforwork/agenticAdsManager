@@ -18,6 +18,6 @@ The rules are BLUEPRINT §2, enforced by `pnpm check:boundaries` (see `scripts/b
 | `src/events.ts` | Meta event names → insights action types |
 | `src/credential.ts` | the vault credential shape: `{ accessToken, appSecret }` |
 | `fixtures/meta/` | hand-written cassettes; `recorded/` for real ones |
-| `scripts/record.ts` | `RECORD=1 META_CREDENTIAL=… pnpm --filter @ads/connector-meta record -- --account act_…` |
+| `scripts/record.ts` | `RECORD=1 META_CREDENTIAL=… pnpm --filter @ads/connector-meta record --account act_…` |
 
 Ad set = `ad_group`. Choices and their reasons: D-069. Fixture workflow: the `record-fixture` skill.

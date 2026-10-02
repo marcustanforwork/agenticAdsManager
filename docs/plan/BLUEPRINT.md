@@ -1388,7 +1388,7 @@ Methods are tried in this order, and the first match wins:
    - `trustSignals` (dataset events received in the last 7 days).
 3. Exact money conversion (§3.1).
 4. `packages/connector-testing`:
-   - `RECORD=1` writes responses to `fixtures/meta/*.json` (M02: `RECORD=1 META_CREDENTIAL=<token file> pnpm --filter @ads/connector-meta record -- --account act_…` writes `packages/connector-meta/fixtures/meta/recorded/`);
+   - `RECORD=1` writes responses to `fixtures/meta/*.json` (M02: `RECORD=1 META_CREDENTIAL=<token file> pnpm --filter @ads/connector-meta record --account act_…` writes `packages/connector-meta/fixtures/meta/recorded/`);
    - redaction removes tokens, `appsecret_proof`, and any names or emails;
    - a replayer serves the fixtures in tests.
 5. `ads sync --product snappool --platform meta --dry` prints what would be stored. (M02 also adds `ads accounts link | list | set-status`, the setup command that links an ad account to a product, D-069.)
