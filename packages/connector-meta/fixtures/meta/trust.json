@@ -1,0 +1,148 @@
+{
+  "source": "hand-written from Meta Marketing API v26.0 documented shapes (2026-10-02); replace with recorded fixtures in the M02 live steps",
+  "notes": "now = 2026-10-01T02:30:00Z; the dataset stats window is the 7 days before the last whole hour.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890",
+        "query": {
+          "fields": "id,name,currency,timezone_name,spend_cap,amount_spent,account_status"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "id": "act_1234567890",
+          "name": "Test Ad Account",
+          "currency": "SGD",
+          "timezone_name": "Asia/Singapore",
+          "spend_cap": "50000",
+          "amount_spent": "41234",
+          "account_status": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890/insights",
+        "query": {
+          "level": "account",
+          "time_range": "{\"since\":\"2026-09-24\",\"until\":\"2026-09-30\"}",
+          "fields": "inline_link_clicks,spend,actions,action_values",
+          "limit": "500"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "data": [
+            {
+              "date_start": "2026-09-24",
+              "date_stop": "2026-09-30",
+              "inline_link_clicks": "190",
+              "spend": "131.50",
+              "actions": [
+                {
+                  "action_type": "link_click",
+                  "value": "190"
+                },
+                {
+                  "action_type": "offsite_conversion.fb_pixel_lead",
+                  "value": "9"
+                }
+              ],
+              "action_values": [
+                {
+                  "action_type": "offsite_conversion.fb_pixel_lead",
+                  "value": "0"
+                }
+              ]
+            }
+          ],
+          "paging": {
+            "cursors": {
+              "before": "MA==",
+              "after": "MA=="
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/987654321012345/stats",
+        "query": {
+          "aggregation": "event",
+          "start_time": "1790215200",
+          "end_time": "1790820000"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "data": [
+            {
+              "start_time": "2026-09-29T10:00:00+0000",
+              "aggregation": "event",
+              "data": [
+                {
+                  "value": "Lead",
+                  "count": 4
+                },
+                {
+                  "value": "CompleteRegistration",
+                  "count": 2
+                }
+              ]
+            },
+            {
+              "start_time": "2026-09-30T03:00:00+0000",
+              "aggregation": "event",
+              "data": [
+                {
+                  "value": "Lead",
+                  "count": 3
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/987654321012345",
+        "query": {
+          "fields": "id,last_fired_time"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "id": "987654321012345",
+          "last_fired_time": "2026-09-30T03:41:12+0000"
+        }
+      }
+    }
+  ]
+}

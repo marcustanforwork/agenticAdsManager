@@ -1,0 +1,30 @@
+{
+  "source": "hand-written from Meta Marketing API v26.0 documented shapes (2026-10-02); replace with recorded fixtures in the M02 live steps",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890",
+        "query": {
+          "fields": "id,name,currency,timezone_name,spend_cap,amount_spent,account_status"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "id": "act_1234567890",
+          "name": "Test Ad Account",
+          "currency": "SGD",
+          "timezone_name": "Asia/Singapore",
+          "spend_cap": "50000",
+          "amount_spent": "41234",
+          "account_status": 1
+        }
+      }
+    }
+  ]
+}
