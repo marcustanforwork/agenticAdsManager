@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-10-02 — M02 built: Meta read connector
-- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR PRLINK
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6)
 - **Did:**
   - Marcus confirmed M01b complete; M00/M01a live-step checklists left unticked as he asked.
   - `packages/connector-testing`: cassettes, `replayFetch`, `recordingFetch` + `saveCassette`, `Redactor` + `findSecrets`.

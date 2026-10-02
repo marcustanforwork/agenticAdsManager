@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-02 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR PRLINK (M02, ready for review). Marcus confirmed M01b complete; the M00/M01a live steps aren't done yet and stay unticked.
+**Last updated:** 2026-10-02 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (M02, ready for review). Marcus confirmed M01b complete; the M00/M01a live steps aren't done yet and stay unticked.
 
 ## Where we are
 - **Phase:** 0.
@@ -12,7 +12,7 @@
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review PR PRLINK; merge only after CI is green (D-057). M02's live steps don't block the merge.
+1. **Marcus:** review PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6); merge only after CI is green (D-057). M02's live steps don't block the merge.
 2. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M03** (Google read connector). Reuse `@ads/connector-testing` and copy M02's fixture layout (M02 "Leave behind"). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2).
 3. **Marcus, when T4 (read side) and the M01a steps 1–4 are done:** the M02 live steps (below).
 4. **Marcus, when T2 and T3 are done:** the M01a live steps (below). **When at the SER9:** the M00 live steps.
@@ -20,7 +20,7 @@
 6. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- PR PRLINK: M02, branch `claude/gifted-franklin-hk0fku`, ready for review.
+- PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6): M02, branch `claude/gifted-franklin-hk0fku`, ready for review.
 
 ## Blocked on Marcus
 - No open questions.
@@ -59,7 +59,7 @@
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **awaiting live acceptance** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 (to do) |
 | M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: Neon migrate + seed (to do; needs T2, T3) |
 | M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
-| M02 | Meta read connector | 0 | **awaiting live acceptance** | PRLINK | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
+| M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
 | M03 | Google read connector | 0 | **next** | — | T5 for live steps only |
 | M04 | Sync, drift, trust checks | 0 | not started | — | Includes the Meta spending-limit check (D-063) |
 | M05a | Pack SDK, SnapPool pack, settings | 0 | not started | — | T6a (read-only DB URL); SnapPool facts in SNAPPOOL-TRACKING |

@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-10-02 |
 | **Finished** | 2026-10-02 (cloud part) |
-| **PRs** | — |
+| **PRs** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) |
 
 ## Goal
 Typed, deterministic Meta reads for everything the cycle needs.
