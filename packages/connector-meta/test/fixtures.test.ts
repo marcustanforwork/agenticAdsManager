@@ -22,6 +22,6 @@ describe('fixtures', () => {
     const text = readFileSync(file, 'utf8');
     expect(findSecrets(text)).toEqual([]);
     expect(text).not.toContain(FAKE_TOKEN);
-    expect(() => Cassette.parse(JSON.parse(text))).not.toThrow();
+    if (!file.endsWith('manifest.json')) expect(() => Cassette.parse(JSON.parse(text))).not.toThrow();
   });
 });

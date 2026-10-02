@@ -27,6 +27,7 @@
     "drizzle-orm": "0.45.3"
   },
   "devDependencies": {
+    "@ads/connector-testing": "workspace:*",
     "@types/pg": "8.23.1",
     "pg": "8.23.0"
   }

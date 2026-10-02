@@ -23,6 +23,8 @@ export interface GraphClientOptions {
   slowDownMs?: number;
   /** Safety stop for runaway pagination. */
   maxPages?: number;
+  /** Per-request timeout. */
+  timeoutMs?: number;
 }
 
 /** What the rate-limit headers said on the last response. */
@@ -38,6 +40,10 @@ export interface Usage {
 /** Throttling error codes: 4 (app), 17 (user), 32 (page), 613 (custom), 80000–80014 (business use cases). */
 export const isThrottleCode = (code: number | undefined): boolean =>
   code !== undefined && (code === 4 || code === 17 || code === 32 || code === 613 || (code >= 80000 && code <= 80014));
+
+/** `fetch` rejects with a TypeError on network failure, and with an AbortError or TimeoutError on timeout. */
+const isNetworkError = (err: unknown): boolean =>
+  err instanceof TypeError || (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError'));
 
 /** Codes Meta documents as temporary (unknown / service). */
 const isTransientCode = (code: number | undefined): boolean => code === 1 || code === 2;
@@ -109,6 +115,7 @@ export class GraphClient {
   readonly #slowDownAtPct: number;
   readonly #slowDownMs: number;
   readonly #maxPages: number;
+  readonly #timeoutMs: number;
   /** Usage from the most recent response (for logs and the access-tier check). */
   lastUsage: Usage = { maxPct: 0, regainMs: 0 };
   /** Requests sent, retries included. */
@@ -127,6 +134,7 @@ export class GraphClient {
     this.#slowDownAtPct = opts.slowDownAtPct ?? 90;
     this.#slowDownMs = opts.slowDownMs ?? 10_000;
     this.#maxPages = opts.maxPages ?? 200;
+    this.#timeoutMs = opts.timeoutMs ?? 60_000;
   }
 
   #url(path: string, params: Params): string {
@@ -151,11 +159,20 @@ export class GraphClient {
       let res: Response;
       try {
         this.requestCount++;
-        res = await this.#fetch(url, { method: 'GET', headers: { accept: 'application/json' } });
-      } catch {
-        // Network failure. Its error may quote the URL (and so the token), so it's never rethrown as-is.
-        if (attempt >= this.#maxAttempts)
-          throw new Error(`Meta request to ${path} failed after ${attempt} attempts (network)`);
+        res = await this.#fetch(url, {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          signal: AbortSignal.timeout(this.#timeoutMs),
+        });
+      } catch (err) {
+        // Only network failures and timeouts are retried. Anything else is a bug (or the test replayer
+        // refusing an unexpected request) and propagates as it is.
+        if (!isNetworkError(err)) throw err;
+        // A network error may quote the URL (and so the token), so it's never rethrown or attached as a cause.
+        if (attempt >= this.#maxAttempts) {
+          // eslint-disable-next-line preserve-caught-error -- the cause may contain the access token
+          throw new Error(`Meta request to ${path} failed after ${attempt} attempts (network or timeout)`);
+        }
         await this.#sleep(this.#backoff(attempt));
         continue;
       }

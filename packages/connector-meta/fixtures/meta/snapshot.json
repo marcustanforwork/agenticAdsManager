@@ -112,6 +112,69 @@
           "updated_time": "2026-09-20T10:00:00+0800"
         }
       }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/120210000000000001",
+        "query": {
+          "fields": "id,name,status,effective_status,account_id,daily_budget,lifetime_budget,bid_strategy,updated_time,campaign_id,optimization_goal,billing_event,attribution_spec"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "id": "120210000000000001",
+          "name": "Hosts SG 25-45",
+          "status": "ACTIVE",
+          "effective_status": "ACTIVE",
+          "account_id": "1234567890",
+          "campaign_id": "120200000000000001",
+          "optimization_goal": "OFFSITE_CONVERSIONS",
+          "billing_event": "IMPRESSIONS",
+          "attribution_spec": [
+            {
+              "event_type": "CLICK_THROUGH",
+              "window_days": 7
+            },
+            {
+              "event_type": "VIEW_THROUGH",
+              "window_days": 1
+            }
+          ],
+          "updated_time": "2026-09-20T10:00:00+0800"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/120220000000000001",
+        "query": {
+          "fields": "id,name,status,effective_status,account_id,daily_budget,lifetime_budget,bid_strategy,updated_time,campaign_id,adset_id"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}"
+        },
+        "body": {
+          "id": "120220000000000001",
+          "name": "Video - pool of photos",
+          "status": "ACTIVE",
+          "effective_status": "ACTIVE",
+          "account_id": "1234567890",
+          "campaign_id": "120200000000000001",
+          "adset_id": "120210000000000001",
+          "updated_time": "2026-09-20T10:00:00+0800"
+        }
+      }
     }
   ]
 }

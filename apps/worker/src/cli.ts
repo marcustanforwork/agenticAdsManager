@@ -2,8 +2,9 @@
 // The `ads` CLI. Like every surface, it will only create operator requests (invariant 9). The `credentials`
 // commands are setup: they store tokens in the vault and never touch an ad account.
 import { readFileSync } from 'node:fs';
-import { credentialsCommand, defaultCliDeps, type CliDeps } from '@ads/vault';
-import { Command, InvalidArgumentError } from 'commander';
+import { dryRunSync } from '@ads/core';
+import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, type CliDeps } from '@ads/vault';
+import { Command, InvalidArgumentError, Option } from 'commander';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 
@@ -12,9 +13,14 @@ const productSlug = (value: string): string => {
   return value;
 };
 
+/** What the commands touch. `fetch` and `now` replace the network and the clock in tests. */
+export interface WorkerCliDeps extends CliDeps {
+  fetch?: typeof fetch;
+  now?: () => Date;
+}
 export type { CliDeps };
 
-export function buildProgram(deps: CliDeps = defaultCliDeps('ads')): Command {
+export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Command {
   const program = new Command('ads')
     .description('Ads Agent worker CLI')
     .option('--product <slug>', 'the product to act on', productSlug);
@@ -24,6 +30,37 @@ export function buildProgram(deps: CliDeps = defaultCliDeps('ads')): Command {
     .description('print the version')
     .action(() => {
       console.log(`ads ${pkg.version}`);
+    });
+
+  program
+    .command('sync')
+    .description(
+      'read a platform and print what a sync would store (only --dry until M04); needs DATABASE_URL and VAULT_READ_KEY',
+    )
+    .addOption(new Option('--platform <platform>', 'which platform').choices(['meta', 'google']).makeOptionMandatory())
+    .option('--dry', 'read only, store nothing')
+    .action(async (opts: { platform: 'meta' | 'google'; dry?: boolean }) => {
+      const product = program.opts<{ product?: string }>().product;
+      if (product === undefined) throw new InvalidArgumentError('--product <slug> is required');
+      if (opts.dry !== true) throw new InvalidArgumentError('only --dry is available until M04 (the sync stage)');
+      const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', deps.env);
+      const url = deps.env['DATABASE_URL'];
+      if (url === undefined || url === '') throw new Error('DATABASE_URL is not set');
+      const database = deps.connect(url);
+      try {
+        const report = await dryRunSync({
+          db: database.db,
+          productSlug: product,
+          platform: opts.platform,
+          masterKey,
+          ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
+          ...(deps.now === undefined ? {} : { now: deps.now }),
+        });
+        deps.print(JSON.stringify(report, null, 2));
+        if (report.accounts.some((a) => a.outcome === 'error')) process.exitCode = 1;
+      } finally {
+        await database.close();
+      }
     });
 
   program.addCommand(credentialsCommand(deps, { keyEnv: 'VAULT_READ_KEY', keyClass: 'read', roles: ['read'] }));

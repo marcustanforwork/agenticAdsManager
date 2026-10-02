@@ -23,7 +23,8 @@ function scripted(replies: Reply[]) {
     urls.push(url);
     const r = replies.shift();
     if (r === undefined) throw new Error('script exhausted');
-    if (r === 'network-error') return Promise.reject(new Error(`connect ECONNRESET ${url}`));
+    if (r === 'network-error')
+      return Promise.reject(new TypeError('fetch failed', { cause: new Error(`connect ECONNRESET ${url}`) }));
     return Promise.resolve(
       new Response(JSON.stringify(r.body ?? {}), { status: r.status ?? 200, headers: r.headers ?? {} }),
     );
@@ -182,6 +183,34 @@ describe('errors', () => {
     expect(err).not.toBeInstanceOf(MetaRateLimitError);
     expect([err.status, err.code, err.subcode, err.fbtraceId]).toEqual([400, 100, 33, 'Atrace']);
     expect(s.sleeps).toEqual([]);
+  });
+
+  it('does not retry an error that is not a network failure', async () => {
+    let calls = 0;
+    const c = new GraphClient({
+      accessToken: FAKE_TOKEN,
+      appSecret: SECRET,
+      fetch: () => {
+        calls++;
+        return Promise.reject(new RangeError('a bug'));
+      },
+    });
+    await expect(c.getRaw('x')).rejects.toThrow('a bug');
+    expect(calls).toBe(1);
+  });
+
+  it('retries a timeout', async () => {
+    let calls = 0;
+    const timeout = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
+    const c = new GraphClient({
+      accessToken: FAKE_TOKEN,
+      appSecret: SECRET,
+      sleep: () => Promise.resolve(),
+      fetch: () =>
+        ++calls === 1 ? Promise.reject(timeout) : Promise.resolve(new Response('{"ok":1}')),
+    });
+    expect(await c.getRaw('x')).toEqual({ ok: 1 });
+    expect(calls).toBe(2);
   });
 
   it('never puts the token in an error message', async () => {
