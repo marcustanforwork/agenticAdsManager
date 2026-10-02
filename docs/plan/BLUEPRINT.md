@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.8 — 2026-10-02 (M02: Meta read connector choices, Graph API v26.0, read-side contract fields, D-069) |
+| **Version** | v3.9 — 2026-10-02 (Google: no developer token, access from the Cloud project, D-070; service accounts proposed, D-071) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1417,16 +1417,16 @@ Methods are tried in this order, and the first match wins:
 ---
 
 ### M03 — Google read connector
-**Phase 0 · Size ~500k · Needs:** T5. Explorer access is enough to begin live work.
+**Phase 0 · Size ~500k · Needs:** T5 (as rewritten for D-070), for the live steps only. Explorer access, which comes with enabling the Google Ads API in the Cloud project, is enough. Q13 decides the identity type (D-071).
 
 **Goal:** typed, deterministic, quota-aware Google Ads reads.
 
-**Read first:** M02's milestone file (mirror its shape and reuse `connector-testing`); this file §3.5–3.6; PROPOSAL §7. Check `google-ads-api` and the Google Ads API version with the `verify-external-facts` skill.
+**Read first:** M02's milestone file (mirror its shape and reuse `connector-testing`); this file §3.5–3.6; PROPOSAL §7; D-070, D-071 and Q13's answer. Check `google-ads-api` and the Google Ads API version with the `verify-external-facts` skill.
 
 **Builds:**
 1. Auth:
-   - the developer token and OAuth client come from Doppler;
-   - the refresh token comes from the vault (`read` role = the **read-only** Google login, D-046);
+   - **no developer token** (Google sunset them on 2026-09-09, D-070): check that the pinned `google-ads-api` release works without one, and send none if it allows;
+   - the credential comes from the vault (`read` role): the **Read only** service account's key file (D-071, if Q13 approves it), or the read-only Google login's refresh token plus the OAuth client from Doppler (D-046);
    - resolution from manager account to client account;
    - the API version and the library version are pinned **together**.
 2. Read methods:

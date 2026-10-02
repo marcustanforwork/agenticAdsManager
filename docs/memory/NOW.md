@@ -2,28 +2,29 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-02 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (M02, ready for review). Marcus confirmed M01b complete; the M00/M01a live steps aren't done yet and stay unticked.
+**Last updated:** 2026-10-02 · cloud session · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (M02, ready for review). Marcus confirmed M01b complete; the M00/M01a live steps aren't done yet and stay unticked. Later the same day: Marcus created the Google manager account (T5) and found that Google no longer issues developer tokens (D-070); **Q13 asked**.
 
 ## Where we are
 - **Phase:** 0.
 - **Active milestone:** **M02 (Meta read connector): built, awaiting live acceptance.** Cloud work done: Graph client, read methods, `connector-testing`, `ads sync --dry`, `ads accounts`, the recorder. Details: `docs/milestones/M02-meta-read.md`.
 - **M01a** and **M00** are merged and still awaiting their live acceptance (below).
-- **Status:** plan v3.8 (BLUEPRINT). No open questions. **D-069:** M02 build choices (Graph API v26.0; link clicks; KPI-stage conversions; at most a 60 s rate-limit wait; `ads accounts`).
+- **Status:** BLUEPRINT v3.9, PROPOSAL v3.5. **Open: Q13** (Google service accounts vs logins). **D-069:** M02 build choices (Graph API v26.0; link clicks; KPI-stage conversions; at most a 60 s rate-limit wait; `ads accounts`). **D-070:** Google API access now comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6); merge only after CI is green (D-057). M02's live steps don't block the merge.
-2. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M03** (Google read connector). Reuse `@ads/connector-testing` and copy M02's fixture layout (M02 "Leave behind"). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2).
-3. **Marcus, when T4 (read side) and the M01a steps 1–4 are done:** the M02 live steps (below).
-4. **Marcus, when T2 and T3 are done:** the M01a live steps (below). **When at the SER9:** the M00 live steps.
-5. **Marcus:** the SnapPool tracking change (T6b, prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16); optional part of T1 (require `memory-check`, `ci`, `secret-scan` in the `main` ruleset).
-6. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
+1. **Marcus:** review PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (CI green on 2026-10-02); merge only on his word (D-057). M02's live steps don't block the merge.
+2. **Marcus:** answer **Q13**, then continue T5 as rewritten (`PROPOSAL.md` §16): the manager account is **done** (2026-10-02); next, a Google Cloud project with the Google Ads API enabled (no developer token), the SnapPool ad account under the manager account, and the agent's two identities per Q13.
+3. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M03** (Google read connector); it doesn't wait for Q13 (the identity type only changes the auth step). Reuse `@ads/connector-testing` and copy M02's fixture layout (M02 "Leave behind"). Cloud: if the assigned branch's PR is merged, reset it to `origin/main` first (`start-session` §2).
+4. **Marcus, when T4 (read side) and the M01a steps 1–4 are done:** the M02 live steps (below).
+5. **Marcus, when T2 and T3 are done:** the M01a live steps (below). **When at the SER9:** the M00 live steps.
+6. **Marcus:** the SnapPool tracking change (T6b, prompt in `SNAPPOOL-TRACKING.md` §7); setup tasks T2–T5, T6a (`PROPOSAL.md` §16); optional part of T1 (require `memory-check`, `ci`, `secret-scan` in the `main` ruleset).
+7. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
 - PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6): M02, branch `claude/gifted-franklin-hk0fku`, ready for review.
 
 ## Blocked on Marcus
-- No open questions.
+- **Q13:** Google service accounts (recommended) or Google logins.
 - Live steps: M02 (needs T4 read side + M01a), M01a (needs T2, T3), M00 (SER9). Setup tasks T1 (optional part), T2–T14; T6b.
 
 ## Live steps for Marcus

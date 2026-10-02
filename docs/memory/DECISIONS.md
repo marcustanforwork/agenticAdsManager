@@ -489,3 +489,23 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M02 needed these choices. None changes a product decision.
 - **Instead of:** `clicks` (all clicks, including likes and profile clicks); sleeping for as long as Meta asks (a sync could hang for an hour); guessing a currency offset.
 - **See:** `docs/milestones/M02-meta-read.md` · BLUEPRINT §3.6, §5.7 · GOTCHAS "Meta …" rows
+
+### D-070 — Google API access comes from the Cloud project; no developer token
+- **When / who / status:** 2026-10-02 · Claude (fix) · adopted. Marcus found it while setting up T5: the manager account's API Center now offers only a form for a different, app-only API.
+- **Decision:**
+  - **No developer token.** On 2026-09-09/10 Google moved Google Ads API access from the manager account's API Center to the Google Cloud project. The access level belongs to the Cloud project whose credentials sign in; the `developer-token` header is optional and ignored (a future major API version will reject it); the API Center no longer issues tokens. Nothing in this system sends or stores one.
+  - **Explorer access is the plan.** It comes with enabling the Google Ads API in the Cloud project, reaches real accounts, and allows 2,880 operations a day; our sync needs well under 500. Apply for **Basic** (15,000 a day) only if `api_usage` nears the cap: an application now needs the Cloud project's **brand verification** (homepage, privacy policy and terms on a verified domain), after which Basic is reviewed in minutes, so there's no lead time to beat.
+  - **The manager account (MCC) stays.** It holds the property and SnapPool ad accounts, and the agent reaches both through it (`login-customer-id`).
+  - **If Google user logins are used** (D-046 as written): each login needs a **passkey** before it can create a new API sign-in (mandatory since 2026-08-05; a new passkey may take up to 7 days to be fully trusted), and the Cloud project's OAuth app must be published **In production** (in "Testing", sign-ins expire after 7 days).
+- **Why:** the plan told Marcus to get a developer token from the API Center, which no longer issues them for the Google Ads API.
+- **Instead of:** a developer token from the MCC's API Center, plus an early Basic application (PROPOSAL v3.4, T5).
+- **See:** PROPOSAL §6.13, §7, §16 T5 · BLUEPRINT M03 · GOTCHAS "Google Ads API" rows
+
+### D-071 — Two Google service accounts instead of two Google logins
+- **When / who / status:** 2026-10-02 · Claude (needs OK) · **proposed** (Q13). Supersedes D-046 if approved.
+- **Decision:** the agent signs in to Google Ads as two **service accounts** (robot identities in the Cloud project), added directly as users of the manager account (Admin → Access and security; Google has supported this since 2024-11-27): `ads-agent-read` with **Read only** access for sync, and `ads-agent-write` with **Standard** access for writes and uploads. Each one's key file goes into the vault (`read` and `write` roles), like Meta's system-user tokens. D-046's read/write split stays exactly as it is.
+- **Why:** no refresh tokens, no OAuth consent screen, no passkeys, and nothing that expires; it matches the Meta setup (system users). Google's passkey rule doesn't apply to service accounts.
+- **Risks / to verify:** whether the **Data Manager API** (conversion uploads, M13) accepts a service account (unverified; if not, the write side adds one Google login for uploads only); a Cloud *organization* created after mid-2024 may block service-account key creation by default (an org policy), which doesn't affect a project without an organization.
+- **Instead of:** two Google logins, each with a passkey and an OAuth refresh token (D-046).
+- **See:** QUESTIONS Q13 · PROPOSAL §6.1, §16 T5 · BLUEPRINT M03
+

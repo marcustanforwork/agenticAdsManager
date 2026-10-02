@@ -13,11 +13,12 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - `packages/core/src/sync/dryRun.ts` + `ads sync --dry`; `ads accounts link | list | set-status`; `localDate`/`minusDays` in contracts; contract fields added (D-069).
   - Code review (high), twice: the whole diff (9 findings, 7 fixed), then the code added after it (9 candidates, 7 fixed); the rest are recorded in the milestone Notes. 81 new tests (466 in the repo).
   - `record-fixture` skill created.
-  - CI `secret-scan` flagged a made-up test secret (false positive): built at run time now, plus a one-finding `.gitleaksignore`.
-- **Decided:** D-069 (Claude, fix). BLUEPRINT v3.8.
+  - CI `secret-scan` flagged a made-up test secret (false positive): built at run time now, plus a one-finding `.gitleaksignore`. CI green afterwards.
+  - Marcus created the Google manager account (T5). Its API Center no longer issues developer tokens: Google moved API access to the Cloud project on 2026-09-09/10. T5, PROPOSAL §6.1/§6.13/§7 and BLUEPRINT M03 rewritten; Q13 asked.
+- **Decided:** D-069 and D-070 (Claude, fix); D-071 proposed (Q13). BLUEPRINT v3.9, PROPOSAL v3.5.
 - **Learned:** GOTCHAS: Graph v26.0 and its 2026-10-27 changes, rate-limit headers, access-tier rename, ad account fields, attribution changes, dataset stats, `appsecret_proof`, `effective_status`; unverified: action-type mapping and archived listings.
 - **Next:** Marcus reviews the PR; then a clean session starts M03.
-- **Open:** live steps M02, M01a, M00; setup tasks.
+- **Open:** Q13; live steps M02, M01a, M00; setup tasks.
 
 ## 2026-09-26 — PR #5 (M01b) merged; Marcus starts his to-do list
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5)
