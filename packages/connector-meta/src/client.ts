@@ -24,8 +24,17 @@ const DIGITS = /^\d+$/;
 const MinorString = z.string().regex(/^\d{1,19}$/);
 const CountString = z.string().regex(/^\d{1,15}$/);
 /** Action counts are numeric strings; Meta may report fractions for modelled conversions. */
-const ActionValue = z.string().regex(/^\d{1,15}(?:\.\d{1,6})?$/);
-const Action = z.looseObject({ action_type: z.string(), value: ActionValue });
+const CountValue = z.string().regex(/^\d{1,15}(?:\.\d+)?$/);
+/** Action values are money in currency units: exact, at most 6 decimals (anything else is refused). */
+const MoneyValue = z.string().regex(/^\d{1,13}(?:\.\d{1,6})?$/);
+const Action = z.looseObject({ action_type: z.string(), value: CountValue });
+const ActionMoney = z.looseObject({ action_type: z.string(), value: MoneyValue });
+
+/** A count string → millionths, truncating beyond 6 decimals (a count is never money or a decision number). */
+const countToMillionths = (v: string): bigint => {
+  const [whole = '0', frac = ''] = v.split('.');
+  return BigInt(whole) * 1_000_000n + BigInt(frac.slice(0, 6).padEnd(6, '0'));
+};
 
 const AccountSchema = z.looseObject({
   id: z.string(),
@@ -104,7 +113,7 @@ const InsightsRow = z.looseObject({
   inline_link_clicks: CountString.optional(),
   spend: z.string().optional(),
   actions: z.array(Action).optional(),
-  action_values: z.array(Action).optional(),
+  action_values: z.array(ActionMoney).optional(),
   attribution_setting: z.string().optional(),
 });
 type InsightsRow = z.infer<typeof InsightsRow>;
@@ -289,8 +298,7 @@ export class MetaReadClient implements PlatformReadClient {
   #conversions(r: Pick<InsightsRow, 'actions' | 'action_values'>): { count: number; valueMicros: bigint } {
     let micro = 0n; // the count, in millionths, so fractional counts add up exactly
     let valueMicros = 0n;
-    for (const a of r.actions ?? [])
-      if (this.#conversionTypes.has(a.action_type)) micro += unitsStringToMicros(a.value);
+    for (const a of r.actions ?? []) if (this.#conversionTypes.has(a.action_type)) micro += countToMillionths(a.value);
     for (const a of r.action_values ?? []) {
       if (this.#conversionTypes.has(a.action_type)) valueMicros += unitsStringToMicros(a.value);
     }

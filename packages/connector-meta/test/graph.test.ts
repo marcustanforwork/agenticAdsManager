@@ -206,8 +206,7 @@ describe('errors', () => {
       accessToken: FAKE_TOKEN,
       appSecret: SECRET,
       sleep: () => Promise.resolve(),
-      fetch: () =>
-        ++calls === 1 ? Promise.reject(timeout) : Promise.resolve(new Response('{"ok":1}')),
+      fetch: () => (++calls === 1 ? Promise.reject(timeout) : Promise.resolve(new Response('{"ok":1}'))),
     });
     expect(await c.getRaw('x')).toEqual({ ok: 1 });
     expect(calls).toBe(2);

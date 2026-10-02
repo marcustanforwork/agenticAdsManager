@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.7 — 2026-09-25 (M01b: the queue lives in `db`; the gateway may write credentials, D-068) |
+| **Version** | v3.8 — 2026-10-02 (M02: Meta read connector choices, Graph API v26.0, read-side contract fields, D-069) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -334,7 +334,7 @@ export interface OutcomeAdapter {
 ```ts
 export interface PlatformReadClient {
   platform: z.infer<typeof Platform>;
-  getAccountInfo(accountId: string): Promise<{ name: string; timezone: string; currency: string; spendCapMicros?: bigint }>;
+  getAccountInfo(accountId: string): Promise<{ name: string; timezone: string; currency: string; spendCapMicros?: bigint; amountSpentMicros?: bigint }>;
   listEntities(accountId: string, types: EntityTypeId[]): Promise<AdEntityRecord[]>;   // normalised + raw status
   getMetricsDaily(accountId: string, range: DateRange, level: EntityTypeId): Promise<MetricRow[]>;
   getSearchTerms?(accountId: string, range: DateRange): Promise<SearchTermRow[]>;     // Google only
@@ -1047,7 +1047,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 - **Levels.** Metrics are stored for campaigns, ad groups/ad sets, ads and (Google) keywords. The entity list also includes budgets, with `explicitly_shared` recorded.
 - **Snapshots.** A snapshot is the canonical JSON of the tracked fields, stored only if its hash differs from the latest one.
 - **Drift.** The tracked fields are status, daily budget, bid strategy type and name. A change is drift unless the change log explains it (we set that value on that field).
-- **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync:
+- **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync. Meta's column was checked against the docs in M02 (`connector-meta/src/status.ts`); the real fixtures confirm it. Any value not listed is `unknown`:
 
 | Normalised | Google | Meta (`effective_status`) |
 |---|---|---|
@@ -1058,6 +1058,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | limited | limited/ineligible serving (primary status) | `WITH_ISSUES`, `DISAPPROVED` |
 | unknown | anything else | anything else |
 
+- **Meta specifics (M02, D-069).** Clicks are link clicks (`inline_link_clicks`). Platform conversions are the sum of the insights action types the pack's Meta feedback routes map to (`offsite_conversion.fb_pixel_<event>`), with each row's `attribution_setting` recorded. Meta has no shared budgets, so `budget_shared` is always false; daily vs lifetime budget and the configured status go in `attributes`.
 - **Money.** Conversions follow §3.1. **Timezones:** metric dates are in the account's local day, which must equal the product's timezone (trust check).
 - **Quota.** Every Google request increments `api_usage`. A soft cap stops the sync with a clear error.
 
@@ -1387,7 +1388,7 @@ Methods are tried in this order, and the first match wins:
    - `trustSignals` (dataset events received in the last 7 days).
 3. Exact money conversion (§3.1).
 4. `packages/connector-testing`:
-   - `RECORD=1` writes responses to `fixtures/meta/*.json`;
+   - `RECORD=1` writes responses to `fixtures/meta/*.json` (M02: `RECORD=1 META_CREDENTIAL=<token file> pnpm --filter @ads/connector-meta record -- --account act_…` writes `packages/connector-meta/fixtures/meta/recorded/`);
    - redaction removes tokens, `appsecret_proof`, and any names or emails;
    - a replayer serves the fixtures in tests.
 5. `ads sync --product snappool --platform meta --dry` prints what would be stored.

@@ -1,7 +1,7 @@
 import { MetricRow, AdEntityRecord, TrustSignalRow } from '@ads/contracts';
 import { describe, expect, it } from 'vitest';
 import { MetaShapeError, snapshotOf } from '../src/index.ts';
-import { ACCOUNT_FIELDS, ACT, inlineClient, replayClient } from './helpers.ts';
+import { ACCOUNT_FIELDS, ACT, LEAD, inlineClient, replayClient } from './helpers.ts';
 
 const RANGE = { from: '2026-09-28', to: '2026-09-30' };
 
@@ -150,6 +150,45 @@ describe('getMetricsDaily', () => {
       ['1', 1.5, '7250000'],
       ['2', 0.5, '0'],
     ]);
+  });
+
+  it('truncates a modelled count beyond 6 decimals instead of failing', async () => {
+    const c = inlineClient(
+      [
+        {
+          request: {
+            method: 'GET',
+            path: `/${ACT}/insights`,
+            query: {
+              level: 'campaign',
+              time_range: '{"since":"2026-09-28","until":"2026-09-28"}',
+              time_increment: '1',
+              fields:
+                'campaign_id,date_start,date_stop,impressions,inline_link_clicks,spend,actions,action_values,attribution_setting',
+              limit: '500',
+            },
+          },
+          response: {
+            status: 200,
+            headers: {},
+            body: {
+              data: [
+                {
+                  campaign_id: '1',
+                  date_start: '2026-09-28',
+                  date_stop: '2026-09-28',
+                  spend: '1.00',
+                  actions: [{ action_type: LEAD, value: '0.3333333333' }],
+                },
+              ],
+            },
+          },
+        },
+      ],
+      { conversionActionTypes: [LEAD] },
+    );
+    const [row] = await c.getMetricsDaily(ACT, { from: '2026-09-28', to: '2026-09-28' }, 'campaign');
+    expect(row?.platformConversions).toBe(0.333333);
   });
 
   it('counts only the configured conversion action types', async () => {
