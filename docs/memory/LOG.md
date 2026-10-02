@@ -13,6 +13,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - `packages/core/src/sync/dryRun.ts` + `ads sync --dry`; `ads accounts link | list | set-status`; `localDate`/`minusDays` in contracts; contract fields added (D-069).
   - Code review (high), twice: the whole diff (9 findings, 7 fixed), then the code added after it (9 candidates, 7 fixed); the rest are recorded in the milestone Notes. 81 new tests (466 in the repo).
   - `record-fixture` skill created.
+  - CI `secret-scan` flagged a made-up test secret (false positive): built at run time now, plus a one-finding `.gitleaksignore`.
 - **Decided:** D-069 (Claude, fix). BLUEPRINT v3.8.
 - **Learned:** GOTCHAS: Graph v26.0 and its 2026-10-27 changes, rate-limit headers, access-tier rename, ad account fields, attribution changes, dataset stats, `appsecret_proof`, `effective_status`; unverified: action-type mapping and archived listings.
 - **Next:** Marcus reviews the PR; then a clean session starts M03.

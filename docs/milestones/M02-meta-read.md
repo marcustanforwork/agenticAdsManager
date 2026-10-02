@@ -146,5 +146,6 @@ Typed, deterministic Meta reads for everything the cycle needs.
   Not changed:
   - a next page without a cursor still fails the account read, on purpose: a silently truncated list is worse, and the live recording shows whether Meta ever does this;
   - two `ads accounts link` runs racing each other is unrealistic for a hand-run setup command.
+- 2026-10-02: CI `secret-scan` (gitleaks) failed on PR #6: a made-up app secret in `recorded.test.ts` looked like a real key (false positive). The test now builds the value at run time, and `.gitleaksignore` clears that one finding in the old commit. Verified locally with gitleaks 8.24.3: the PR range and a simulated squash commit on `main` both report no leaks.
 - 2026-10-02: there was no way to link an ad account to a product, so the live steps couldn't work. Added `ads accounts link | list | set-status` (setup, D-069).
 - 2026-10-02: Graph API **v26.0** is current (released 2026-07-29). Its breaking changes apply to **every** version from 2026-10-27: a request carrying `date_format` errors, and root `GET /?ids=` errors. The client never sends either. Details in GOTCHAS.
