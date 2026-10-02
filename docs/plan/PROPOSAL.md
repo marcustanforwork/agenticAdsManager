@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.5 — 2026-10-02 (Google API access moved to the Cloud project, so no developer token, D-070; service accounts proposed, D-071 / Q13) |
+| **Version** | v3.6 — 2026-10-02 (Google: no developer token, D-070; service accounts proposed, D-071 / Q13; reads and writes through the REST API with our own client, D-072) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
@@ -450,7 +450,7 @@ Facts in this section were checked on 2026-09-25 (sources in `docs/memory/GOTCHA
 | | Google Ads | Meta Ads |
 |---|---|---|
 | **Official AI connector** | `googleads/google-ads-mcp`: read-only, 3 tools (list accounts, GAQL search, field metadata). Had a security fix in July 2026 that stopped OAuth credentials being written to logs. | `mcp.facebook.com/ads`: hosted, and can write with `ads_management` |
-| **How we read** | Google Ads API via the `google-ads-api` Node library. The library supports **one** API version per release and lags Google by 1–2 months (it moved to v25.1 on 2026-09-17; Google is at v25.2). | Marketing API (Graph), system user with `ads_read` |
+| **How we read** | Google Ads **REST** API, called with our own `fetch` client and an API version pinned in one constant (D-072). The `google-ads-api` library was dropped: it needs refresh tokens and a developer token, and its gRPC/axios transport can't use our test fixtures. | Marketing API (Graph), system user with `ads_read` |
 | **How we write** | Google Ads API mutate, with `validate_only` first | Marketing API with a system user granted `ads_management` |
 | **How we upload conversions** | **Data Manager API** (`datamanager.googleapis.com/v1/events:ingest`, OAuth scope `datamanager`, no developer token). Since **2026-06-15** the old Google Ads API upload method is blocked for developer tokens that weren't already using it, and ours is new. The conversion action must be of the "import from clicks" type. | Conversions API (CAPI). A batch is **rejected entirely** if any event is older than 7 days (website events), so upload at least daily. Test with `test_event_code` first. |
 | **Dry-run** | `validate_only=true` performs real server-side validation | No general dry-run. Some endpoints may support a validation option (*verify in M12*); otherwise read back and auto-undo. |
@@ -534,7 +534,7 @@ They live **in the database and are edited on the dashboard**, with version hist
 | Model choice | **Strongest available model for analysis** (the hard part). A cheaper model may do the brief and rationale wording once replay evals show no loss. Cost at this volume is a few dollars a month. (D-041) | Analysis quality decides whether Phase 1 passes | v2's "cheap model for analysis" |
 | Analyst look-ups | **Typed, read-only database queries** with a per-cycle call budget. (D-039) | Deterministic and replayable (evals work), no extra credentials, no API quota, no Python sidecar | Official Google/Meta MCP servers, deferred until the analyst provably needs data the sync doesn't hold |
 | Database | **Neon Postgres + Drizzle**. The worker and gateway use the **direct** connection, because advisory locks and LISTEN/NOTIFY don't work through Neon's pooler. The dashboard uses the pooled connection. | Typed schema and migrations; same platform as SnapPool (separate project) | Airtable as the system of record (it stays a *source* for property outcomes only) |
-| Google | **Google Ads API** via `google-ads-api` (pinned together with the API version); **Data Manager API** (REST) for conversion uploads | Deterministic reads; we own the write path | Official MCP for sync; third-party hosted write tools |
+| Google | **Google Ads REST API** with our own `fetch` client (API version pinned in one constant, D-072); **Data Manager API** (REST) for conversion uploads | Deterministic reads; we own the write path | Official MCP for sync; third-party hosted write tools |
 | Meta | **Marketing API** (Graph) + **Conversions API**, with system users | Typed; no MCP in the money path | Community Meta MCP servers (account-ban risk) |
 | TikTok | Deferred. The connector interface is designed so it becomes a third connector package. | Matters for SnapPool eventually | — |
 | Processes | **Docker Compose on the SER9**, one image with `worker` and `gateway` services, `restart: unless-stopped`. No local state. (D-043) | Restart safety; a real security boundary for write keys; the same image can later run on a cloud container service | A bare systemd process (not portable); Cloudflare Workers for the loop (wrong runtime for multi-minute cycles) |

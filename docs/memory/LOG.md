@@ -14,8 +14,8 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - Code review (high), twice: the whole diff (9 findings, 7 fixed), then the code added after it (9 candidates, 7 fixed); the rest are recorded in the milestone Notes. 81 new tests (466 in the repo).
   - `record-fixture` skill created.
   - CI `secret-scan` flagged a made-up test secret (false positive): built at run time now, plus a one-finding `.gitleaksignore`. CI green afterwards.
-  - Marcus created the Google manager account (T5). Its API Center no longer issues developer tokens: Google moved API access to the Cloud project on 2026-09-09/10. T5, PROPOSAL §6.1/§6.13/§7 and BLUEPRINT M03 rewritten; Q13 asked.
-- **Decided:** D-069 and D-070 (Claude, fix); D-071 proposed (Q13). BLUEPRINT v3.9, PROPOSAL v3.5.
+  - Marcus created the Google manager account (T5). Its API Center no longer issues developer tokens: Google moved API access to the Cloud project on 2026-09-09/10. T5, PROPOSAL §6.1/§6.13/§7 and BLUEPRINT M03 rewritten; Q13 asked. Then Marcus asked what code or design that changes: no existing code; for M03/M13 the `google-ads-api` library (25.1.0, read from its published code) needs refresh tokens and a developer token and uses axios/gRPC, so D-072 moves the Google connector to the REST API with our own `fetch` client.
+- **Decided:** D-069, D-070 and D-072 (Claude, fix); D-071 proposed (Q13). BLUEPRINT v3.10, PROPOSAL v3.6.
 - **Learned:** GOTCHAS: Graph v26.0 and its 2026-10-27 changes, rate-limit headers, access-tier rename, ad account fields, attribution changes, dataset stats, `appsecret_proof`, `effective_status`; unverified: action-type mapping and archived listings.
 - **Next:** Marcus reviews the PR; then a clean session starts M03.
 - **Open:** Q13; live steps M02, M01a, M00; setup tasks.

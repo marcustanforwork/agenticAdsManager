@@ -509,3 +509,18 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Instead of:** two Google logins, each with a passkey and an OAuth refresh token (D-046).
 - **See:** QUESTIONS Q13 · PROPOSAL §6.1, §16 T5 · BLUEPRINT M03
 
+### D-072 — The Google connector calls the Google Ads REST API with its own fetch client
+- **When / who / status:** 2026-10-02 · Claude (fix) · adopted (M03 confirms the details when it starts). Marcus asked what code or design D-070 changes.
+- **Decision:** `connector-google` (and later `connector-google-write`) call the Google Ads **REST** API directly with `fetch`, the same pattern as M02's Meta `GraphClient`: `POST https://googleads.googleapis.com/<version>/customers/<id>/googleAds:searchStream` for reads, and the `:mutate` endpoints with `validateOnly` for writes (M13). The API version is pinned in one constant. **No developer token** is sent. Signing in goes through one small token-provider interface, so Q13's answer changes only that piece: a service account's key (D-071) or a login's refresh token (D-046). The token exchange happens outside the recorded `fetch`, so fixtures never hold it.
+- **Also for M03:**
+  - the Explorer cap (2,880 operations a day) belongs to the **Cloud project**, so the soft cap sums every Google account's `api_usage` for the day;
+  - the manager account's id goes in the `login-customer-id` header (where it's stored is M03's call);
+  - the redactor and the secret scanner also catch PEM private keys and `private_key` fields (service-account key files).
+- **Why:** the planned library, `google-ads-api` 25.1.0 (its published code, checked 2026-10-02):
+  - requires `client_id`, `client_secret`, `developer_token` and a per-customer `refresh_token`, so it can't use service accounts;
+  - always sends a `developer-token` header, which a future major API version will reject;
+  - sends reads through axios and everything else over gRPC, which `connector-testing`'s `fetch` recorder and replayer can't capture;
+  - lags Google by 1–2 months, with one API version per release.
+- **Instead of:** `google-ads-api`, pinned together with the API version (PROPOSAL §7 and §10, v3.5).
+- **See:** BLUEPRINT M03, M13 · PROPOSAL §7, §10 · GOTCHAS `google-ads-api` row
+

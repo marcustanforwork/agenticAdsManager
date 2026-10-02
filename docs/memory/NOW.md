@@ -8,7 +8,7 @@
 - **Phase:** 0.
 - **Active milestone:** **M02 (Meta read connector): built, awaiting live acceptance.** Cloud work done: Graph client, read methods, `connector-testing`, `ads sync --dry`, `ads accounts`, the recorder. Details: `docs/milestones/M02-meta-read.md`.
 - **M01a** and **M00** are merged and still awaiting their live acceptance (below).
-- **Status:** BLUEPRINT v3.9, PROPOSAL v3.5. **Open: Q13** (Google service accounts vs logins). **D-069:** M02 build choices (Graph API v26.0; link clicks; KPI-stage conversions; at most a 60 s rate-limit wait; `ads accounts`). **D-070:** Google API access now comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins.
+- **Status:** BLUEPRINT v3.10, PROPOSAL v3.6. **Open: Q13** (Google service accounts vs logins). **D-069:** M02 build choices (Graph API v26.0; link clicks; KPI-stage conversions; at most a 60 s rate-limit wait; `ads accounts`). **D-070:** Google API access now comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client (the `google-ads-api` library is dropped).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
