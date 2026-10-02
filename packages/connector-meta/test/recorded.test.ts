@@ -19,7 +19,13 @@ async function replayRecorded(dir: string): Promise<number> {
   const run = async (name: string, call: (c: MetaReadClient) => Promise<void>) => {
     const replay = replayFetch(loadCassette(join(dir, `${name}.json`)));
     const c = new MetaReadClient({
-      graph: new GraphClient({ accessToken: FAKE_TOKEN, appSecret: 'replay-secret-0123456789', fetch: replay.fetch }),
+      // Recordings keep usage headers and retried exchanges: never sleep for real while replaying them.
+      graph: new GraphClient({
+        accessToken: FAKE_TOKEN,
+        appSecret: 'replay-secret-0123456789',
+        fetch: replay.fetch,
+        sleep: () => Promise.resolve(),
+      }),
       conversionActionTypes: m.conversionActionTypes,
       ...(m.datasetId === null ? {} : { datasetId: m.datasetId }),
       now: () => new Date(m.recordedAt),

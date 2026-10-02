@@ -152,33 +152,40 @@ export class GraphClient {
     return Math.min(this.#baseDelayMs * 2 ** (attempt - 1), 30_000);
   }
 
+  /** One HTTP exchange, body included: a timeout or reset while the body downloads counts as a failed send. */
+  async #send(url: string): Promise<{ ok: true; res: Response; text: string } | { ok: false; error: unknown }> {
+    try {
+      this.requestCount++;
+      const res = await this.#fetch(url, {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      return { ok: true, res, text: await res.text() };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+
   /** One GET, with retries. Returns the parsed JSON body. */
   async getRaw(path: string, params: Params = {}): Promise<unknown> {
     const url = this.#url(path, params);
     for (let attempt = 1; ; attempt++) {
-      let res: Response;
-      try {
-        this.requestCount++;
-        res = await this.#fetch(url, {
-          method: 'GET',
-          headers: { accept: 'application/json' },
-          signal: AbortSignal.timeout(this.#timeoutMs),
-        });
-      } catch (err) {
+      const sent = await this.#send(url);
+      if (sent.ok === false) {
         // Only network failures and timeouts are retried. Anything else is a bug (or the test replayer
         // refusing an unexpected request) and propagates as it is.
-        if (!isNetworkError(err)) throw err;
+        if (!isNetworkError(sent.error)) throw sent.error;
         // A network error may quote the URL (and so the token), so it's never rethrown or attached as a cause.
         if (attempt >= this.#maxAttempts) {
-          // eslint-disable-next-line preserve-caught-error -- the cause may contain the access token
           throw new Error(`Meta request to ${path} failed after ${attempt} attempts (network or timeout)`);
         }
         await this.#sleep(this.#backoff(attempt));
         continue;
       }
+      const { res, text } = sent;
       const usage = parseUsage(res.headers);
       this.lastUsage = usage;
-      const text = await res.text();
       let body: unknown;
       try {
         body = text === '' ? {} : JSON.parse(text);
@@ -236,7 +243,10 @@ export class GraphClient {
       if (!Array.isArray(body.data)) throw new MetaShapeError(path, 'no data array');
       for (const [i, x] of body.data.entries()) out.push(parseOrThrow(item, x, `${path} item ${i}`));
       const cursor = body.paging?.cursors?.after;
-      if (typeof body.paging?.next !== 'string' || typeof cursor !== 'string' || cursor === '') return out;
+      if (typeof body.paging?.next !== 'string') return out;
+      // A next page we can't reach by cursor (offset paging) would silently truncate the list: refuse instead.
+      if (typeof cursor !== 'string' || cursor === '')
+        throw new MetaShapeError(path, 'a next page without an after cursor');
       if (cursor === after) throw new MetaShapeError(path, 'the pagination cursor did not advance');
       after = cursor;
     }

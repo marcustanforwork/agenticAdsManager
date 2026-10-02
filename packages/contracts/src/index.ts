@@ -2,6 +2,7 @@
 // requires updating every user in the same PR.
 export * from './money.ts';
 export * from './hash.ts';
+export * from './dates.ts';
 export * from './platform.ts';
 export * from './settings.ts';
 export * from './packs.ts';

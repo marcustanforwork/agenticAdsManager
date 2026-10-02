@@ -5,9 +5,11 @@ import {
   type EntityType,
   type Platform,
   type ProductSettings,
+  localDate,
   microsToJson,
+  minusDays,
 } from '@ads/contracts';
-import { MetaReadClient, actionTypesForEvents, snapshotOf } from '@ads/connector-meta';
+import { MetaReadClient, actionTypesForEvents } from '@ads/connector-meta';
 import { type DbOrTx, NotFoundError, findProductBySlug, listAccounts } from '@ads/db';
 import { type MasterKey, get as vaultGet } from '@ads/vault';
 
@@ -18,29 +20,26 @@ export const TRUST_WINDOW_DAYS = 7;
 
 const META_LEVELS: EntityType[] = ['campaign', 'ad_group', 'ad'];
 
-/** The calendar day of `now` in an IANA timezone, as YYYY-MM-DD. */
-export function localDate(now: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-}
-
-/** `day` minus `n` calendar days (pure date arithmetic, no timezone involved). */
-export function minusDays(day: string, n: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-/** How the Meta client is configured from a product's settings: which insights action types count as its
- *  conversions, and which dataset the trust check watches. Problems become warnings, not failures. */
+/** How the Meta client is configured from a product's settings. Platform conversions count the Meta events of
+ *  the **primary KPI stage** only (the attribution-gap check compares them with our outcomes of that stage), and
+ *  the trust check watches that stage's dataset. Problems become warnings, not failures. */
 export function metaReadConfig(settings: ProductSettings): {
   conversionActionTypes: string[];
   datasetId?: string;
   warnings: string[];
 } {
-  const routes = settings.outcomes.feedback.filter((r) => r.platform === 'meta');
+  const { feedback, primaryKpiStage } = settings.outcomes;
+  const routes = feedback.filter((r) => r.platform === 'meta' && r.stage === primaryKpiStage);
   const warnings: string[] = [];
+  if (routes.length === 0) {
+    warnings.push(
+      `no Meta route for the KPI stage "${primaryKpiStage}" in the settings: platform conversions read as 0`,
+    );
+  }
   const events = routes.flatMap((r) => (r.eventName === undefined ? [] : [r.eventName]));
-  if (routes.length === 0) warnings.push('no Meta conversion route in the settings: platform conversions read as 0');
+  if (routes.length > 0 && events.length === 0) {
+    warnings.push(`the Meta route for "${primaryKpiStage}" has no eventName: platform conversions read as 0`);
+  }
   let conversionActionTypes: string[] = [];
   try {
     conversionActionTypes = actionTypesForEvents(events);
@@ -49,7 +48,7 @@ export function metaReadConfig(settings: ProductSettings): {
   }
   const datasetIds = [...new Set(routes.map((r) => r.destinationId))];
   if (datasetIds.length > 1)
-    warnings.push(`several Meta datasets in the settings; the trust signals use ${datasetIds[0]}`);
+    warnings.push(`several Meta datasets for "${primaryKpiStage}"; the trust signals use ${datasetIds[0]}`);
   const [datasetId] = datasetIds;
   return datasetId === undefined ? { conversionActionTypes, warnings } : { conversionActionTypes, datasetId, warnings };
 }
@@ -192,7 +191,7 @@ async function readAccount(
     window,
     entities: Object.fromEntries(META_LEVELS.map((t) => [t, countBy(entities, t)])),
     // One snapshot per entity on a first sync; M04 then stores one only when the hash changes.
-    snapshots: entities.map((e) => snapshotOf(e)).length,
+    snapshots: entities.length,
     metrics,
     trust: { ...trust },
   };

@@ -102,6 +102,11 @@ describe('pagination', () => {
     await expect(scripted(pages).client({ maxPages: 2 }).getAll('x', {}, item)).rejects.toThrow(/exceeded 2 pages/);
   });
 
+  it('refuses a next page it cannot reach by cursor, instead of returning a partial list', async () => {
+    const s = scripted([{ body: { data: [{ id: '1' }], paging: { next: 'https://…?offset=25' } } }]);
+    await expect(s.client().getAll('x', {}, item)).rejects.toThrow(/without an after cursor/);
+  });
+
   it('rejects a page without a data array', async () => {
     await expect(
       scripted([{ body: { nope: 1 } }])
@@ -197,6 +202,24 @@ describe('errors', () => {
     });
     await expect(c.getRaw('x')).rejects.toThrow('a bug');
     expect(calls).toBe(1);
+  });
+
+  it('retries a failure while the body downloads', async () => {
+    let calls = 0;
+    const broken = {
+      status: 200,
+      ok: true,
+      headers: new Headers(),
+      text: () => Promise.reject(new TypeError('terminated')),
+    } as unknown as Response;
+    const c = new GraphClient({
+      accessToken: FAKE_TOKEN,
+      appSecret: SECRET,
+      sleep: () => Promise.resolve(),
+      fetch: () => Promise.resolve(++calls === 1 ? broken : new Response('{"ok":1}')),
+    });
+    expect(await c.getRaw('x')).toEqual({ ok: 1 });
+    expect(calls).toBe(2);
   });
 
   it('retries a timeout', async () => {

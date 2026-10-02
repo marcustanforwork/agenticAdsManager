@@ -1,6 +1,6 @@
 // Which insights `actions` entries count as a product's conversions. The pack's settings name Meta events
 // (FeedbackRoute.eventName, e.g. 'Lead'); insights report dataset events as `offsite_conversion.fb_pixel_<event>`.
-// UNVERIFIED against live data (GOTCHAS): the M02 live recording confirms the action types SnapPool's events
+// UNVERIFIED against live data (GOTCHAS): the M02 live recording confirms the action types a product's events
 // produce. An event not listed here must be configured explicitly rather than guessed.
 
 const STANDARD_EVENT_ACTION_TYPES: Readonly<Record<string, string>> = {

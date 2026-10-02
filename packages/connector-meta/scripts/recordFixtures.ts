@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Exchange, Redactor, findSecrets, recordingFetch, saveCassette } from '@ads/connector-testing';
-import type { DateRange, EntityRef } from '@ads/contracts';
+import { type DateRange, type EntityRef, localDate, minusDays } from '@ads/contracts';
 import { GRAPH_API_VERSION, GraphClient, MetaReadClient } from '../src/index.ts';
 
 /** What the replay test needs to make the same requests again (test/recorded.test.ts). */
@@ -28,15 +28,6 @@ export interface RecordInput {
   outDir: string;
   fetch?: typeof fetch;
   now?: Date;
-}
-
-const localDate = (now: Date, timeZone: string): string =>
-  new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-
-function minusDays(day: string, n: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
 }
 
 export async function recordMetaFixtures(input: RecordInput) {

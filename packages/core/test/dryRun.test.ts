@@ -5,7 +5,8 @@ import { createProduct, setAccountStatus, upsertAccount } from '@ads/db';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey, put } from '@ads/vault';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { dryRunSync, localDate, metaReadConfig, minusDays } from '../src/index.ts';
+import { localDate, minusDays } from '@ads/contracts';
+import { dryRunSync, metaReadConfig } from '../src/index.ts';
 
 const FIXTURES = join(import.meta.dirname, '..', '..', 'connector-meta', 'fixtures', 'meta');
 const ACT = 'act_1234567890';
@@ -118,6 +119,28 @@ describe('dryRunSync (meta)', () => {
 });
 
 describe('metaReadConfig', () => {
+  it('counts only the KPI stage, so funnel stages are never added together', () => {
+    const twoStages = {
+      ...SETTINGS,
+      outcomes: {
+        stages: [
+          { id: 'lead', label: 'Lead', tier: 'soft' as const },
+          { id: 'signup', label: 'Signup', tier: 'success' as const },
+        ],
+        primaryKpiStage: 'signup',
+        feedback: [
+          { stage: 'lead', platform: 'meta' as const, destinationId: '111', eventName: 'Lead' },
+          { stage: 'signup', platform: 'meta' as const, destinationId: DATASET, eventName: 'CompleteRegistration' },
+        ],
+      },
+    };
+    expect(metaReadConfig(twoStages)).toEqual({
+      conversionActionTypes: ['offsite_conversion.fb_pixel_complete_registration'],
+      datasetId: DATASET,
+      warnings: [],
+    });
+  });
+
   it('derives the conversion action types and the dataset from the feedback routes', () => {
     expect(metaReadConfig(SETTINGS)).toEqual({
       conversionActionTypes: ['offsite_conversion.fb_pixel_lead'],
@@ -127,7 +150,19 @@ describe('metaReadConfig', () => {
   });
 
   it('warns, rather than fails, when the settings have no usable Meta route', () => {
-    expect(metaReadConfig(TEST_SETTINGS).warnings[0]).toMatch(/no Meta conversion route/);
+    expect(metaReadConfig(TEST_SETTINGS).warnings[0]).toMatch(/no Meta route for the KPI stage "signup"/);
+    const noEvent = {
+      ...SETTINGS,
+      outcomes: {
+        ...SETTINGS.outcomes,
+        feedback: [{ stage: 'signup', platform: 'meta' as const, destinationId: DATASET }],
+      },
+    };
+    expect(metaReadConfig(noEvent)).toMatchObject({
+      conversionActionTypes: [],
+      datasetId: DATASET,
+      warnings: [expect.stringMatching(/no eventName/)],
+    });
     const custom = {
       ...SETTINGS,
       outcomes: { ...SETTINGS.outcomes, feedback: [{ ...SETTINGS.outcomes.feedback[0]!, eventName: 'HostSignup' }] },
@@ -135,13 +170,5 @@ describe('metaReadConfig', () => {
     const c = metaReadConfig(custom);
     expect(c.conversionActionTypes).toEqual([]);
     expect(c.warnings[0]).toMatch(/HostSignup/);
-  });
-});
-
-describe('dates', () => {
-  it('uses the account timezone for "today"', () => {
-    expect(localDate(NOW, 'Asia/Singapore')).toBe('2026-10-01');
-    expect(localDate(NOW, 'UTC')).toBe('2026-09-30');
-    expect(minusDays('2026-03-01', 1)).toBe('2026-02-28');
   });
 });
