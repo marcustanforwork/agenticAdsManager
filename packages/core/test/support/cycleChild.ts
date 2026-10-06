@@ -5,7 +5,7 @@ import { replayFetch } from '@ads/connector-testing';
 import { connect } from '@ads/db';
 import { parseMasterKey } from '@ads/vault';
 import { runCycle } from '../../src/index.ts';
-import { NOW, googleCassettes, metaCassettes, tokenFetch } from './world.ts';
+import { NOW, TEST_PACKS, googleCassettes, metaCassettes, tokenFetch } from './world.ts';
 
 const env = (name: string): string => {
   const value = process.env[name];
@@ -23,6 +23,8 @@ await runCycle(
     fetch: replayFetch([...metaCassettes(NOW), ...googleCassettes(NOW)]).fetch,
     tokenFetch,
     now: () => NOW,
+    packs: TEST_PACKS,
+    env: {},
     onStage: async (stage) => {
       if (stage !== 'synced') return;
       process.stdout.write('synced\n');

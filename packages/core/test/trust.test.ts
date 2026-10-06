@@ -148,13 +148,14 @@ describe('trustStage', () => {
       ['meta:act_1234567890', 'timezone_match', 'pass'],
       ['meta:act_1234567890', 'tracking_active', 'pass'],
       ['meta:act_1234567890', 'spend_cap_headroom', 'warn'],
+      [null, 'outcome_source_fresh', 'pass'],
     ]);
     expect(result).toBe('degraded');
-    expect(checks.at(-1)?.detail).toMatchObject({ spendCapMicros: '500000000', amountSpentMicros: '412340000' });
+    expect(checks.at(-2)?.detail).toMatchObject({ spendCapMicros: '500000000', amountSpentMicros: '412340000' });
     // Stored for the cycle; a re-run replaces them instead of adding more.
-    expect(await listTrustChecks(t.db, cycle.id)).toHaveLength(7);
+    expect(await listTrustChecks(t.db, cycle.id)).toHaveLength(8);
     await trustStage(t.db, { product, cycleId: cycle.id, now: NOW });
-    expect(await listTrustChecks(t.db, cycle.id)).toHaveLength(7);
+    expect(await listTrustChecks(t.db, cycle.id)).toHaveLength(8);
   });
 
   it('fails on stale data and on a timezone mismatch; paused accounts are not checked', async () => {
@@ -170,7 +171,7 @@ describe('trustStage', () => {
 
     await setAccountStatus(t.db, world.metaAccountId, 'paused');
     const again = await run();
-    expect(again.table.every((r) => r[0] === 'google:1234567890')).toBe(true);
+    expect(again.table.every((r) => r[0] === 'google:1234567890' || r[1] === 'outcome_source_fresh')).toBe(true);
   });
 
   it('no_signal for low volume and for upload-only conversions before any upload; fail once uploads go unseen', async () => {
@@ -205,7 +206,10 @@ describe('trustStage', () => {
     await setAccountStatus(t.db, world.metaAccountId, 'disconnected');
     await setAccountStatus(t.db, world.googleAccountId, 'paused');
     const none = await run();
-    expect(none.table).toEqual([[null, 'data_fresh', 'fail']]);
+    expect(none.table).toEqual([
+      [null, 'data_fresh', 'fail'],
+      [null, 'outcome_source_fresh', 'pass'],
+    ]);
     expect(none.result).toBe('fail');
   });
 });

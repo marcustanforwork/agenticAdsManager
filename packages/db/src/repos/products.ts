@@ -71,6 +71,25 @@ export async function getProduct(db: DbOrTx, id: string): Promise<Product> {
   return toProduct(row);
 }
 
+/** The stored settings document as it is, NOT validated, with its version. Only for repairing a document that
+ *  fails validation: a settings_patch merges onto it, and the result is validated before it's saved. */
+export async function getStoredSettings(
+  db: DbOrTx,
+  id: string,
+): Promise<{ slug: string; packId: string; settings: unknown; version: number }> {
+  const [row] = await db
+    .select({
+      slug: products.slug,
+      packId: products.packId,
+      settings: products.settings,
+      version: products.settingsVersion,
+    })
+    .from(products)
+    .where(eq(products.id, id));
+  if (!row) throw new NotFoundError('product', id);
+  return row;
+}
+
 export async function listProducts(db: DbOrTx): Promise<Product[]> {
   const rows = await db.select().from(products).orderBy(products.slug);
   return rows.map(toProduct);

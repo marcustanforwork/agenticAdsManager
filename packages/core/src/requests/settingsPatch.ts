@@ -45,17 +45,21 @@ function unknownPaths(input: unknown, parsed: unknown, path: string[] = []): str
   );
 }
 
-/** The product's guard overrides must be tighten-only against every layer below them: the core defaults and
- *  each platform's defaults. (M05a adds the pack's overrides as a layer between the two.) */
-export function checkGuardOverridesTightenOnly(overrides: GuardOverrides): void {
+/** The product's guard overrides must be tighten-only against every layer below them: the core defaults, each
+ *  platform's defaults, and the pack's overrides (M05a). */
+export function checkGuardOverridesTightenOnly(overrides: GuardOverrides, packOverrides: GuardOverrides = {}): void {
   for (const platform of Platform.options) {
-    mergeGuardsTightenOnly(CORE_GUARD_DEFAULTS, PLATFORM_GUARD_DEFAULTS[platform], overrides);
+    mergeGuardsTightenOnly(CORE_GUARD_DEFAULTS, PLATFORM_GUARD_DEFAULTS[platform], packOverrides, overrides);
   }
 }
 
 /** Returns the new, validated settings. Throws SettingsPatchError (invalid or unknown settings) or
- *  GuardLoosenedError (a guard override looser than the defaults). */
-export function applySettingsPatch(current: ProductSettings, patch: Record<string, unknown>): ProductSettings {
+ *  GuardLoosenedError (a guard override looser than the defaults or the pack's overrides). */
+export function applySettingsPatch(
+  current: unknown,
+  patch: Record<string, unknown>,
+  packOverrides: GuardOverrides = {},
+): ProductSettings {
   const merged = merge(current, patch, []);
   const result = ProductSettings.safeParse(merged);
   if (!result.success) {
@@ -66,6 +70,6 @@ export function applySettingsPatch(current: ProductSettings, patch: Record<strin
   }
   const unknown = unknownPaths(merged, result.data);
   if (unknown.length > 0) throw new SettingsPatchError('not a setting', unknown);
-  checkGuardOverridesTightenOnly(result.data.guardOverrides);
+  checkGuardOverridesTightenOnly(result.data.guardOverrides, packOverrides);
   return result.data;
 }

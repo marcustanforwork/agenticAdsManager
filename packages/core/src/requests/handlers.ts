@@ -5,7 +5,7 @@
 import type { OperatorRequest } from '@ads/contracts';
 import {
   StaleVersionError,
-  getProduct,
+  getStoredSettings,
   schema,
   setBriefFeedback,
   updateSettings,
@@ -14,6 +14,8 @@ import {
   type Tx,
 } from '@ads/db';
 import { and, eq } from 'drizzle-orm';
+import type { PackRegistry } from '@ads/pack-sdk';
+import { manifestOf, packGuardLayer } from '../settings/settings.ts';
 import { applySettingsPatch } from './settingsPatch.ts';
 
 const { products } = schema;
@@ -24,7 +26,14 @@ export type RequestHandler<R extends OperatorRequest> = (
   tx: Tx,
   request: R,
   row: OperatorRequestRow,
+  ctx: HandlerContext,
 ) => Promise<Record<string, unknown>>;
+
+/** What handlers may use besides the transaction: the installed packs, for validating against their manifests
+ *  (BLUEPRINT §5.4: settings and facts are validated only in the processor, with the pack manifests). */
+export interface HandlerContext {
+  packs?: PackRegistry;
+}
 
 /** Which milestone adds the kinds this processor doesn't handle yet. */
 export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
@@ -35,7 +44,7 @@ export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
   pause_all: 'M09b',
   undo: 'M09b',
   budget: 'M14',
-  facts_put: 'M05a',
+  facts_put: 'M05b', // moved from M05a (cut first, M05a session plan)
   product_doc_put: 'M05b',
   resolve_attention: 'M11b',
 };
@@ -43,7 +52,8 @@ export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
 /** Moves products from one status to another: one product, or every product (productId null). Products in
  *  any other status are left alone (a dormant product stays dormant). */
 async function moveStatus(tx: Tx, productId: string | null, from: ProductStatus, to: ProductStatus) {
-  if (productId !== null) await getProduct(tx, productId); // unknown product → refused
+  // Unknown product → refused. Not validated: halting must work even if the stored settings are broken.
+  if (productId !== null) await getStoredSettings(tx, productId);
   const changed = await tx
     .update(products)
     .set({ status: to })
@@ -63,13 +73,18 @@ const resumeAgent: RequestHandler<RequestOf<'resume_agent'>> = async (tx, reques
   return { resumed };
 };
 
-const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, request, row) => {
-  const product = await getProduct(tx, request.productId);
+const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, request, row, ctx) => {
+  // The stored document as is: a patch can repair one that fails validation (the result is validated).
+  const stored = await getStoredSettings(tx, request.productId);
   // Checked here as well as in updateSettings, so a stale base is refused before the patch is judged.
-  if (product.settingsVersion !== request.baseVersion) {
-    throw new StaleVersionError('settings', request.baseVersion, product.settingsVersion);
+  if (stored.version !== request.baseVersion) {
+    throw new StaleVersionError('settings', request.baseVersion, stored.version);
   }
-  const settings = applySettingsPatch(product.settings, request.patch);
+  const settings = applySettingsPatch(
+    stored.settings,
+    request.patch,
+    packGuardLayer(manifestOf(ctx.packs, stored.packId)),
+  );
   const version = await updateSettings(tx, {
     productId: request.productId,
     baseVersion: request.baseVersion,

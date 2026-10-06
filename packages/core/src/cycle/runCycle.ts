@@ -6,6 +6,7 @@
 import { localDate } from '@ads/contracts';
 import {
   CYCLE_STAGE_ORDER,
+  InvalidSettingsError,
   type Cycle,
   type CycleKind,
   type CycleStage,
@@ -22,10 +23,18 @@ import {
   startScheduled,
   tryAdvisoryLock,
 } from '@ads/db';
+import type { PackRegistry } from '@ads/pack-sdk';
+import { type OutcomeReadSummary, syncOutcomes } from '../outcomes/sync.ts';
+import { alertInvalidSettings, assertSettingsUsable } from '../settings/settings.ts';
 import { type SyncDeps, type SyncStageResult, syncStage } from '../sync/stage.ts';
 import { type CheckResult, type TrustResult, trustStage } from './trust.ts';
 
 export interface CycleDeps extends SyncDeps {
+  /** The installed packs: the sync reads each product's outcomes through its pack (M05a), and settings are
+   *  checked against the pack's guard layer. Without it no outcomes are read, and `outcome_source_fresh` fails. */
+  packs?: PackRegistry;
+  /** What the packs' adapters read their connection settings from (the worker's environment). */
+  env?: Readonly<Record<string, string | undefined>>;
   /** The direct (unpooled) connection string: a run holds its cycle's lock on a connection of its own. */
   lockUrl: string;
   /** Called after a stage is recorded. Tests use it to stop a run at a chosen point. */
@@ -41,14 +50,16 @@ export interface CycleSummary {
   cycleDate: string | null;
   /** finished: every stage ran (or a failed trust check stopped it); stopped: `until` was reached and stages
    *  remain (resumable); already_finished: nothing to do; busy: another process is running it; skipped: the
-   *  product isn't active. */
-  outcome: 'finished' | 'stopped' | 'already_finished' | 'busy' | 'skipped';
+   *  product isn't active; blocked: the stored settings are invalid (an alert is queued, nothing ran). */
+  outcome: 'finished' | 'stopped' | 'already_finished' | 'busy' | 'skipped' | 'blocked';
   /** Set when this run continued an interrupted cycle: the stage it had reached. */
   resumedFrom?: CycleStage;
   stageReached: CycleStage | null;
   trustResult: TrustResult | null;
   detail?: string;
   sync?: SyncStageResult;
+  /** The read of the product's outcomes, in the sync stage (M05a). */
+  outcomes?: OutcomeReadSummary;
   trust?: {
     result: TrustResult;
     checks: { account: string | null; check: string; result: CheckResult; detail: unknown }[];
@@ -79,6 +90,13 @@ export const STAGES: readonly StageStep[] = [
     async run({ deps, product, cycle, summary }) {
       // A resumed sync skips the accounts this cycle already synced before it was interrupted.
       summary.sync = await syncStage(deps, product, { syncedSince: cycle.startedAt });
+      if (deps.packs !== undefined) {
+        summary.outcomes = await syncOutcomes(
+          { db: deps.db, packs: deps.packs, env: deps.env ?? {}, now: deps.now },
+          product,
+          { readSince: cycle.startedAt },
+        );
+      }
       return {};
     },
   },
@@ -121,6 +139,33 @@ function summaryOf(product: Product, cycle: Cycle | null, outcome: CycleSummary[
   };
 }
 
+/** Loads a cycle's product. Stored settings that fail validation are never used (BLUEPRINT M05a): an alert is
+ *  queued, and the caller returns a `blocked` summary instead of running anything. */
+async function loadProduct(deps: CycleDeps, productId: string): Promise<Product | InvalidSettingsError> {
+  try {
+    const product = await getProduct(deps.db, productId);
+    assertSettingsUsable(product, deps.packs);
+    return product;
+  } catch (error) {
+    if (!(error instanceof InvalidSettingsError)) throw error;
+    await alertInvalidSettings(deps.db, error);
+    return error;
+  }
+}
+
+function blockedSummary(error: InvalidSettingsError, kind: CycleKind, cycle: Cycle | null): CycleSummary {
+  return {
+    product: error.slug,
+    cycleId: cycle?.id ?? null,
+    kind,
+    cycleDate: cycle?.cycleDate ?? null,
+    outcome: 'blocked',
+    stageReached: cycle?.stageReached ?? null,
+    trustResult: cycle?.trustResult ?? null,
+    detail: `the stored settings are invalid, so nothing ran (fix them with ads settings set): ${error.issues.join('; ')}`,
+  };
+}
+
 /** Starts today's cycle of `kind` for the product (in its timezone), or continues it if it was interrupted.
  *  A daily or weekly cycle that already finished today is not run again. */
 export async function runCycle(
@@ -128,7 +173,8 @@ export async function runCycle(
   input: { productId: string; kind: CycleKind; until?: CycleStage },
 ): Promise<CycleSummary> {
   const { db } = deps;
-  const product = await getProduct(db, input.productId);
+  const product = await loadProduct(deps, input.productId);
+  if (product instanceof InvalidSettingsError) return blockedSummary(product, input.kind, null);
   if (product.status !== 'active') {
     return { ...summaryOf(product, null, 'skipped'), kind: input.kind, detail: `product is ${product.status}` };
   }
@@ -157,7 +203,8 @@ export async function runCycle(
 /** Runs an existing cycle's remaining stages (resume). */
 export async function resumeCycle(deps: CycleDeps, cycleId: string, until?: CycleStage): Promise<CycleSummary> {
   const cycle = await getCycle(deps.db, cycleId);
-  const product = await getProduct(deps.db, cycle.productId);
+  const product = await loadProduct(deps, cycle.productId);
+  if (product instanceof InvalidSettingsError) return blockedSummary(product, cycle.kind, cycle);
   if (cycle.finishedAt === null && product.status !== 'active') {
     const lock = await tryAdvisoryLock(deps.lockUrl, `cycle:${cycle.id}`, { applicationName: 'ads-cycle' });
     if (lock === null) return { ...summaryOf(product, cycle, 'busy'), detail: 'another process is running this cycle' };

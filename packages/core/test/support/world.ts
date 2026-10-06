@@ -6,9 +6,19 @@ import { join } from 'node:path';
 import { type Cassette, loadCassette } from '@ads/connector-testing';
 import { GOOGLE_TOKEN_URL } from '@ads/connector-google';
 import { localDate, minusDays, type ProductSettings } from '@ads/contracts';
-import { type DbOrTx, createProduct, setAccountLoginCustomerId, setClicksSyncedThrough, upsertAccount } from '@ads/db';
+import {
+  type DbOrTx,
+  createProduct,
+  setAccountLoginCustomerId,
+  setClicksSyncedThrough,
+  setOutcomeSource,
+  upsertAccount,
+} from '@ads/db';
+import { createRegistry } from '@ads/pack-sdk';
+import { z } from 'zod';
 import { TEST_SETTINGS } from '@ads/db/testing';
 import { type MasterKey, parseMasterKey, put } from '@ads/vault';
+import type { OutcomeEvent } from '@ads/contracts';
 
 const PACKAGES = join(import.meta.dirname, '..', '..', '..');
 export const META_FIXTURES = join(PACKAGES, 'connector-meta', 'fixtures', 'meta');
@@ -113,6 +123,35 @@ export interface World {
   masterKey: MasterKey;
 }
 
+/** The world's pack (`test-pack`): its adapter reads two outcomes and reports activity an hour before the run, so
+ *  `outcome_source_fresh` passes. No product names: this is shared code's test. */
+export const TEST_OUTCOMES: OutcomeEvent[] = [
+  { sourceId: 'w1', stage: 'signup', occurredAt: '2026-09-29T03:00:00Z', isTest: false, ids: { utmSource: 'meta' } },
+  { sourceId: 'w2', stage: 'signup', occurredAt: '2026-09-29T04:00:00Z', isTest: true, ids: {} },
+];
+export const TEST_PACKS = createRegistry([
+  {
+    manifest: {
+      id: 'test-pack',
+      version: '1.0.0',
+      defaults: { outcomes: SETTINGS.outcomes, copy: SETTINGS.copy },
+      phases: [{ id: 'only', label: 'Only', intent: 'Test.', budgetPosture: 'steady' }],
+      facts: { schema: z.object({}), requiredForCopy: [] },
+      thresholds: {},
+      platformPolicy: {},
+      analystContext: 'Test pack.',
+    },
+    runtime: {
+      outcomeAdapter: () => ({
+        fetchSince: (since: Date) =>
+          Promise.resolve(TEST_OUTCOMES.filter((e) => Date.parse(e.occurredAt) >= since.getTime())),
+        healthcheck: () => Promise.resolve({ ok: true, latestActivityAt: new Date(NOW.getTime() - 3_600_000) }),
+      }),
+      detectPhase: () => 'only',
+    },
+  },
+]);
+
 /** A product with one Meta and one Google account (manager stored, click ids synced through yesterday, so a sync
  *  re-reads only that day: the one click fixture), and their read credentials. Keys are made at run time. */
 export async function makeWorld(
@@ -140,5 +179,12 @@ export async function makeWorld(
     },
     masterKey,
   );
+  // Its outcome source was read an hour ago and was healthy (the outcome_source_fresh check passes).
+  const at = (input.now ?? NOW).getTime();
+  await setOutcomeSource(db, product.id, {
+    checkedAt: new Date(at - 3_600_000).toISOString(),
+    ok: true,
+    latestActivityAt: new Date(at - 7_200_000).toISOString(),
+  });
   return { productId: product.id, metaAccountId: meta.id, googleAccountId: google.id, masterKey };
 }

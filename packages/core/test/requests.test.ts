@@ -109,7 +109,7 @@ describe('actor and schema checks', () => {
         },
         'M14',
       ],
-      [{ kind: 'facts_put', productId: p.id, offeringKey: 'x', facts: {} }, 'M05a'],
+      [{ kind: 'facts_put', productId: p.id, offeringKey: 'x', facts: {} }, 'M05b'],
       [{ kind: 'resolve_attention', proposalId: randomUUID(), resolution: 'applied', note: 'checked' }, 'M11b'],
     ];
     for (const [request, milestone] of cases) {
