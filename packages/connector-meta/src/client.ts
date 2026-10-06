@@ -11,12 +11,14 @@ import {
   type MetricRow,
   type PlatformReadClient,
   type TrustSignalRow,
+  EntityNotFoundError,
   canonicalJson,
   microsToJson,
   sha256Hex,
 } from '@ads/contracts';
 import { z } from 'zod';
 import { parseMetaReadCredential } from './credential.ts';
+import { MetaApiError } from './errors.ts';
 import { GraphClient, type GraphClientOptions } from './graph.ts';
 import { minorStringToMicros, unitsStringToMicros } from './money.ts';
 import { normaliseMetaStatus } from './status.ts';
@@ -313,7 +315,17 @@ export class MetaReadClient implements PlatformReadClient {
     if (!DIGITS.test(ref.externalId)) throw new Error('a Meta entity id is digits');
     const spec = ENTITY[ref.type];
     const currency = await this.#currencyOf(ref.accountId);
-    const raw = await this.graph.get(ref.externalId, { fields: spec.fields }, spec.schema);
+    let raw;
+    try {
+      raw = await this.graph.get(ref.externalId, { fields: spec.fields }, spec.schema);
+    } catch (error) {
+      // 100/33: "Object with ID … does not exist, cannot be loaded due to missing permissions, or does not support
+      // this operation". The account itself was just read, so for one of its objects it means deleted (GOTCHAS).
+      if (error instanceof MetaApiError && error.code === 100 && error.subcode === 33) {
+        throw new EntityNotFoundError(ref, error.message);
+      }
+      throw error;
+    }
     if (raw.account_id !== undefined && `act_${raw.account_id}` !== ref.accountId) {
       throw new Error(`Meta ${ref.type} ${ref.externalId} belongs to another ad account`);
     }

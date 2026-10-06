@@ -84,9 +84,7 @@ describe('accounts', () => {
     expect(found && trustSignalsOf(found)).toEqual(signals); // kept when none are given
 
     // Malformed signals are refused on write, and unreadable ones read as null.
-    await expect(
-      markAccountSynced(t.db, a.id, { trustSignals: { ...signals, spendMicros: '1.5' } as typeof signals }),
-    ).rejects.toThrow();
+    await expect(markAccountSynced(t.db, a.id, { trustSignals: { ...signals, spendMicros: '1.5' } })).rejects.toThrow();
     await t.pool.query(`update accounts set trust_signals = '{"clicks": -1}' where id = $1`, [a.id]);
     found = await findAccount(t.db, 'meta', 'act_7701');
     expect(found && trustSignalsOf(found)).toBeNull();

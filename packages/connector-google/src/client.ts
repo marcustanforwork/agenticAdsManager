@@ -13,6 +13,7 @@ import {
   type PlatformReadClient,
   type SearchTermRow,
   type TrustSignalRow,
+  EntityNotFoundError,
   canonicalJson,
   microsToJson,
   sha256Hex,
@@ -663,7 +664,7 @@ export class GoogleReadClient implements PlatformReadClient {
     }
     const [record] = found;
     if (record === undefined || found.length !== 1 || record.ref.externalId !== entity.externalId) {
-      throw new Error(`Google ${entity.type} ${entity.externalId} not found in ${entity.accountId}`);
+      throw new EntityNotFoundError(entity);
     }
     const { snapshot, hash } = snapshotOf(record);
     return { snapshot, hash, takenAt: this.#now() };

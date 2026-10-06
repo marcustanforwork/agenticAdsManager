@@ -70,6 +70,17 @@ const samples: Record<string, unknown[]> = {
   TrustSignalRow: [
     { clicks: 40, platformConversions: 2, spendMicros: '5000000', spendCapMicros: null, amountSpentMicros: '0' },
   ],
+  AccountTrustSignals: [
+    {
+      clicks: 40,
+      platformConversions: 0,
+      spendMicros: '5000000',
+      spendCapMicros: '500000000',
+      amountSpentMicros: '120000000',
+      range: { from: '2026-09-24', to: '2026-09-30' },
+      readAt: '2026-09-30T22:00:00.000Z',
+    },
+  ],
   ActionType: [...contracts.ActionType.options],
   OutcomeStage: outcomes.stages,
   FeedbackRoute: outcomes.feedback,
