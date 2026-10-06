@@ -139,7 +139,13 @@ export class GoogleAdsClient {
   }
 
   /** One request with retries; returns the parsed JSON body. `what` names it in errors (never the token). */
-  async #request(what: string, path: string, method: 'GET' | 'POST', body?: unknown): Promise<unknown> {
+  async #request(
+    what: string,
+    path: string,
+    method: 'GET' | 'POST',
+    body?: unknown,
+    login = this.#login,
+  ): Promise<unknown> {
     const url = `${this.#base}/${path}`;
     let refreshed = false;
     for (let attempt = 1; ; attempt++) {
@@ -149,7 +155,7 @@ export class GoogleAdsClient {
         accept: 'application/json',
       };
       if (body !== undefined) headers['content-type'] = 'application/json';
-      if (this.#login !== undefined && method === 'POST') headers['login-customer-id'] = this.#login;
+      if (login !== undefined && method === 'POST') headers['login-customer-id'] = login;
       const sent = await this.#send(url, {
         method,
         headers,
@@ -216,12 +222,23 @@ export class GoogleAdsClient {
   }
 
   /** Every row a query returns (all batches of the stream), validated one by one. One request = one operation. */
-  async search<S extends z.ZodType>(customerId: string, query: GaqlQuery, row: S): Promise<z.infer<S>[]> {
+  async search<S extends z.ZodType>(
+    customerId: string,
+    query: GaqlQuery,
+    row: S,
+    opts: { loginCustomerId?: string } = {},
+  ): Promise<z.infer<S>[]> {
     if (!CUSTOMER_ID.test(customerId)) throw new Error('a Google customer id is 10 digits, without dashes');
+    const login = opts.loginCustomerId ?? this.#login;
+    if (login !== undefined && !CUSTOMER_ID.test(login)) throw new Error('login-customer-id is a 10-digit account id');
     const what = `${query.resource} on ${customerId}`;
-    const body = await this.#request(what, `customers/${customerId}/googleAds:searchStream`, 'POST', {
-      query: query.text,
-    });
+    const body = await this.#request(
+      what,
+      `customers/${customerId}/googleAds:searchStream`,
+      'POST',
+      { query: query.text },
+      login,
+    );
     if (!Array.isArray(body)) throw new GoogleShapeError(what, 'searchStream did not return an array');
     const out: z.infer<S>[] = [];
     for (const [b, batch] of (body as unknown[]).entries()) {

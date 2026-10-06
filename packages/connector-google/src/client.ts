@@ -282,6 +282,7 @@ export class GoogleReadClient implements PlatformReadClient {
         where: [{ field: 'customer_client.level', op: '<=', value: lit.int(1) }],
       }),
       ClientRow,
+      { loginCustomerId: managerId },
     );
     return rows.map(({ customerClient: c }) => ({
       id: c.id,
@@ -291,6 +292,22 @@ export class GoogleReadClient implements PlatformReadClient {
       timezone: c.timeZone ?? null,
       currency: c.currencyCode ?? null,
     }));
+  }
+
+  /** Resolves manager → client: the account to put in `login-customer-id` for a client account. Undefined when the
+   *  signed-in identity reaches the account directly; otherwise the first accessible account that lists it as a
+   *  client one level down. Throws if none does. One operation per accessible account, plus one. */
+  async findManagerFor(clientId: string): Promise<string | undefined> {
+    assertAccountId(clientId);
+    const accessible = await this.api.listAccessibleCustomers();
+    if (accessible.includes(clientId)) return undefined;
+    for (const id of accessible) {
+      const clients = await this.listClientAccounts(id);
+      if (clients.some((c) => c.id === clientId && c.level === 1)) return id;
+    }
+    throw new Error(
+      `the signed-in Google identity can't reach ${clientId}: add it to the manager account (Admin → Access and security)`,
+    );
   }
 
   async listEntities(accountId: string, types: EntityType[]): Promise<AdEntityRecord[]> {
@@ -645,7 +662,7 @@ export class GoogleReadClient implements PlatformReadClient {
       else throw new Error(`Google ${entity.type} entities are not read`);
     }
     const [record] = found;
-    if (record === undefined || found.length !== 1) {
+    if (record === undefined || found.length !== 1 || record.ref.externalId !== entity.externalId) {
       throw new Error(`Google ${entity.type} ${entity.externalId} not found in ${entity.accountId}`);
     }
     const { snapshot, hash } = snapshotOf(record);

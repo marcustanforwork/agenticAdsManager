@@ -1,0 +1,180 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "One entity of each type, fetched by id.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.primary_status, campaign.primary_status_reasons, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.campaign_budget, campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.period FROM campaign WHERE campaign.id = 111"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111",
+                  "name": "Signups - Search",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "advertisingChannelType": "SEARCH",
+                  "biddingStrategyType": "MAXIMIZE_CONVERSIONS",
+                  "campaignBudget": "customers/1234567890/campaignBudgets/411"
+                },
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/411",
+                  "amountMicros": "20000000",
+                  "period": "DAILY",
+                  "explicitlyShared": false
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT ad_group.id, ad_group.name, ad_group.status, ad_group.primary_status, ad_group.primary_status_reasons, ad_group.type, ad_group.cpc_bid_micros, campaign.id FROM ad_group WHERE ad_group.id = 211"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211",
+                  "name": "Photo sharing",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "type": "SEARCH_STANDARD",
+                  "cpcBidMicros": "1500000"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT ad_group_criterion.criterion_id, ad_group_criterion.status, ad_group_criterion.primary_status, ad_group_criterion.primary_status_reasons, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.cpc_bid_micros, ad_group.id, campaign.id FROM ad_group_criterion WHERE ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group.id = 211 AND ad_group_criterion.criterion_id = 311"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/211~311",
+                  "criterionId": "311",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "keyword": {
+                    "text": "photo sharing app",
+                    "matchType": "BROAD"
+                  }
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign_budget.id, campaign_budget.name, campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.status, campaign_budget.period, campaign_budget.delivery_method, campaign_budget.reference_count FROM campaign_budget WHERE campaign_budget.id = 411"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/411",
+                  "id": "411",
+                  "name": "Signups budget",
+                  "amountMicros": "20000000",
+                  "status": "ENABLED",
+                  "period": "DAILY",
+                  "deliveryMethod": "STANDARD",
+                  "referenceCount": "1",
+                  "explicitlyShared": false
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "Clicks are omitted on a zero row (read as 0). Conversions come from the KPI conversion action (555) only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign.id, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros FROM campaign WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "segments": {
+                  "date": "2026-09-28"
+                },
+                "metrics": {
+                  "impressions": "400",
+                  "costMicros": "9870000",
+                  "clicks": "20"
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "segments": {
+                  "date": "2026-09-29"
+                },
+                "metrics": {
+                  "impressions": "380",
+                  "costMicros": "8120000",
+                  "clicks": "18"
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "segments": {
+                  "date": "2026-09-30"
+                },
+                "metrics": {
+                  "impressions": "410",
+                  "costMicros": "10050000",
+                  "clicks": "22"
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/112",
+                  "id": "112"
+                },
+                "segments": {
+                  "date": "2026-09-29"
+                },
+                "metrics": {
+                  "impressions": "90",
+                  "costMicros": "0"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign.id, segments.date, segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value FROM campaign WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30' AND segments.conversion_action IN ('customers/1234567890/conversionActions/555')"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "segments": {
+                  "date": "2026-09-28",
+                  "conversionAction": "customers/1234567890/conversionActions/555"
+                },
+                "metrics": {
+                  "allConversions": 2.0,
+                  "allConversionsValue": 0.0
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "segments": {
+                  "date": "2026-09-30",
+                  "conversionAction": "customers/1234567890/conversionActions/555"
+                },
+                "metrics": {
+                  "allConversions": 1.5,
+                  "allConversionsValue": 12.5
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}
