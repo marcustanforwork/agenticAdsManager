@@ -150,6 +150,31 @@ export async function recordTrustCheck(
   return row;
 }
 
+/** Replaces all of a cycle's trust checks in one transaction, so a re-run trust stage (resume) never leaves
+ *  duplicates or a half-written set. */
+export async function replaceTrustChecks(
+  db: DbOrTx,
+  input: {
+    productId: string;
+    cycleId: string;
+    checks: {
+      accountId: string | null;
+      checkId: string;
+      result: (typeof TRUST_CHECK_RESULTS)[number];
+      detail: Record<string, unknown>;
+    }[];
+  },
+): Promise<TrustCheck[]> {
+  return db.transaction(async (tx) => {
+    await tx.delete(trustChecks).where(eq(trustChecks.cycleId, input.cycleId));
+    if (input.checks.length === 0) return [];
+    return tx
+      .insert(trustChecks)
+      .values(input.checks.map((c) => ({ ...c, productId: input.productId, cycleId: input.cycleId })))
+      .returning();
+  });
+}
+
 export async function listTrustChecks(db: DbOrTx, cycleId: string): Promise<TrustCheck[]> {
   return db.select().from(trustChecks).where(eq(trustChecks.cycleId, cycleId)).orderBy(asc(trustChecks.checkedAt));
 }
