@@ -76,11 +76,12 @@ export async function getProduct(db: DbOrTx, id: string): Promise<Product> {
 export async function getStoredSettings(
   db: DbOrTx,
   id: string,
-): Promise<{ slug: string; packId: string; settings: unknown; version: number }> {
+): Promise<{ slug: string; packId: string; status: ProductStatus; settings: unknown; version: number }> {
   const [row] = await db
     .select({
       slug: products.slug,
       packId: products.packId,
+      status: products.status,
       settings: products.settings,
       version: products.settingsVersion,
     })

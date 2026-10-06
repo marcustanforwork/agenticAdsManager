@@ -1,11 +1,11 @@
 // Reading a product's outcomes (BLUEPRINT M05a): its pack's adapter reads the product's own source, and the
-// outcomes are kept in `outcomes`. Each read goes back OUTCOME_LOOKBACK_DAYS, which is more than a source keeps
-// unconfirmed records (SnapPool deletes pending requests after 30 days, D-064): a daily read sees every record at
-// least once, and what was read stays stored, so a record the source later deletes is not a deleted outcome.
+// outcomes are kept in `outcomes`. Each read goes back OUTCOME_LOOKBACK_DAYS, longer than a source may keep
+// unconfirmed records (30 days for the first product, D-064): a daily read sees every record at least once, and
+// what was read stays stored, so a record the source later deletes is not a deleted outcome.
 // Re-reading also refreshes the test flag, so a test domain added later excludes recent outcomes too.
 // What the read found is stored on the product for the `outcome_source_fresh` trust check.
 import { OutcomeEvent, type OutcomeSourceState } from '@ads/contracts';
-import { getProduct, outcomeSourceOf, setOutcomeSource, upsertOutcomes, type DbOrTx, type Product } from '@ads/db';
+import { outcomeSourceOf, setOutcomeSource, upsertOutcomes, type DbOrTx, type Product } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 
 /** How far back each read goes. */
@@ -47,7 +47,7 @@ export async function syncOutcomes(
 ): Promise<OutcomeReadSummary> {
   const pageSize = opts.pageSize ?? OUTCOME_PAGE_SIZE;
   const { db } = deps;
-  const previous = outcomeSourceOf(await getProduct(db, product.id));
+  const previous = outcomeSourceOf(product);
   if (opts.readSince && previous?.ok === true && Date.parse(previous.checkedAt) >= opts.readSince.getTime()) {
     return { outcome: 'skipped', detail: 'already read in this cycle' };
   }
@@ -71,7 +71,8 @@ export async function syncOutcomes(
   } catch (e) {
     return failed(`the outcome source's health check failed: ${messageOf(e)}`);
   }
-  if (!health.ok) return failed(health.detail ?? 'the outcome source is not healthy');
+  if (health.ok !== true)
+    return failed(health.detail === undefined ? 'the outcome source is not healthy' : String(health.detail));
 
   const since = new Date(now.getTime() - OUTCOME_LOOKBACK_DAYS * 86_400_000);
   const stages = new Set(product.settings.outcomes.stages.map((s) => s.id));
@@ -90,22 +91,28 @@ export async function syncOutcomes(
       const stored = await upsertOutcomes(db, product.id, valid);
       counts.new += stored.inserted;
       counts.testFlagChanged += stored.testFlagChanged;
-      const last = page.at(-1);
-      if (page.length < pageSize || last === undefined) break;
-      const next = new Date(last.occurredAt);
-      if (!(next.getTime() > from.getTime())) break; // a full page at one instant: stop rather than loop
-      from = next;
+      if (page.length < pageSize) break;
+      // A full page: the next one starts at the last time seen. If that's no later than this page's start (a whole
+      // page at one instant, or no valid time), paging can't go on, and outcomes would be missed: fail the read.
+      const next = Math.max(...valid.map((e) => Date.parse(e.occurredAt)));
+      if (!(next > from.getTime())) {
+        return failed(`a full page of ${pageSize} outcomes didn't move past ${from.toISOString()}: paging stopped`);
+      }
+      from = new Date(next);
     }
   } catch (e) {
     return failed(`reading outcomes failed: ${messageOf(e)}`);
   }
 
-  const latestActivityAt = health.latestActivityAt?.toISOString() ?? null;
+  // The adapter's values are checked, not trusted: a bad time is "no activity known", not a crash.
+  const activity = health.latestActivityAt;
+  const latestActivityAt =
+    activity instanceof Date && Number.isFinite(activity.getTime()) ? activity.toISOString() : null;
   const state: OutcomeSourceState = {
     checkedAt,
     ok: true,
     latestActivityAt,
-    ...(health.detail === undefined ? {} : { detail: short(health.detail) }),
+    ...(health.detail === undefined ? {} : { detail: short(String(health.detail)) }),
     read: { since: since.toISOString(), ...counts },
   };
   await setOutcomeSource(db, product.id, state);

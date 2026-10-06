@@ -12,12 +12,14 @@ import {
   type CycleStage,
   DuplicateCycleError,
   type Product,
+  type ProductStatus,
   advance,
   findScheduledCycle,
   findUnfinishedManualCycle,
   finish,
   getCycle,
   getProduct,
+  getStoredSettings,
   listUnfinishedCycles,
   startManual,
   startScheduled,
@@ -127,7 +129,7 @@ const order = (stage: CycleStage): number => CYCLE_STAGE_ORDER.indexOf(stage);
 /** After a failed trust check only the diagnostic report may run (M07 adds the `reported` stage). */
 const allowedAfterFail = (stage: CycleStage): boolean => stage === 'reported';
 
-function summaryOf(product: Product, cycle: Cycle | null, outcome: CycleSummary['outcome']): CycleSummary {
+function summaryOf(product: { slug: string }, cycle: Cycle | null, outcome: CycleSummary['outcome']): CycleSummary {
   return {
     product: product.slug,
     cycleId: cycle?.id ?? null,
@@ -139,15 +141,21 @@ function summaryOf(product: Product, cycle: Cycle | null, outcome: CycleSummary[
   };
 }
 
-/** Loads a cycle's product. Stored settings that fail validation are never used (BLUEPRINT M05a): an alert is
- *  queued, and the caller returns a `blocked` summary instead of running anything. */
-async function loadProduct(deps: CycleDeps, productId: string): Promise<Product | InvalidSettingsError> {
+/** Loads a cycle's product. Stored settings that fail validation are never used (BLUEPRINT M05a): for an active
+ *  product an alert is queued, and the caller returns a `blocked` summary instead of running anything. A product
+ *  that isn't active is reported as such (it wouldn't run anyway), without an alert. */
+async function loadProduct(
+  deps: CycleDeps,
+  productId: string,
+): Promise<Product | InvalidSettingsError | { slug: string; status: ProductStatus }> {
   try {
     const product = await getProduct(deps.db, productId);
     assertSettingsUsable(product, deps.packs);
     return product;
   } catch (error) {
     if (!(error instanceof InvalidSettingsError)) throw error;
+    const { slug, status } = await getStoredSettings(deps.db, productId);
+    if (status !== 'active') return { slug, status };
     await alertInvalidSettings(deps.db, error);
     return error;
   }
@@ -175,7 +183,7 @@ export async function runCycle(
   const { db } = deps;
   const product = await loadProduct(deps, input.productId);
   if (product instanceof InvalidSettingsError) return blockedSummary(product, input.kind, null);
-  if (product.status !== 'active') {
+  if (!('settings' in product) || product.status !== 'active') {
     return { ...summaryOf(product, null, 'skipped'), kind: input.kind, detail: `product is ${product.status}` };
   }
   const cycleDate = localDate(deps.now(), product.timezone);
@@ -205,6 +213,7 @@ export async function resumeCycle(deps: CycleDeps, cycleId: string, until?: Cycl
   const cycle = await getCycle(deps.db, cycleId);
   const product = await loadProduct(deps, cycle.productId);
   if (product instanceof InvalidSettingsError) return blockedSummary(product, cycle.kind, cycle);
+  // A product that isn't active: close its unfinished cycle (its settings, valid or not, aren't needed for that).
   if (cycle.finishedAt === null && product.status !== 'active') {
     const lock = await tryAdvisoryLock(deps.lockUrl, `cycle:${cycle.id}`, { applicationName: 'ads-cycle' });
     if (lock === null) return { ...summaryOf(product, cycle, 'busy'), detail: 'another process is running this cycle' };
@@ -215,6 +224,7 @@ export async function resumeCycle(deps: CycleDeps, cycleId: string, until?: Cycl
       await lock.release();
     }
   }
+  if (!('settings' in product)) return summaryOf(product, cycle, 'already_finished');
   return continueCycle(deps, product, cycle, until);
 }
 

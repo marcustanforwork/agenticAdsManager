@@ -107,6 +107,31 @@ describe('syncOutcomes', () => {
     expect(calls.slice(1)).toEqual([1, 2, 3, 4].map((i) => all[i]?.occurredAt));
   });
 
+  it('fails the read, instead of silently stopping, when a full page cannot move on', async () => {
+    const same = '2026-09-28T00:00:00.000Z';
+    const page: OutcomeEvent[] = ['a', 'b'].map((id) => ({
+      sourceId: id,
+      stage: 'signup',
+      occurredAt: same,
+      isTest: false,
+      ids: {},
+    }));
+    const packs = createRegistry([withAdapter({ fetchSince: () => Promise.resolve(page) })]);
+    const first = await syncOutcomes(deps(packs), await product(), { pageSize: 2 });
+    // The first page moved from the window's start to `same`; the second starts at `same` and can't move.
+    expect(first.outcome).toBe('error');
+    expect(first.detail).toMatch(/paging stopped/);
+    expect(outcomeSourceOf(await product())).toMatchObject({ ok: false });
+  });
+
+  it('treats a bad activity time from the adapter as unknown, not as a crash', async () => {
+    const packs = createRegistry([
+      withAdapter({ healthcheck: () => Promise.resolve({ ok: true, latestActivityAt: new Date('nonsense') }) }),
+    ]);
+    expect(await syncOutcomes(deps(packs), await product())).toMatchObject({ outcome: 'read', latestActivityAt: null });
+    expect(outcomeSourceOf(await product())).toMatchObject({ ok: true, latestActivityAt: null });
+  });
+
   it('records a source that is unhealthy, throws, or cannot start, without throwing', async () => {
     const cases: [ProductPack, RegExp][] = [
       [withAdapter({ healthcheck: () => Promise.resolve({ ok: false, detail: 'DB_URL is not set' }) }), /DB_URL/],

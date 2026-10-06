@@ -32,7 +32,9 @@ export type RequestHandler<R extends OperatorRequest> = (
 /** What handlers may use besides the transaction: the installed packs, for validating against their manifests
  *  (BLUEPRINT §5.4: settings and facts are validated only in the processor, with the pack manifests). */
 export interface HandlerContext {
-  packs?: PackRegistry;
+  /** Required, so no surface can process a settings change without the packs' guard layer. A product whose pack
+   *  isn't installed is checked against the core and platform defaults only. */
+  packs: PackRegistry;
 }
 
 /** Which milestone adds the kinds this processor doesn't handle yet. */

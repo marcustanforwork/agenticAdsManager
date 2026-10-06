@@ -26,6 +26,7 @@ import {
   type RequestContext,
 } from '../src/requests/processor.ts';
 import { recoverWorker } from '../src/recovery.ts';
+import { TEST_PACKS } from './support/world.ts';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -34,7 +35,7 @@ beforeAll(async () => {
 afterAll(async () => t.drop());
 
 const MARCUS = 'telegram:1001';
-const ctx: RequestContext = { actors: actorsFromEnv(` ${MARCUS}, cli:marcus ,`) };
+const ctx: RequestContext = { actors: actorsFromEnv(` ${MARCUS}, cli:marcus ,`), packs: TEST_PACKS };
 
 const makeProduct = (status: 'active' | 'dormant' = 'active') =>
   createProduct(t.db, {

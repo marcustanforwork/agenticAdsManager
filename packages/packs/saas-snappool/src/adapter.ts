@@ -21,31 +21,28 @@ import pg from 'pg';
 
 export const DATABASE_URL_ENV = 'SNAPPOOL_DATABASE_URL';
 
-/** Every outcome since $1, oldest first, at most $2 rows. `is_superadmin` comes from the host with the
- *  request's email (SnapPool stores emails lower-cased; compared case-blind, one row per request either way). */
+/** Whether the request's email belongs to the superadmin (SnapPool stores emails lower-cased; compared case-blind).
+ *  Evaluated per selected row only. */
+const IS_SUPERADMIN = `coalesce((select bool_or(h.is_superadmin) from hosts h where lower(h.email) = lower(pr.email)), false)`;
+
+/** Every outcome since $1, oldest first, at most $2 rows. Each part filters on its own time column first, so a read
+ *  touches only the window, not SnapPool's whole history. */
 export const OUTCOMES_SQL = `
-with req as (
-  select pr.id, pr.email, pr.status, pr.created_at, pr.claimed_at, pr.event_id,
-         pr.attribution, pr.user_agent, pr.page_url,
-         coalesce((select bool_or(h.is_superadmin) from hosts h where lower(h.email) = lower(pr.email)), false)
-           as is_superadmin
+select 'pool_request' as stage, pr.id::text as source_id, pr.created_at as occurred_at,
+       pr.email, ${IS_SUPERADMIN} as is_superadmin, pr.attribution, pr.user_agent, pr.page_url
   from pool_requests pr
-)
-select 'pool_request' as stage, r.id::text as source_id, r.created_at as occurred_at,
-       r.email, r.is_superadmin, r.attribution, r.user_agent, r.page_url
-  from req r
- where r.created_at >= $1
+ where pr.created_at >= $1
 union all
-select 'signup', r.id::text, r.claimed_at,
-       r.email, r.is_superadmin, r.attribution, r.user_agent, r.page_url
-  from req r
- where r.status = 'claimed' and r.claimed_at is not null and r.claimed_at >= $1
+select 'signup', pr.id::text, pr.claimed_at,
+       pr.email, ${IS_SUPERADMIN}, pr.attribution, pr.user_agent, pr.page_url
+  from pool_requests pr
+ where pr.status = 'claimed' and pr.claimed_at >= $1
 union all
 select 'activated', e.id::text, e.first_upload_at,
-       r.email, r.is_superadmin, r.attribution, r.user_agent, r.page_url
-  from req r
-  join events e on e.id = r.event_id
- where r.status = 'claimed' and e.first_upload_at is not null and e.first_upload_at >= $1
+       pr.email, ${IS_SUPERADMIN}, pr.attribution, pr.user_agent, pr.page_url
+  from events e
+  join pool_requests pr on pr.event_id = e.id and pr.status = 'claimed'
+ where e.first_upload_at >= $1
 order by occurred_at, stage, source_id
 limit $2`;
 

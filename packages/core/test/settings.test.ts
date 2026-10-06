@@ -168,6 +168,25 @@ describe('invalid stored settings stop the cycle with an alert', () => {
     ]);
   });
 
+  it('queues one alert, not one per attempt; a product that is not active is skipped without one', async () => {
+    const p = await makeProduct();
+    await corrupt(p, '{"spend": 1}');
+    for (let i = 0; i < 3; i++) {
+      expect((await runCycle({ ...deps, db: t.db, lockUrl: t.url }, { productId: p.id, kind: 'manual' })).outcome).toBe(
+        'blocked',
+      );
+    }
+    const mine = async () => (await listUnsentNotifications(t.db, 500)).filter((n) => n.productId === p.id);
+    expect(await mine()).toHaveLength(1);
+
+    const paused = await makeProduct();
+    await corrupt(paused, '{"spend": 1}');
+    await t.pool.query(`update products set status = 'dormant' where id = $1`, [paused.id]);
+    const summary = await runCycle({ ...deps, db: t.db, lockUrl: t.url }, { productId: paused.id, kind: 'daily' });
+    expect(summary).toMatchObject({ outcome: 'skipped', detail: 'product is dormant' });
+    expect((await listUnsentNotifications(t.db, 500)).filter((n) => n.productId === paused.id)).toHaveLength(0);
+  });
+
   it("a stored guard override looser than the pack's (after a pack update) is invalid too", async () => {
     // Stored while the product used the test pack, then moved to the strict one.
     const p = await makeProduct('test-pack', {

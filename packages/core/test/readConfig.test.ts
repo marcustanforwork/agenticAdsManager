@@ -28,6 +28,17 @@ describe('read configs with routes not set up yet', () => {
     expect(config.warnings).toEqual([]);
   });
 
+  it("Meta watches another route's dataset while the KPI route's isn't set up yet", () => {
+    const config = metaReadConfig(
+      settings([
+        { stage: 'lead', platform: 'meta', destinationId: '123', eventName: 'Lead' },
+        { stage: 'signup', platform: 'meta', destinationId: null, eventName: 'CompleteRegistration' },
+      ]),
+    );
+    expect(config.datasetId).toBe('123');
+    expect(config.conversionActionTypes).toEqual(['offsite_conversion.fb_pixel_complete_registration']);
+  });
+
   it('Google warns that the conversion action id is missing and counts nothing', () => {
     const config = googleReadConfig(settings([{ stage: 'signup', platform: 'google', destinationId: null }]));
     expect(config.conversionActionIds).toEqual([]);

@@ -6,7 +6,7 @@ import {
   CORE_GUARD_DEFAULTS,
   GuardLoosenedError,
   PLATFORM_GUARD_DEFAULTS,
-  Platform,
+  type Platform,
   ProductSettings,
   mergeGuardsTightenOnly,
   type GuardConfig,
@@ -17,11 +17,14 @@ import {
   InvalidSettingsError,
   enqueueNotification,
   getSettingsHistory,
+  schema,
   type DbOrTx,
   type Product,
   type SeedSpec,
 } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { checkGuardOverridesTightenOnly } from '../requests/settingsPatch.ts';
 
 /** The core's defaults for everything a pack doesn't supply (BLUEPRINT §3.3 comments). */
 export const CORE_SETTINGS_DEFAULTS: Omit<ProductSettings, 'outcomes' | 'copy'> = {
@@ -74,19 +77,30 @@ export const manifestOf = (packs: PackRegistry | undefined, packId: string): Pac
  *  included. Throws InvalidSettingsError, so a stored document that became invalid (say, a pack update tightened a
  *  guard) is never used. The schema itself is checked when the repository reads the product. */
 export function assertSettingsUsable(product: Product, packs: PackRegistry | undefined): void {
-  const manifest = manifestOf(packs, product.packId);
-  for (const platform of Platform.options) {
-    try {
-      effectiveGuards(product.settings, manifest, platform);
-    } catch (e) {
-      if (!(e instanceof GuardLoosenedError)) throw e;
-      throw new InvalidSettingsError(product.id, product.slug, [`guardOverrides.${e.field}: ${e.message}`]);
-    }
+  try {
+    checkGuardOverridesTightenOnly(product.settings.guardOverrides, packGuardLayer(manifestOf(packs, product.packId)));
+  } catch (e) {
+    if (!(e instanceof GuardLoosenedError)) throw e;
+    throw new InvalidSettingsError(product.id, product.slug, [`guardOverrides.${e.field}: ${e.message}`]);
   }
 }
 
-/** Queues an alert that a product's stored settings are invalid (sent by the worker's bot, BLUEPRINT §5.16). */
+/** Queues an alert that a product's stored settings are invalid (sent by the worker's bot, BLUEPRINT §5.16), unless
+ *  one for that product is still waiting to be sent: repeated runs and restarts don't pile up copies. */
 export async function alertInvalidSettings(db: DbOrTx, error: InvalidSettingsError): Promise<void> {
+  const [waiting] = await db
+    .select({ id: schema.notifications.id })
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.productId, error.productId),
+        eq(schema.notifications.kind, 'alert'),
+        isNull(schema.notifications.sentAt),
+        sql`${schema.notifications.payload} ->> 'alert' = 'invalid_settings'`,
+      ),
+    )
+    .limit(1);
+  if (waiting !== undefined) return;
   await enqueueNotification(db, {
     productId: error.productId,
     kind: 'alert',

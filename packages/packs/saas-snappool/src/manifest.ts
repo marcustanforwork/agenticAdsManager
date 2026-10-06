@@ -32,7 +32,8 @@ export const SnapPoolFacts = z.object({
 });
 export type SnapPoolFacts = z.infer<typeof SnapPoolFacts>;
 
-const money = (sgd: number): string => String(sgd * 1_000_000);
+/** Whole Singapore dollars as micros, in bigint (never a float for money). */
+const money = (sgd: number): string => (BigInt(sgd) * 1_000_000n).toString();
 
 export const manifest: PackManifest = {
   id: 'saas-snappool',

@@ -41,14 +41,12 @@ export function metaReadConfig(settings: ProductSettings): {
     warnings.push(`${(e as Error).message}: platform conversions read as 0`);
   }
   // The trust check watches the KPI stage's dataset, or else any Meta dataset in the settings: a configured
-  // dataset is never left unwatched just because the KPI stage isn't routed to Meta.
-  // A route whose dataset isn't set up yet (null, D-076) still counts its event, but has no dataset to watch.
-  const anyMeta = feedback.filter((r) => r.platform === 'meta');
-  const datasetIds = [
-    ...new Set(
-      (routes.length > 0 ? routes : anyMeta).flatMap((r) => (r.destinationId === null ? [] : [r.destinationId])),
-    ),
-  ];
+  // dataset is never left unwatched just because the KPI stage isn't routed to Meta, or its route isn't set up yet
+  // (a null destination still counts its event, D-076).
+  const datasetsOf = (rs: typeof feedback): string[] =>
+    rs.flatMap((r) => (r.platform !== 'meta' || r.destinationId === null ? [] : [r.destinationId]));
+  const kpiDatasets = datasetsOf(routes);
+  const datasetIds = [...new Set(kpiDatasets.length > 0 ? kpiDatasets : datasetsOf(feedback))];
   if (datasetIds.length > 1)
     warnings.push(`several Meta datasets in the settings; the trust signals use ${datasetIds[0]}`);
   const [datasetId] = datasetIds;
