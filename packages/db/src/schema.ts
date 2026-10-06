@@ -128,6 +128,13 @@ export const accounts = pgTable(
     lastSyncedAt: tstz('last_synced_at'),
     /** Google only: the manager account to act through (`login-customer-id`); null = direct access (M03). */
     loginCustomerId: text('login_customer_id'),
+    /** The trust-check inputs the last successful sync read (`TrustSignalRow` plus its `range` and `readAt`), so
+     *  the trust stage never calls the platform again (M04). Money inside is decimal-string micros. */
+    trustSignals: jsonb('trust_signals'),
+    /** Why the last sync attempt failed; null after a successful one (M04). */
+    lastSyncError: text('last_sync_error'),
+    /** Google only: the last day whose click ids are stored (a day without clicks leaves no row) (M04). */
+    clicksSyncedThrough: date('clicks_synced_through', { mode: 'string' }),
   },
   (t) => [
     unique().on(t.platform, t.externalId),
@@ -138,6 +145,7 @@ export const accounts = pgTable(
       'accounts_login_customer_id_check',
       sql`${t.loginCustomerId} is null or (${t.platform} = 'google' and ${t.loginCustomerId} ~ '^[0-9]{10}$')`,
     ),
+    check('accounts_clicks_synced_through_check', sql`${t.clicksSyncedThrough} is null or ${t.platform} = 'google'`),
   ],
 );
 

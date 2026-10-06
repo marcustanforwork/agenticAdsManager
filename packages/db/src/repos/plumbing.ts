@@ -160,11 +160,16 @@ export async function markNotificationSent(db: DbOrTx, id: string, at: Date = ne
 
 export type DriftEvent = typeof driftEvents.$inferSelect;
 
+/** Records a drift event. `expected` and `observed` are stored as `{ "value": … }`: drizzle's jsonb reader would
+ *  turn a bare numeric-looking string (a budget in micros, a name like "123") back into a number. */
 export async function recordDrift(
   db: DbOrTx,
   input: { productId: string; adEntityId: string; field: string; expected: unknown; observed: unknown },
 ): Promise<DriftEvent> {
-  const [row] = await db.insert(driftEvents).values(input).returning();
+  const [row] = await db
+    .insert(driftEvents)
+    .values({ ...input, expected: { value: input.expected ?? null }, observed: { value: input.observed ?? null } })
+    .returning();
   if (!row) throw new Error('insert into drift_events returned nothing');
   return row;
 }
@@ -182,6 +187,15 @@ export async function acknowledgeDrift(db: DbOrTx, id: string, at: Date = new Da
     .update(driftEvents)
     .set({ acknowledgedAt: at })
     .where(and(eq(driftEvents.id, id), isNull(driftEvents.acknowledgedAt)));
+}
+
+/** The database's clock. Times compared with database-stamped ones (`change_log.applied_at`) are taken from it,
+ *  so a skew between the worker's clock and the database's can't reorder them. */
+export async function databaseNow(db: DbOrTx): Promise<Date> {
+  const result = await db.execute<{ now: string | Date }>(sql`select clock_timestamp() as now`);
+  const value = result.rows[0]?.now;
+  if (value === undefined) throw new Error('select clock_timestamp() returned nothing');
+  return value instanceof Date ? value : new Date(value);
 }
 
 // ── System flags (GLOBAL) ─────────────────────────────────────────────────────────────────────

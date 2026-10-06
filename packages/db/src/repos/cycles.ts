@@ -18,12 +18,14 @@ import {
 export type Cycle = typeof cycles.$inferSelect;
 export type CycleKind = (typeof CYCLE_KINDS)[number];
 export type CycleStage = (typeof CYCLE_STAGES)[number];
+/** The stages in order: started → synced → trust_checked → detected → analysed → drafted → reported → done. */
+export const CYCLE_STAGE_ORDER: readonly CycleStage[] = CYCLE_STAGES;
 
 /** Starts a daily or weekly cycle. A second one for the same product, kind and date throws DuplicateCycleError
  *  (the unique index cycles_one_scheduled_per_day decides, so two replicas can't both start one). */
 export async function startScheduled(
   db: DbOrTx,
-  input: { productId: string; kind: Exclude<CycleKind, 'manual'>; cycleDate: string },
+  input: { productId: string; kind: Exclude<CycleKind, 'manual'>; cycleDate: string; startedAt?: Date },
 ): Promise<Cycle> {
   try {
     // A savepoint, so a refused insert doesn't abort a caller's surrounding transaction.
@@ -40,8 +42,46 @@ export async function startScheduled(
   }
 }
 
-/** Manual cycles have no per-day limit. */
-export async function startManual(db: DbOrTx, input: { productId: string; cycleDate: string }): Promise<Cycle> {
+/** The daily or weekly cycle of a product for a date, if one was started (at most one, by the unique index). */
+export async function findScheduledCycle(
+  db: DbOrTx,
+  input: { productId: string; kind: Exclude<CycleKind, 'manual'>; cycleDate: string },
+): Promise<Cycle | null> {
+  const [row] = await db
+    .select()
+    .from(cycles)
+    .where(
+      and(eq(cycles.productId, input.productId), eq(cycles.kind, input.kind), eq(cycles.cycleDate, input.cycleDate)),
+    );
+  return row ?? null;
+}
+
+/** The latest unfinished manual cycle of a product for a date, if any (a manual run stopped with `--until`). */
+export async function findUnfinishedManualCycle(
+  db: DbOrTx,
+  input: { productId: string; cycleDate: string },
+): Promise<Cycle | null> {
+  const [row] = await db
+    .select()
+    .from(cycles)
+    .where(
+      and(
+        eq(cycles.productId, input.productId),
+        eq(cycles.kind, 'manual'),
+        eq(cycles.cycleDate, input.cycleDate),
+        isNull(cycles.finishedAt),
+      ),
+    )
+    .orderBy(desc(cycles.startedAt))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Manual cycles have no per-day limit. `startedAt` defaults to the database's time. */
+export async function startManual(
+  db: DbOrTx,
+  input: { productId: string; cycleDate: string; startedAt?: Date },
+): Promise<Cycle> {
   const [row] = await db
     .insert(cycles)
     .values({ ...input, kind: 'manual' })
@@ -134,6 +174,31 @@ export async function recordTrustCheck(
     .returning();
   if (!row) throw new Error('insert into trust_checks returned nothing');
   return row;
+}
+
+/** Replaces all of a cycle's trust checks in one transaction, so a re-run trust stage (resume) never leaves
+ *  duplicates or a half-written set. */
+export async function replaceTrustChecks(
+  db: DbOrTx,
+  input: {
+    productId: string;
+    cycleId: string;
+    checks: {
+      accountId: string | null;
+      checkId: string;
+      result: (typeof TRUST_CHECK_RESULTS)[number];
+      detail: Record<string, unknown>;
+    }[];
+  },
+): Promise<TrustCheck[]> {
+  return db.transaction(async (tx) => {
+    await tx.delete(trustChecks).where(eq(trustChecks.cycleId, input.cycleId));
+    if (input.checks.length === 0) return [];
+    return tx
+      .insert(trustChecks)
+      .values(input.checks.map((c) => ({ ...c, productId: input.productId, cycleId: input.cycleId })))
+      .returning();
+  });
 }
 
 export async function listTrustChecks(db: DbOrTx, cycleId: string): Promise<TrustCheck[]> {

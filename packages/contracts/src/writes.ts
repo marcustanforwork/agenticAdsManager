@@ -26,6 +26,18 @@ export interface PlatformReadClient {
   trustSignals(accountId: string, range: DateRange): Promise<TrustSignalRow>;
 }
 
+/** Thrown by `PlatformReadClient.snapshot(ref)` when the platform says the entity doesn't exist (deleted, or never
+ *  in this account). The sync then records it as removed (M04); any other error leaves it as it was. */
+export class EntityNotFoundError extends Error {
+  readonly ref: EntityRef;
+
+  constructor(ref: EntityRef, detail?: string) {
+    super(`${ref.platform} ${ref.type} ${ref.externalId} not found in ${ref.accountId}${detail ? `: ${detail}` : ''}`);
+    this.name = 'EntityNotFoundError';
+    this.ref = ref;
+  }
+}
+
 export const ConversionEvent = z.object({
   eventId: z.string(), // `${sourceId}:${stage}` — the de-duplication key on both platforms
   stage: z.string(),

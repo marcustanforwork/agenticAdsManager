@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DuplicateCycleError, RefusedError } from '../src/errors.ts';
 import {
   advance,
+  findScheduledCycle,
   finish,
   getCycle,
   insertFinding,
@@ -10,6 +11,7 @@ import {
   listTrustChecks,
   listUnfinishedCycles,
   recordTrustCheck,
+  replaceTrustChecks,
   setAnalystVerdict,
   startManual,
   startScheduled,
@@ -37,6 +39,10 @@ describe('cycles', () => {
     await startManual(t.db, { productId: p.id, cycleDate: '2026-09-25' });
     await startManual(t.db, { productId: p.id, cycleDate: '2026-09-25' });
     expect(await listCycles(t.db, p.id)).toHaveLength(5);
+    expect((await findScheduledCycle(t.db, { productId: p.id, kind: 'daily', cycleDate: '2026-09-25' }))?.id).toBe(
+      first.id,
+    );
+    expect(await findScheduledCycle(t.db, { productId: p.id, kind: 'daily', cycleDate: '2026-09-27' })).toBeNull();
   });
 
   it('refuses the duplicate even when two starts race', async () => {
@@ -92,6 +98,19 @@ describe('cycles', () => {
 });
 
 describe('trust checks and findings', () => {
+  it("replaces a cycle's trust checks as a whole (a re-run never duplicates them)", async () => {
+    const p = await makeProduct(t.db);
+    const cycle = await startManual(t.db, { productId: p.id, cycleDate: '2026-09-25' });
+    const check = (checkId: string, result: 'pass' | 'warn') => ({ accountId: null, checkId, result, detail: {} });
+    await replaceTrustChecks(t.db, {
+      productId: p.id,
+      cycleId: cycle.id,
+      checks: [check('a', 'pass'), check('b', 'warn')],
+    });
+    await replaceTrustChecks(t.db, { productId: p.id, cycleId: cycle.id, checks: [check('a', 'warn')] });
+    expect((await listTrustChecks(t.db, cycle.id)).map((c) => [c.checkId, c.result])).toEqual([['a', 'warn']]);
+  });
+
   it('records trust checks per cycle', async () => {
     const { product, account } = await makeCampaign(t.db);
     const c = await startManual(t.db, { productId: product.id, cycleDate: '2026-09-25' });

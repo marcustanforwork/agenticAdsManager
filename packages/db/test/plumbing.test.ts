@@ -107,6 +107,9 @@ describe('drift', () => {
       observed: '40000000',
     });
     expect((await listUnacknowledgedDrift(t.db, product.id)).map((x) => x.id)).toEqual([d.id]);
+    // The values come back exactly, a numeric-looking string included.
+    const [listed] = await listUnacknowledgedDrift(t.db, product.id);
+    expect([listed?.expected, listed?.observed]).toEqual([{ value: '20000000' }, { value: '40000000' }]);
     await acknowledgeDrift(t.db, d.id);
     expect(await listUnacknowledgedDrift(t.db, product.id)).toEqual([]);
   });

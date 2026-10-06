@@ -16,3 +16,4 @@ export * from './queue/jobs.ts';
 export * from './queue/listener.ts';
 export * from './queue/runner.ts';
 export * from './queue/leader.ts';
+export * from './queue/locks.ts';

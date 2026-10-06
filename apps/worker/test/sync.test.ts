@@ -82,3 +82,42 @@ describe('ads sync', () => {
     expect(report.warnings).toContain('no google account is linked to sync-cli');
   });
 });
+
+describe('ads cycle', () => {
+  const cycle = (args: string[]) => {
+    const r = run(['--product', 'sync-cli', 'cycle', ...args]);
+    return { ...r, summary: async () => (await r.done, JSON.parse(r.printed.join('\n')) as Record<string, unknown>) };
+  };
+
+  it('--until synced stops after the sync, and the next run resumes at the trust check (manual cycles)', async () => {
+    const first = await cycle(['--kind', 'manual', '--until', 'synced']).summary();
+    expect(first).toMatchObject({ product: 'sync-cli', kind: 'manual', outcome: 'stopped', stageReached: 'synced' });
+    // The expired token is an account error: recorded, and the exit code says so.
+    expect(first['sync']).toMatchObject({ accounts: [{ account: 'meta:act_42', outcome: 'error' }] });
+    expect(process.exitCode).toBe(1);
+    const second = await cycle(['--kind', 'manual']).summary();
+    expect(second).toMatchObject({ cycleId: first['cycleId'], outcome: 'finished', resumedFrom: 'synced' });
+  });
+
+  it('runs a daily cycle to the end: the sync error leaves the data stale, so the trust check fails (exit 1)', async () => {
+    const r = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily', '--until', 'trust_checked']);
+    await r.done;
+    const summary = JSON.parse(r.printed.join('\n')) as { outcome: string; trustResult: string };
+    expect(summary).toMatchObject({ outcome: 'finished', trustResult: 'fail' });
+    expect(r.printed.join('\n')).not.toContain(TOKEN);
+    expect(process.exitCode).toBe(1);
+    // The same day again: already finished, nothing runs.
+    process.exitCode = undefined;
+    const again = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily']);
+    await again.done;
+    expect(JSON.parse(again.printed.join('\n'))).toMatchObject({ outcome: 'already_finished' });
+  });
+
+  it('needs --kind, a known stage and a known product', async () => {
+    await expect(run(['--product', 'sync-cli', 'cycle']).done).rejects.toThrow(/--kind/);
+    await expect(
+      run(['--product', 'sync-cli', 'cycle', '--kind', 'daily', '--until', 'analysed']).done,
+    ).rejects.toThrow(/Allowed choices/);
+    await expect(run(['--product', 'nope', 'cycle', '--kind', 'manual']).done).rejects.toThrow(/nope/);
+  });
+});

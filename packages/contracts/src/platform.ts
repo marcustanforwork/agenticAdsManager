@@ -104,3 +104,9 @@ export const TrustSignalRow = z.object({
   conversionActionsMissing: z.array(z.string()).optional(),
 });
 export type TrustSignalRow = z.infer<typeof TrustSignalRow>;
+
+/** The trust signals the last successful sync read for an account, with the days they cover (the account's local
+ *  days) and when they were read: `accounts.trust_signals`. The trust stage reads them instead of calling the
+ *  platform again, so a resumed cycle needs no API call (M04). */
+export const AccountTrustSignals = TrustSignalRow.extend({ range: DateRange, readAt: IsoDateTime });
+export type AccountTrustSignals = z.infer<typeof AccountTrustSignals>;

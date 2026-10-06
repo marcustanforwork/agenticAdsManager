@@ -1,5 +1,5 @@
 // What's in the ad accounts: accounts, ad entities, snapshots, daily metrics, search terms, Google clicks.
-import { hashOf, type EntityRef, type Platform } from '@ads/contracts';
+import { AccountTrustSignals, hashOf, type EntityRef, type Platform } from '@ads/contracts';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError } from '../errors.ts';
@@ -81,8 +81,49 @@ export async function setAccountLoginCustomerId(db: DbOrTx, id: string, loginCus
   if (rows.length === 0) throw new NotFoundError('account', id);
 }
 
-export async function markAccountSynced(db: DbOrTx, id: string, at: Date = new Date()): Promise<void> {
-  await db.update(accounts).set({ lastSyncedAt: at }).where(eq(accounts.id, id));
+/** A successful sync: records when, clears the last error and, when given, stores the trust signals it read
+ *  (validated, so the trust stage can rely on their shape). */
+export async function markAccountSynced(
+  db: DbOrTx,
+  id: string,
+  input: { at?: Date; trustSignals?: AccountTrustSignals } = {},
+): Promise<void> {
+  const rows = await db
+    .update(accounts)
+    .set({
+      lastSyncedAt: input.at ?? new Date(),
+      lastSyncError: null,
+      ...(input.trustSignals === undefined ? {} : { trustSignals: AccountTrustSignals.parse(input.trustSignals) }),
+    })
+    .where(eq(accounts.id, id))
+    .returning({ id: accounts.id });
+  if (rows.length === 0) throw new NotFoundError('account', id);
+}
+
+/** A failed sync attempt: `last_synced_at` keeps the last success, so the `data_fresh` check judges the age. */
+export async function markAccountSyncFailed(db: DbOrTx, id: string, error: string): Promise<void> {
+  const rows = await db
+    .update(accounts)
+    .set({ lastSyncError: error.slice(0, 2000) })
+    .where(eq(accounts.id, id))
+    .returning({ id: accounts.id });
+  if (rows.length === 0) throw new NotFoundError('account', id);
+}
+
+/** The account's stored trust signals, or null if none were stored or they no longer parse. */
+export function trustSignalsOf(account: Account): AccountTrustSignals | null {
+  const parsed = AccountTrustSignals.safeParse(account.trustSignals);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Google: the last day whose click ids are stored. */
+export async function setClicksSyncedThrough(db: DbOrTx, id: string, day: string): Promise<void> {
+  const rows = await db
+    .update(accounts)
+    .set({ clicksSyncedThrough: day })
+    .where(eq(accounts.id, id))
+    .returning({ id: accounts.id });
+  if (rows.length === 0) throw new NotFoundError('account', id);
 }
 
 // ── Ad entities ───────────────────────────────────────────────────────────────────────────────
@@ -207,17 +248,20 @@ export async function latestSnapshot(db: DbOrTx, adEntityId: string): Promise<Sn
   return row ?? null;
 }
 
-/** Stores the snapshot (hash = hashOf(snapshot)) unless it equals the latest one.
- *  Returns whether a row was written. Concurrent writers for the same entity are serialised. */
+/** Stores the snapshot (hash = hashOf(snapshot)) unless it equals the latest one, or is older than it (`takenAt`
+ *  is when the platform was read: a read that a newer snapshot already superseded is ignored).
+ *  Returns whether a row was written, and the snapshot that was the latest before (null for a new entity), which
+ *  drift detection compares against. Concurrent writers for the same entity are serialised. */
 export async function recordSnapshot(
   db: DbOrTx,
   input: { productId: string; adEntityId: string; snapshot: Record<string, unknown>; takenAt?: Date },
-): Promise<{ stored: boolean; hash: string }> {
+): Promise<{ stored: boolean; hash: string; previous: Snapshot | null }> {
   const hash = hashOf(input.snapshot);
   return db.transaction(async (tx) => {
     await tx.execute(sql`select 1 from ${adEntities} where ${adEntities.id} = ${input.adEntityId} for update`);
     const latest = await latestSnapshot(tx, input.adEntityId);
-    if (latest?.hash === hash) return { stored: false, hash };
+    if (latest?.hash === hash) return { stored: false, hash, previous: latest };
+    if (latest && input.takenAt && latest.takenAt > input.takenAt) return { stored: false, hash, previous: latest };
     await tx.insert(adEntitySnapshots).values({
       productId: input.productId,
       adEntityId: input.adEntityId,
@@ -226,7 +270,7 @@ export async function recordSnapshot(
       // clock_timestamp(), not now(): snapshots taken in one transaction still get distinct, ordered times.
       takenAt: input.takenAt ?? sql`clock_timestamp()`,
     });
-    return { stored: true, hash };
+    return { stored: true, hash, previous: latest };
   });
 }
 

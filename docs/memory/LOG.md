@@ -4,6 +4,22 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-06 — PR #8 (M04) merged; the phased plan confirmed
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8)
+- **Did:** answered Marcus's questions (what Phase 2 is; no pixel is planned, D-060, which is why `tracking_active` needed D-075; why the agent gets its powers phase by phase). He confirmed the phased plan as written, then asked to merge M04 and carry on to M07. Squash-merged PR #8 after every check passed (D-057).
+- **Decided:** — (the phases and gates stay as written; the "build ahead of the gates" option was declined)
+- **Learned:** —
+- **Next:** a clean-context session starts M05a; then M05b, M06a, M06b, M07, one session each.
+- **Open:** Q13 (at the setup); all live steps (batched, D-074).
+
+## 2026-10-06 — M04: sync stage, drift, trust checks, resumable cycles
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8)
+- **Did:** migration `0002` (`accounts.trust_signals`, `last_sync_error`, `clicks_synced_through`); one sync stage for both platforms (`core/src/sync/stage.ts`, `clients.ts`; the dry runs share the client opening); drift (`core/src/sync/drift.ts`); trust checks (`core/src/cycle/trust.ts`); `runCycle` with a per-cycle advisory lock, `--until`, resume and recovery (`core/src/cycle/runCycle.ts`, `db/src/queue/locks.ts`); `ads cycle`; the worker resumes unfinished cycles at startup (`apps/worker/src/startup.ts`). Code review at high effort: 10 findings, 9 fixed (one performance note left in the milestone file). 602 tests pass, including crash-resume with a SIGKILLed child process.
+- **Decided:** D-075 (M04 build choices; notably `tracking_active` gives `no_signal`, not `fail`, while an upload-only product's KPI conversions haven't been uploaded yet: otherwise every SnapPool cycle would fail until Phase 2).
+- **Learned:** GOTCHAS: Meta by-id 100/33 for a deleted object (unverified against a real one); drizzle's jsonb reader also turns numeric strings into numbers; the crash test's child process.
+- **Next:** Marcus reviews and merges the M04 PR; then a clean-context session starts M05a.
+- **Open:** Q13 (at the setup); all live steps, M04's included (batched, D-074).
+
 ## 2026-10-06 — PR #7 (M03) merged; account setup moved to the end of Phase 0
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7)
 - **Did:** Marcus asked to merge M03 and keep building without the account creation, doing it at the end. Recorded as D-074 (NOW, SESSIONS, QUESTIONS Q13 updated), then squash-merged PR #7 on his instruction after every check passed (D-057).
