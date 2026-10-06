@@ -279,8 +279,8 @@ describe('trustSignals', () => {
   it('names a configured KPI conversion action that is missing or not enabled', async () => {
     const c = cassette('trust');
     // Same exchanges, but the client is configured for action 556 (removed) instead of 555.
-    const swap = (q: unknown) =>
-      JSON.parse(JSON.stringify(q).replaceAll('conversionActions/555', 'conversionActions/556'));
+    const swap = (q: unknown): unknown =>
+      JSON.parse(JSON.stringify(q).replaceAll('conversionActions/555', 'conversionActions/556')) as unknown;
     const exchanges = c.exchanges.map((x) => ({ ...x, request: { ...x.request, body: swap(x.request.body) } }));
     const { client } = replayClient([{ ...c, exchanges }], { conversionActionIds: ['556'] });
     expect((await client.trustSignals(ACCOUNT, RANGE)).conversionActionsMissing).toEqual(['556']);

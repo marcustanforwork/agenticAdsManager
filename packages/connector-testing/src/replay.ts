@@ -36,7 +36,7 @@ export function replayFetch(cassettes: Cassette | Cassette[]): ReplayFetch {
     try {
       key = exchangeKey(requestParts(input, init));
     } catch (e) {
-      return Promise.reject(e as Error);
+      return Promise.reject(e instanceof Error ? e : new Error(String(e)));
     }
     const next = queues.get(key)?.shift();
     if (next === undefined) return Promise.reject(new UnmatchedRequestError(key, [...queues.keys()]));

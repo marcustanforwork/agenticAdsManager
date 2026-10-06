@@ -203,10 +203,12 @@ const LEVEL_QUERY = {
   keyword: { from: 'keyword_view', ids: ['campaign.id', 'ad_group.id', 'ad_group_criterion.criterion_id'] },
 } as const;
 
-const between = <R extends GaqlResource>(range: DateRange): GaqlCondition<WhereField<R>> =>
-  ({ field: 'segments.date', op: 'BETWEEN', from: lit.date(range.from), to: lit.date(range.to) }) as GaqlCondition<
-    WhereField<R>
-  >;
+const between = <R extends GaqlResource>(range: DateRange): GaqlCondition<WhereField<R>> => ({
+  field: 'segments.date' as WhereField<R>,
+  op: 'BETWEEN',
+  from: lit.date(range.from),
+  to: lit.date(range.to),
+});
 
 const count = (v: string | undefined): number => Number(v ?? '0');
 const budgetType = (period: string | undefined): 'daily' | 'custom' | null =>

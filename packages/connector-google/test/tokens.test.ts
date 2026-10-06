@@ -26,7 +26,7 @@ const KEY_FILE = {
 function tokenEndpoint(responses: { status: number; body: unknown }[]) {
   const calls: { url: string; form: URLSearchParams }[] = [];
   const fetch: typeof globalThis.fetch = (input, init) => {
-    calls.push({ url: String(input), form: new URLSearchParams(String(init?.body)) });
+    calls.push({ url: input as string, form: new URLSearchParams(init?.body as string) });
     const next = responses.shift();
     if (!next) return Promise.reject(new Error('unexpected token request'));
     return Promise.resolve(new Response(JSON.stringify(next.body), { status: next.status }));
@@ -130,15 +130,14 @@ describe('parseGoogleReadCredential', () => {
 
   it('names the broken fields, never their values', () => {
     const bad = { ...KEY_FILE, private_key: 'no key here', client_email: 'not-an-email' };
-    const err = (() => {
-      try {
-        parseGoogleReadCredential(bad);
-      } catch (e) {
-        return e as Error;
-      }
-    })();
-    expect(err?.message).toMatch(/client_email, private_key|private_key, client_email/);
-    expect(err?.message).not.toContain('no key here');
+    let message = '';
+    try {
+      parseGoogleReadCredential(bad);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toMatch(/client_email, private_key|private_key, client_email/);
+    expect(message).not.toContain('no key here');
   });
 
   it('refuses a key file that sends the assertion anywhere but Google', () => {
