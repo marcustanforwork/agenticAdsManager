@@ -140,6 +140,7 @@ Some acceptance steps need real accounts or the SER9 ("Done when (live)" in each
 1. **Claude writes** the exact steps: commands, what to look for, what to paste back. They go in the milestone file, under **Live steps for Marcus** in `NOW.md`, and in the PR body.
 2. **Marcus runs them** whenever he likes, and reports the results in the PR, in `QUESTIONS.md`, or at the start of the next session ("live steps for M02 done, output: …").
 3. **The next session records the results** in the milestone file. A milestone is `done` only when its live steps are confirmed. Until then its status is `awaiting live acceptance`, and the next milestone may start only if it doesn't depend on those results.
+4. **For now (D-074), the live steps are batched:** the cloud builds carry on through Phase 0 without the setup tasks, and Marcus runs every pending live step together after M07's cloud part, before the Phase 0 → 1 gate can start.
 
 ---
 

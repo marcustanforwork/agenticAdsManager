@@ -9,7 +9,7 @@ None of these block milestone **M00**. Each question says what it blocks.
 ## Open
 
 ### Q13 — Google sign-in for the agent: two service accounts, or two Google logins? · asked 2026-10-02
-**Why now:** Google changed API access in September 2026 (D-070), and your T5 setup depends on this. Nothing else is blocked: M03's cloud work builds against test fixtures either way.
+**Why now:** Google changed API access in September 2026 (D-070), and your T5 setup depends on this. Nothing else is blocked: M03 built both sign-in types (D-073). Since the setup waits until the end of Phase 0 (D-074), you can answer this then.
 **Options:**
 - **A. Two service accounts (recommended, D-071).** Robot identities you create in the Google Cloud project and add to the manager account as users: `ads-agent-read` (Read only) and `ads-agent-write` (Standard). No passwords, passkeys or expiring sign-ins. You download a key file for each and load it into the agent's vault in the M03 live steps.
 - **B. Two Google logins (D-046 as written).** Two normal Google accounts, each with a passkey, given Read only and Standard access; the agent keeps a sign-in (refresh token) for each. The Cloud project also needs an OAuth app published "In production", or the sign-ins expire after 7 days.

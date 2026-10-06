@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-06 — PR #7 (M03) merged; account setup moved to the end of Phase 0
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7)
+- **Did:** Marcus asked to merge M03 and keep building without the account creation, doing it at the end. Recorded as D-074 (NOW, SESSIONS, QUESTIONS Q13 updated), then squash-merged PR #7 on his instruction after every check passed (D-057).
+- **Decided:** D-074 (Marcus): the builds carry on through Phase 0 without the setup tasks; all setup and live steps happen together after M07's cloud part, before the Phase 0 → 1 gate.
+- **Learned:** —
+- **Next:** a clean-context session starts M04.
+- **Open:** Q13 (at the setup); all live steps (batched, D-074).
+
 ## 2026-10-06 — M03 built: Google read connector
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7)
 - **Did:**

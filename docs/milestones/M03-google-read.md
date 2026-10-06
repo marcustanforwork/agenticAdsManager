@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-10-06 |
 | **Finished** | 2026-10-06 (cloud part) |
-| **PRs** | — |
+| **PRs** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged 2026-10-06) |
 
 ## Goal
 Typed, deterministic, quota-aware Google Ads reads.

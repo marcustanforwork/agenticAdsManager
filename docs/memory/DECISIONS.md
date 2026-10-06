@@ -540,3 +540,15 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M03 needed these choices. None changes a product decision.
 - **Instead of:** `metrics.conversions` (all "primary" actions, which can add funnel stages together); a developer token; free-form GAQL strings; storing the manager id in the credential.
 - **See:** `docs/milestones/M03-google-read.md` · BLUEPRINT §4, §5.7 · GOTCHAS "Google …" rows
+
+### D-074 — Build first, set up accounts at the end of Phase 0
+- **When / who / status:** 2026-10-06 · Marcus · adopted. He asked to merge M03 and keep building "without all the account creation; we can do it at the end".
+- **Decision:**
+  - The cloud builds carry on milestone by milestone (M04, M05a, … up to M07's cloud part) without the setup tasks (T1–T14, T6b) and without the live steps. Each milestone depends on the previous ones' **code**, not on their live acceptance; connectors keep building against hand-written fixtures.
+  - Every merged milestone stays `awaiting live acceptance`, and its live steps stay listed in `NOW.md`. They're run together **at the end of Phase 0**, after M07's cloud part: first the setup tasks, then the live steps in milestone order (M00, M01a, M02, M03, …), then the real fixture recordings, whose differences a session fixes.
+  - Q13 can be answered then too: it only changes the Google setup (both sign-in types are built, D-073).
+  - The Phase 0 → 1 gate (PROPOSAL §12) needs the agent running on the real accounts for weeks, so it can't start measuring until that setup is done. M08 can't start before the gate.
+- **Why:** Marcus is moving house and working from a work machine for now, so he can't create or copy secrets. Building ahead uses the time.
+- **Risk:** differences between Google's or Meta's documents and the real responses show up later, when the recordings run, and may need fixes in several milestones' code at once. The unverified points are listed in GOTCHAS so the end-of-phase session knows what to check first.
+- **Instead of:** running each milestone's live steps before starting the next.
+- **See:** `docs/process/SESSIONS.md` "Live steps" · NOW.md "Live steps for Marcus"
