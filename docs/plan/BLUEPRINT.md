@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.11 — 2026-10-06 (M03 build choices: `accounts.login_customer_id`, the Google status column, KPI-stage conversions, the quota soft cap, D-073) |
+| **Version** | v3.12 — 2026-10-06 (M04 build choices: the accounts' sync state, drift rules, `tracking_active` for upload-only products, the cycle lock and resume, D-075) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -382,6 +382,8 @@ export const WriteOp = z.discriminatedUnion('action', [
 ]);
 ```
 
+**Read errors (M04).** `snapshot(ref)` throws `EntityNotFoundError` (contracts) when the platform says the entity doesn't exist; the sync then records it as removed. The sync keeps each account's last `TrustSignalRow` as `AccountTrustSignals` (plus its `range` and `readAt`).
+
 **Undo table.** It lives in `contracts/undo.ts` and is covered by a property test: apply-then-undo restores the snapshot.
 
 | Action | Stored undo | The undo only runs if… | Notes |
@@ -633,7 +635,11 @@ create table accounts (
   status text not null default 'active' check (status in ('active','paused','disconnected')),
   last_synced_at timestamptz,
   login_customer_id text,                            -- Google: the manager account to act through (M03, D-073)
+  trust_signals jsonb,                               -- the last successful sync's TrustSignalRow + range + readAt (M04, D-075)
+  last_sync_error text,                              -- why the last sync attempt failed; null after a success (M04)
+  clicks_synced_through date,                        -- Google: the last day whose click ids are stored (M04)
   check (login_customer_id is null or (platform = 'google' and login_customer_id ~ '^[0-9]{10}$')),
+  check (clicks_synced_through is null or platform = 'google'),
   unique (platform, external_id)
 );
 
@@ -742,7 +748,7 @@ create table drift_events (
   product_id uuid not null references products(id),
   ad_entity_id uuid not null references ad_entities(id),
   detected_at timestamptz not null default now(),
-  field text not null, expected jsonb, observed jsonb,
+  field text not null, expected jsonb, observed jsonb, -- stored as {"value": …} (M04, D-075)
   acknowledged_at timestamptz
 );
 create index on drift_events (product_id, detected_at desc);
@@ -1039,16 +1045,21 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 
 ### 5.6 Cycle idempotency and resume
 
-- Scheduled cycles are unique per (product, kind, date), enforced by a unique index.
+- Scheduled cycles are unique per (product, kind, date), enforced by a unique index. A second start the same day continues that cycle if it is unfinished, and does nothing if it finished.
+- **One runner per cycle (M04, D-075).** A run holds a named advisory lock (`cycle:<id>`) on a direct connection of its own; another process finds it busy. A killed process's lock goes with its connection.
 - Every stage is idempotent: upserts, snapshots written only on change, and findings and proposals keyed to the cycle.
-- An interrupted cycle resumes from `stage_reached`. If it was interrupted mid-analysis, the AI call is simply made again, and that extra cost is recorded.
+- An interrupted cycle resumes from `stage_reached`. If it was interrupted mid-analysis, the AI call is simply made again, and that extra cost is recorded. A resumed sync skips the accounts it already synced. Worker startup resumes unfinished cycles; one unfinished for more than 24 hours is closed as abandoned instead (the next cycle covers its days).
+- `ads cycle --product X --kind daily|weekly|manual [--until <stage>]` runs or continues today's cycle; `--until` stops after that stage and leaves the cycle resumable.
 
 ### 5.7 Sync details
 
 - **Window.** Each sync re-downloads the trailing 28 days and upserts them. `restated_at` changes when a value changed.
 - **Levels.** Metrics are stored for campaigns, ad groups/ad sets, ads and (Google) keywords. The entity list also includes budgets, with `explicitly_shared` recorded.
 - **Snapshots.** A snapshot is the canonical JSON of the tracked fields, stored only if its hash differs from the latest one.
-- **Drift.** The tracked fields are status, daily budget, bid strategy type and name. A change is drift unless the change log explains it (we set that value on that field).
+- **Drift.** The tracked fields are status, daily budget, bid strategy type and name. A change is drift unless the change log explains it (we set that value on that field). Details (M04, D-075): the status compared is the one a person sets (Meta's configured status, Google's `status`), because effective and primary statuses move on their own; an action explains a change only if it targets the entity (a Google budget and the campaigns it funds count as one) and set that value (`pause_entity` → paused, `resume_entity` → enabled/active, `adjust_budget` → its new amount, `mark_abandoned` → the name); a new entity is never drift. Drift is recorded in the same transaction as the snapshot that shows it.
+- **Entities missing from a listing.** A known entity a full listing leaves out (Meta's edges may omit archived and deleted objects) is read by id, at most 50 per account and sync; one the platform says doesn't exist (`EntityNotFoundError`) is stored as `removed` with raw status `NOT_FOUND`. A metrics row for an unknown id reads that entity by id first, within the same limit.
+- **Search terms and click ids (Google).** Search terms over the 28-day window, under ad groups we know; their `conversions` stay 0 until M06a adds the per-term KPI conversions. Click ids from `accounts.clicks_synced_through` (that day is read again, clicks can arrive late) to yesterday, at most 90 days back, one request per day.
+- **Account state.** A failing account is recorded in `accounts.last_sync_error` and the others carry on; the `data_fresh` check then judges its age. A successful sync stores the trust signals it read in `accounts.trust_signals`, so the trust stage needs no API call.
 - **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync. Meta's column was checked against the docs in M02 (`connector-meta/src/status.ts`), Google's in M03 (`connector-google/src/status.ts`: `status`, then `primary_status` for an enabled entity); the real fixtures confirm them. Any value not listed is `unknown`:
 
 | Normalised | Google | Meta (`effective_status`) |
@@ -1071,11 +1082,13 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 |---|---|---|---|---|
 | `data_fresh` | last successful sync under 26 h ago | — | 26 h or more | — |
 | `timezone_match` | every account's timezone = the product's | — | any differs | — |
-| `tracking_active` | the platform recorded conversions in the last 7 days | — | clicks ≥ `minClicksToJudgeTracking` and zero conversions | fewer clicks than that |
+| `tracking_active` | the platform recorded conversions in the last 7 days | — | clicks ≥ `minClicksToJudgeTracking` and zero conversions | fewer clicks than that; or the KPI stage reaches the platform only through the agent's uploads and none were uploaded in the 7 days (D-075) |
 | `outcome_source_fresh` | adapter healthy, activity within `maxOutcomeStalenessHours` | healthy but quiet | adapter unreachable | — |
 | `attribution_gap` | the gap between platform conversions and our attributed outcomes is within `maxAttributionGapPct` | above it | — (never fails alone) | fewer outcomes than `minOutcomesForGap` |
 | `id_capture` | the share of recent outcomes carrying click/platform ids ≥ `minIdCapturePct` | below it | — | no recent outcomes |
-| `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total that Marcus resets by hand, D-063) | — | — |
+| `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total that Marcus resets by hand, D-063), or not read yet | — | — |
+
+The checks run per active account (`trust_checks.account_id`), from what the sync stored: they read only the database, so a resumed cycle runs them without calling the platforms, and a re-run replaces the cycle's checks. No active account at all is a product-level `data_fresh` fail. `outcome_source_fresh` is switched on in M05a, `attribution_gap` and `id_capture` in M05b.
 
 The cycle result is `fail` if any check fails, which means a diagnostic brief only. It is `degraded` if any check warns: the brief shows the warnings, and proposals are still allowed. Otherwise it is `ok`.
 
@@ -1084,7 +1097,7 @@ The cycle result is `fail` if any check fails, which means a diagnostic brief on
 | Detector | Finding type | Rule |
 |---|---|---|
 | Spend without outcomes | `zero_outcome_spend` | Spend over the window ≥ the threshold, clicks ≥ the threshold, and zero outcomes at the primary KPI stage |
-| Costly search terms | `wasteful_search_term` | Google search term with clicks and spend above the thresholds and zero conversions |
+| Costly search terms | `wasteful_search_term` | Google search term with clicks and spend above the thresholds and zero conversions (M06a first adds the per-term KPI conversions to the sync: until then `search_terms.conversions` is 0, D-075) |
 | No delivery | `no_delivery` | An active entity with zero impressions for 3 or more days |
 | Tracking gap | `tracking_gap` | The `tracking_active` check failed or `attribution_gap` warned |
 | Cost spike | `cost_spike` | Cost per KPI this week > 1.5 × the median of the previous 4 weeks, with minimum volume |
