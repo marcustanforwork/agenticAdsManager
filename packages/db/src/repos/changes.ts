@@ -1,6 +1,6 @@
 // The change log (written only by the gateway) and undo proposals, which the worker and the gateway share.
 import { fingerprintFieldsFor, hashOf, undoFor, UndoContextError, WriteOp, type ApplyContext } from '@ads/contracts';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError, RefusedError } from '../errors.ts';
@@ -62,6 +62,17 @@ export async function listChanges(db: DbOrTx, productId: string, limit = 50): Pr
     .where(eq(changeLog.productId, productId))
     .orderBy(desc(changeLog.appliedAt))
     .limit(limit);
+  return rows.map(toChange);
+}
+
+/** The changes applied to a product after `since`, oldest first. Drift detection uses them to tell our own
+ *  changes from changes made outside this system (BLUEPRINT §5.7). */
+export async function listChangesSince(db: DbOrTx, productId: string, since: Date): Promise<Change[]> {
+  const rows = await db
+    .select()
+    .from(changeLog)
+    .where(and(eq(changeLog.productId, productId), gt(changeLog.appliedAt, since)))
+    .orderBy(asc(changeLog.appliedAt));
   return rows.map(toChange);
 }
 

@@ -1,6 +1,13 @@
 import type { OutcomeEvent } from '@ads/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { insertOutcomes, listOutcomes, listUnattributed, markFedBack, setAttribution } from '../src/repos/outcomes.ts';
+import {
+  countFedBackSince,
+  insertOutcomes,
+  listOutcomes,
+  listUnattributed,
+  markFedBack,
+  setAttribution,
+} from '../src/repos/outcomes.ts';
 import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
 import { makeCampaign } from './helpers.ts';
 
@@ -63,5 +70,13 @@ describe('outcomes', () => {
     expect(await markFedBack(t.db, 'google', [first.id, second.id])).toBe(2);
     expect(await markFedBack(t.db, 'google', [first.id])).toBe(0); // already uploaded
     expect(await markFedBack(t.db, 'meta', [first.id])).toBe(1); // the other platform is separate
+
+    const since = new Date(Date.now() - 60_000);
+    const count = (platform: 'google' | 'meta', stage = 'signup', from = since) =>
+      countFedBackSince(t.db, { productId: product.id, platform, stage, since: from });
+    expect(await count('google')).toBe(2);
+    expect(await count('meta')).toBe(1);
+    expect(await count('google', 'activated')).toBe(0);
+    expect(await count('google', 'signup', new Date(Date.now() + 60_000))).toBe(0);
   });
 });

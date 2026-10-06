@@ -1,6 +1,6 @@
 // Outcomes (conversions pulled from each product by its pack's adapter) and their attribution and uploads.
 import { microsFromJson, OutcomeEvent, type Platform } from '@ads/contracts';
-import { and, asc, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { inBatches } from './batch.ts';
 import { outcomes, type ATTRIBUTION_METHODS } from '../schema.ts';
@@ -86,4 +86,19 @@ export async function markFedBack(db: DbOrTx, platform: Platform, outcomeIds: st
     .where(and(inArray(outcomes.id, outcomeIds), isNull(column)))
     .returning({ id: outcomes.id });
   return rows.length;
+}
+
+/** How many outcomes of `stage` were uploaded to `platform` since `since` (test outcomes are never uploaded). The
+ *  `tracking_active` trust check uses it: when nothing was uploaded, the platform's zero conversions say nothing
+ *  about tracking (D-075). */
+export async function countFedBackSince(
+  db: DbOrTx,
+  input: { productId: string; platform: Platform; stage: string; since: Date },
+): Promise<number> {
+  const column = input.platform === 'google' ? outcomes.fedBackGoogleAt : outcomes.fedBackMetaAt;
+  const [row] = await db
+    .select({ n: count() })
+    .from(outcomes)
+    .where(and(eq(outcomes.productId, input.productId), eq(outcomes.stage, input.stage), gte(column, input.since)));
+  return row?.n ?? 0;
 }

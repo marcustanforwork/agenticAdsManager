@@ -11,7 +11,9 @@ import {
   listAccounts,
   listEntities,
   markAccountSynced,
+  markAccountSyncFailed,
   recordSnapshot,
+  setClicksSyncedThrough,
   setAccountLoginCustomerId,
   setAccountStatus,
   upsertAccount,
@@ -19,6 +21,7 @@ import {
   upsertGoogleClicks,
   upsertMetricsDaily,
   upsertSearchTerms,
+  trustSignalsOf,
   type MetricsInput,
 } from '../src/repos/adData.ts';
 import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
@@ -51,6 +54,51 @@ describe('accounts', () => {
     expect(found?.status).toBe('paused');
     expect(found?.lastSyncedAt).toBeInstanceOf(Date);
     expect((await listAccounts(t.db, p.id)).map((x) => x.id)).toEqual([a.id]);
+  });
+
+  it('records sync results: success clears the error and stores validated trust signals; failure keeps the time', async () => {
+    const p = await makeProduct(t.db);
+    const a = await upsertAccount(t.db, { productId: p.id, platform: 'meta', externalId: 'act_7701' });
+    const signals = {
+      clicks: 40,
+      platformConversions: 2,
+      spendMicros: '12000000',
+      spendCapMicros: '500000000',
+      amountSpentMicros: '400000000',
+      range: { from: '2026-09-24', to: '2026-09-30' },
+      readAt: '2026-09-30T22:00:00.000Z',
+    };
+    const at = new Date('2026-09-30T22:00:00Z');
+    await markAccountSynced(t.db, a.id, { at, trustSignals: signals });
+    let found = await findAccount(t.db, 'meta', 'act_7701');
+    expect(found?.lastSyncedAt).toEqual(at);
+    expect(found && trustSignalsOf(found)).toEqual(signals);
+
+    await markAccountSyncFailed(t.db, a.id, 'Meta API error 400 (190): token expired');
+    found = await findAccount(t.db, 'meta', 'act_7701');
+    expect(found?.lastSyncError).toContain('token expired');
+    expect(found?.lastSyncedAt).toEqual(at); // the last success stays
+    await markAccountSynced(t.db, a.id, { at: new Date('2026-10-01T22:00:00Z') });
+    found = await findAccount(t.db, 'meta', 'act_7701');
+    expect(found?.lastSyncError).toBeNull();
+    expect(found && trustSignalsOf(found)).toEqual(signals); // kept when none are given
+
+    // Malformed signals are refused on write, and unreadable ones read as null.
+    await expect(
+      markAccountSynced(t.db, a.id, { trustSignals: { ...signals, spendMicros: '1.5' } as typeof signals }),
+    ).rejects.toThrow();
+    await t.pool.query(`update accounts set trust_signals = '{"clicks": -1}' where id = $1`, [a.id]);
+    found = await findAccount(t.db, 'meta', 'act_7701');
+    expect(found && trustSignalsOf(found)).toBeNull();
+  });
+
+  it('stores the Google click-sync day, and only for Google accounts', async () => {
+    const p = await makeProduct(t.db);
+    const g = await upsertAccount(t.db, { productId: p.id, platform: 'google', externalId: '5554443333' });
+    await setClicksSyncedThrough(t.db, g.id, '2026-09-30');
+    expect((await findAccount(t.db, 'google', '5554443333'))?.clicksSyncedThrough).toBe('2026-09-30');
+    const m = await upsertAccount(t.db, { productId: p.id, platform: 'meta', externalId: 'act_7802' });
+    await expectConstraint(setClicksSyncedThrough(t.db, m.id, '2026-09-30'), 'accounts_clicks_synced_through_check');
   });
 
   it('stores a Google manager account id, and only a Google one', async () => {
@@ -169,14 +217,16 @@ describe('snapshots', () => {
     const { product, campaign } = await makeCampaign(t.db);
     const base = { productId: product.id, adEntityId: campaign.id };
     const first = await recordSnapshot(t.db, { ...base, snapshot: { status: 'active', budget: '20000000' } });
-    expect(first).toEqual({ stored: true, hash: hashOf({ status: 'active', budget: '20000000' }) });
+    expect(first).toEqual({ stored: true, hash: hashOf({ status: 'active', budget: '20000000' }), previous: null });
     // Same content, keys in another order: same canonical hash, nothing stored.
     expect((await recordSnapshot(t.db, { ...base, snapshot: { budget: '20000000', status: 'active' } })).stored).toBe(
       false,
     );
-    expect((await recordSnapshot(t.db, { ...base, snapshot: { status: 'paused', budget: '20000000' } })).stored).toBe(
-      true,
-    );
+    const paused = await recordSnapshot(t.db, { ...base, snapshot: { status: 'paused', budget: '20000000' } });
+    expect(paused.stored).toBe(true);
+    // The previous snapshot comes back, for drift detection.
+    expect(paused.previous?.hash).toBe(first.hash);
+    expect(paused.previous?.snapshot).toEqual({ status: 'active', budget: '20000000' });
     // Changing back is a change too.
     expect((await recordSnapshot(t.db, { ...base, snapshot: { status: 'active', budget: '20000000' } })).stored).toBe(
       true,

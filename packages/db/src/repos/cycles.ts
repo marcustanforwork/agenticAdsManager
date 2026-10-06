@@ -40,6 +40,20 @@ export async function startScheduled(
   }
 }
 
+/** The daily or weekly cycle of a product for a date, if one was started (at most one, by the unique index). */
+export async function findScheduledCycle(
+  db: DbOrTx,
+  input: { productId: string; kind: Exclude<CycleKind, 'manual'>; cycleDate: string },
+): Promise<Cycle | null> {
+  const [row] = await db
+    .select()
+    .from(cycles)
+    .where(
+      and(eq(cycles.productId, input.productId), eq(cycles.kind, input.kind), eq(cycles.cycleDate, input.cycleDate)),
+    );
+  return row ?? null;
+}
+
 /** Manual cycles have no per-day limit. */
 export async function startManual(db: DbOrTx, input: { productId: string; cycleDate: string }): Promise<Cycle> {
   const [row] = await db

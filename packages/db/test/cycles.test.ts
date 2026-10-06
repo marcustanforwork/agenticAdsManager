@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DuplicateCycleError, RefusedError } from '../src/errors.ts';
 import {
   advance,
+  findScheduledCycle,
   finish,
   getCycle,
   insertFinding,
@@ -37,6 +38,10 @@ describe('cycles', () => {
     await startManual(t.db, { productId: p.id, cycleDate: '2026-09-25' });
     await startManual(t.db, { productId: p.id, cycleDate: '2026-09-25' });
     expect(await listCycles(t.db, p.id)).toHaveLength(5);
+    expect((await findScheduledCycle(t.db, { productId: p.id, kind: 'daily', cycleDate: '2026-09-25' }))?.id).toBe(
+      first.id,
+    );
+    expect(await findScheduledCycle(t.db, { productId: p.id, kind: 'daily', cycleDate: '2026-09-27' })).toBeNull();
   });
 
   it('refuses the duplicate even when two starts race', async () => {

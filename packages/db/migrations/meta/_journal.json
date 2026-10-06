@@ -15,6 +15,13 @@
       "when": 1791260118815,
       "tag": "0001_accounts_login_customer_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791265216482,
+      "tag": "0002_accounts_sync_state",
+      "breakpoints": true
     }
   ]
 }

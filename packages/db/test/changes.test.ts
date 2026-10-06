@@ -8,6 +8,7 @@ import {
   getChange,
   insertChange,
   listChanges,
+  listChangesSince,
   markReverted,
   newRevisionId,
   ulid,
@@ -74,6 +75,16 @@ describe('the change log', () => {
     expect(change.before).toEqual({ s: 1 });
     expect((await listChanges(t.db, productId)).map((c) => c.revisionId)).toContain(revisionId);
     await expect(getChange(t.db, 'rev_missing')).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('lists the changes applied after a time, oldest first (drift detection)', async () => {
+    const before = new Date(Date.now() - 1000);
+    const a = await applied(pauseOp(target), { action: 'resume_entity', target }, {}, {});
+    const b = await applied({ action: 'resume_entity', target }, pauseOp(target), {}, {});
+    const since = await listChangesSince(t.db, productId, before);
+    expect(since.map((c) => c.revisionId).slice(-2)).toEqual([a.revisionId, b.revisionId]);
+    expect(since.at(-1)?.action).toEqual({ action: 'resume_entity', target });
+    expect(await listChangesSince(t.db, productId, new Date(Date.now() + 60_000))).toEqual([]);
   });
 
   it('links a change to its reverting revision once', async () => {
