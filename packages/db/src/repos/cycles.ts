@@ -18,6 +18,8 @@ import {
 export type Cycle = typeof cycles.$inferSelect;
 export type CycleKind = (typeof CYCLE_KINDS)[number];
 export type CycleStage = (typeof CYCLE_STAGES)[number];
+/** The stages in order: started → synced → trust_checked → detected → analysed → drafted → reported → done. */
+export const CYCLE_STAGE_ORDER: readonly CycleStage[] = CYCLE_STAGES;
 
 /** Starts a daily or weekly cycle. A second one for the same product, kind and date throws DuplicateCycleError
  *  (the unique index cycles_one_scheduled_per_day decides, so two replicas can't both start one). */

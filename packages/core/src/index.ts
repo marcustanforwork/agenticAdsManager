@@ -10,3 +10,4 @@ export * from './sync/quota.ts';
 export * from './sync/drift.ts';
 export * from './sync/stage.ts';
 export * from './cycle/trust.ts';
+export * from './cycle/runCycle.ts';
