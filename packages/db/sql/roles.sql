@@ -12,7 +12,7 @@ begin
 end
 $$;
 
--- The dashboard reads outcomes through this view, which leaves out hashed_contact.
+-- The dashboard reads outcomes through this view, which leaves out hashed_contact and web (the user agent).
 create or replace view dashboard_outcomes as
   select id, product_id, source_id, stage, occurred_at, value_micros, currency, is_test, ids,
          attributed_entity_id, attribution_method, fed_back_google_at, fed_back_meta_at, created_at

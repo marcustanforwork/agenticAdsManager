@@ -77,6 +77,25 @@ export const OutcomeEvent = z.object({
 });
 export type OutcomeEvent = z.infer<typeof OutcomeEvent>;
 
+/** What the last read of a product's outcome source found. The sync stores it on the product (D-076), and the
+ *  `outcome_source_fresh` trust check reads it, so a resumed cycle needs no second read. */
+export const OutcomeSourceState = z.object({
+  checkedAt: IsoDateTime,
+  ok: z.boolean(),
+  latestActivityAt: IsoDateTime.nullable(),
+  detail: z.string().max(500).optional(),
+  /** The outcomes read: from when, how many, how many were new, how many were left out (unknown stage). */
+  read: z
+    .object({
+      since: IsoDateTime,
+      events: z.number().int().min(0),
+      new: z.number().int().min(0),
+      skipped: z.number().int().min(0),
+    })
+    .optional(),
+});
+export type OutcomeSourceState = z.infer<typeof OutcomeSourceState>;
+
 export interface OutcomeAdapter {
   fetchSince(since: Date, limit?: number): Promise<OutcomeEvent[]>;
   healthcheck(): Promise<{ ok: boolean; latestActivityAt?: Date; detail?: string }>;
