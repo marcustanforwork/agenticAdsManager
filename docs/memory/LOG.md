@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-06 — M05a: pack SDK, SnapPool pack, settings, outcome reads
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9)
+- **Did:** `pack-sdk` (`definePack`, the registry, the threshold engine, the manifest document); the SnapPool pack (defaults, phases, facts, thresholds, a draft `analystContext`, the read-only adapter tested on a fixture copy of SnapPool's tables); migration `0003` (`products.outcome_source`, `outcomes.web`); `core/settings` (pack defaults, the pack's guard layer, invalid stored settings → `blocked` + one alert, repair by patch, history, seeding); outcome reads in the sync stage and the `outcome_source_fresh` check; `ads settings get|set|history`, `ads outcomes`, `ads seed` (replaces `db:seed`); manifests published at worker startup. Code review at high effort: 10 findings, all fixed.
+- **Decided:** D-076 (M05a build choices). `facts_put` moved to M05b.
+- **Learned:** SnapPool's tracking change is live since 2026-09-25 17:01 UTC (its Session 41); Meta and Google normalise emails differently (two hashes); zod's JSON Schema export drops refinements (GOTCHAS).
+- **Next:** Marcus reviews PR #9; a clean-context session starts M05b.
+- **Open:** Q13 (at the setup); all live steps, M05a's included (batched, D-074); SnapPool owes one real `/start` check on production.
+
 ## 2026-10-06 — PR #8 (M04) merged; the phased plan confirmed
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8)
 - **Did:** answered Marcus's questions (what Phase 2 is; no pixel is planned, D-060, which is why `tracking_active` needed D-075; why the agent gets its powers phase by phase). He confirmed the phased plan as written, then asked to merge M04 and carry on to M07. Squash-merged PR #8 after every check passed (D-057).

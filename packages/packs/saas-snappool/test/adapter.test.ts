@@ -23,7 +23,7 @@ afterAll(async () => {
   await db?.drop();
 });
 
-const adapterFor = (domains: string[] = ['marcus-test.com']) =>
+const adapterFor = (domains: string[] = ['staff.example']) =>
   snapPoolAdapter({ [DATABASE_URL_ENV]: db.url }, settings(domains));
 
 describe('the SnapPool adapter (fixture database)', () => {
@@ -175,10 +175,10 @@ describe('attribution and test-traffic helpers', () => {
   });
 
   it('matches a test domain exactly or as a parent domain, never by substring', () => {
-    expect(isTestEmail('a@marcus-test.com', ['marcus-test.com'])).toBe(true);
-    expect(isTestEmail('a@x.marcus-test.com', ['marcus-test.com'])).toBe(true);
-    expect(isTestEmail('a@notmarcus-test.com', ['marcus-test.com'])).toBe(false);
-    expect(isTestEmail('marcus-test.com@gmail.com', ['marcus-test.com'])).toBe(false);
-    expect(isTestEmail('no-at-sign', ['marcus-test.com'])).toBe(false);
+    expect(isTestEmail('a@staff.example', ['staff.example'])).toBe(true);
+    expect(isTestEmail('a@x.staff.example', ['staff.example'])).toBe(true);
+    expect(isTestEmail('a@notstaff.example', ['staff.example'])).toBe(false);
+    expect(isTestEmail('staff.example@gmail.com', ['staff.example'])).toBe(false);
+    expect(isTestEmail('no-at-sign', ['staff.example'])).toBe(false);
   });
 });

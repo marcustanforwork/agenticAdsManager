@@ -97,7 +97,7 @@ export const ID = {
 export const FIXTURE_EMAILS = [
   'alice@example.com',
   'b.ob@gmail.com',
-  'carol@team.marcus-test.com',
+  'carol@team.staff.example',
   'admin@example.org',
   'old@example.com',
   'dave@example.net',
@@ -131,7 +131,7 @@ export async function seedFixtures(db: FixtureDb): Promise<void> {
     db.query('insert into hosts (id, email, is_superadmin) values ($1, $2, $3)', [id, email, superadmin]);
   await host(ID.hostAlice, 'alice@example.com');
   await host(ID.hostAdmin, 'admin@example.org', true);
-  await host(ID.hostCarol, 'carol@team.marcus-test.com');
+  await host(ID.hostCarol, 'carol@team.staff.example');
   const event = (id: string, hostId: string, slug: string, firstUpload: string | null) =>
     db.query('insert into events (id, host_id, slug, title, first_upload_at) values ($1, $2, $3, $4, $5)', [
       id,
@@ -192,7 +192,7 @@ export async function seedFixtures(db: FixtureDb): Promise<void> {
   });
   await request({
     id: ID.reqCarol,
-    email: 'carol@team.marcus-test.com',
+    email: 'carol@team.staff.example',
     status: 'claimed',
     eventId: ID.eventCarol,
     createdAt: '2026-10-02T04:00:00Z',

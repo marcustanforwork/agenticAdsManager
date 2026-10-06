@@ -2,31 +2,39 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-06 · cloud session · **M05a started** (pack SDK, SnapPool pack, settings). M04 was squash-merged through PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8). Marcus confirmed the phased plan and asked to carry on to M07. **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0. **New:** SnapPool's tracking change (T6b) turned out to be live since 2026-09-25 (see "Deployed").
+**Last updated:** 2026-10-06 · cloud session · **M05a built: PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) awaits Marcus's review.** Marcus confirmed the phased plan and asked to carry on to M07. **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0. **New:** SnapPool's tracking change (T6b) turned out to be live since 2026-09-25 (see "Deployed").
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M05a (pack SDK, SnapPool pack, settings): in progress** (`docs/milestones/M05a-pack-sdk-snappool.md`). Then M05b, M06a, M06b and M07, one clean-context session each (D-056).
+- **Active milestone:** **M05a (pack SDK, SnapPool pack, settings): built, PR #9 in review**, then awaiting live acceptance (`docs/milestones/M05a-pack-sdk-snappool.md`). Next: M05b, then M06a, M06b and M07, one clean-context session each (D-056).
 - **M02, M01a** and **M00** are merged and awaiting live acceptance too (below). Under D-074 that doesn't block the builds.
-- **Status:** BLUEPRINT v3.12, PROPOSAL v3.6. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). **D-069:** M02 build choices. **D-070:** Google API access comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client. **D-073:** M03 build choices (API v25; `accounts.login_customer_id`; KPI-stage conversions by action id; soft cap 2,000 operations a day). **D-074:** build first, set up accounts at the end of Phase 0. **D-075:** M04 build choices (accounts' sync state, drift rules, `tracking_active` = `no_signal` for upload-only products before uploads, the cycle lock and resume).
+- **Status:** BLUEPRINT v3.12, PROPOSAL v3.6. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). **D-069:** M02 build choices. **D-070:** Google API access comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client. **D-073:** M03 build choices (API v25; `accounts.login_customer_id`; KPI-stage conversions by action id; soft cap 2,000 operations a day). **D-074:** build first, set up accounts at the end of Phase 0. **D-075:** M04 build choices (accounts' sync state, drift rules, `tracking_active` = `no_signal` for upload-only products before uploads, the cycle lock and resume). **D-076:** M05a build choices (unset route destinations, two email hashes, outcome reads and `products.outcome_source`, `ads seed`; `facts_put` moved to M05b).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Claude (this session):** M05a Build 1 first: the contract changes (nullable route destinations, the Google email hash), then `pack-sdk`. Session plan in the milestone file.
-2. **Marcus:** at the end of each milestone session, review its PR and say "merge" (Claude merges after CI passes, D-057); then start a new session for the next milestone, up to M07.
+1. **Marcus:** review PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (M05a) and say "merge" (Claude merges after CI passes, D-057); then start a new session for M05b.
+2. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M05b** (property pack G8, attribution, product docs, plus `facts_put` moved from M05a). Read M05a's "Leave behind". Cloud: if PR #9 is merged, reset the assigned branch to `origin/main` first (`start-session` §2).
 3. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
 4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- M05a on `claude/gifted-franklin-hk0fku` (PR opened at the end of the session).
+- PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (M05a) on `claude/gifted-franklin-hk0fku`: CI and Marcus's review.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
 - At the end of Phase 0: Q13; setup tasks T1 (optional part), T2–T14 (T6b is already live); then the live steps of M00, M01a, M02, M03, M04 and the milestones after them.
 
 ## Live steps for Marcus
-_All of these wait until the end of Phase 0 (D-074), and run in milestone order: M00, M01a, M02, M03, M04, then later ones._
+_All of these wait until the end of Phase 0 (D-074), and run in milestone order: M00, M01a, M02, M03, M04, M05a, then later ones._
+
+**M05a** (to do; after the M04 steps; needs T6a; Doppler `dev`, Neon dev branch). Full text in the M05a milestone file:
+1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (migration `0003`).
+2. T6a: a read-only role on SnapPool's Neon (`ads_agent_ro`: `grant select on pool_requests, hosts, events`, `default_transaction_read_only = on`); its connection string in Doppler `dev` as `SNAPPOOL_DATABASE_URL`.
+3. Add `cli:<your login name>` to `OPERATOR_ACTORS` in Doppler `dev`.
+4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads outcomes --product snappool` → `"read": {"outcome": "read", …}` and 30 days by stage. Paste the JSON (counts only).
+5. `… ads settings set --product snappool --patch '{"testTraffic":{"emailDomains":["<your-domain>"]},"spend":{"monthlyCeilingMicros":"500000000","dailyCeilingMicros":"25000000"}}'` → `"status": "done"`, `"version": 2` (S$1 = `1000000`; your daily ceiling).
+6. KPI switch: `--patch '{"outcomes":{"primaryKpiStage":"paid"}}'`, then `… ads outcomes --product snappool --no-read` → `"kpiStage": "paid"`; switch back to `signup`. Report "KPI switch OK".
 
 **M04** (to do; needs the M01a, M02 and M03 steps, and since M05a `SNAPPOOL_DATABASE_URL` (T6a) in Doppler `dev`; Neon dev branch, read credentials only). Full text in the M04 milestone file:
 1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (adds the accounts' sync columns).
@@ -78,8 +86,8 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 | M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
 | M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Live: link, dry sync, record fixtures (to do; needs T5, Q13, M01a) |
 | M04 | Sync, drift, trust checks | 0 | **awaiting live acceptance** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) (merged) | Live: two daily cycles + a restart (to do; after M03's steps) |
-| M05a | Pack SDK, SnapPool pack, settings | 0 | **in progress** | — | T6a (read-only DB URL) waits (D-074): adapter tested on a fixture DB |
-| M05b | Property pack (G8), attribution, product docs | 0 | not started | — | T6b is live (2026-09-25); real ids need T14 |
+| M05a | Pack SDK, SnapPool pack, settings | 0 | **awaiting live acceptance** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (in review) | Live: outcomes, starting settings, KPI switch (to do; needs T6a) |
+| M05b | Property pack (G8), attribution, product docs | 0 | **next** | — | + `facts_put` (from M05a); T6b is live (2026-09-25); real ids need T14 |
 | M06a | AI layer, finding registry, detectors | 0 | not started | — | T9 |
 | M06b | Analyst input, look-ups, analyse stage | 0 | not started | — | |
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | not started | — | T7, T8 |
