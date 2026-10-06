@@ -27,7 +27,9 @@ export type OutcomeStage = z.infer<typeof OutcomeStage>;
 export const FeedbackRoute = z.object({
   stage: z.string(),
   platform: Platform,
-  destinationId: z.string(), // Meta dataset (pixel) id, or Google conversion action id
+  /** Meta dataset (pixel) id, or Google conversion action id. `null` = not set up yet (setup tasks T4/T11): nothing
+   *  is uploaded on the route, but it still says the stage reaches that platform through uploads (D-076). */
+  destinationId: z.string().min(1).nullable(),
   eventName: z.string().optional(), // Meta event name, e.g. 'Lead', 'CompleteRegistration'
 });
 export type FeedbackRoute = z.infer<typeof FeedbackRoute>;
