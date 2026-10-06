@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.10 — 2026-10-02 (Google: no developer token, D-070; service accounts proposed, D-071; REST API with our own client, D-072) |
+| **Version** | v3.11 — 2026-10-06 (M03 build choices: `accounts.login_customer_id`, the Google status column, KPI-stage conversions, the quota soft cap, D-073) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -632,6 +632,8 @@ create table accounts (
   timezone text, currency char(3),                   -- as reported by the platform; checked against the product
   status text not null default 'active' check (status in ('active','paused','disconnected')),
   last_synced_at timestamptz,
+  login_customer_id text,                            -- Google: the manager account to act through (M03, D-073)
+  check (login_customer_id is null or (platform = 'google' and login_customer_id ~ '^[0-9]{10}$')),
   unique (platform, external_id)
 );
 
@@ -1047,20 +1049,21 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 - **Levels.** Metrics are stored for campaigns, ad groups/ad sets, ads and (Google) keywords. The entity list also includes budgets, with `explicitly_shared` recorded.
 - **Snapshots.** A snapshot is the canonical JSON of the tracked fields, stored only if its hash differs from the latest one.
 - **Drift.** The tracked fields are status, daily budget, bid strategy type and name. A change is drift unless the change log explains it (we set that value on that field).
-- **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync. Meta's column was checked against the docs in M02 (`connector-meta/src/status.ts`); the real fixtures confirm it. Any value not listed is `unknown`:
+- **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync. Meta's column was checked against the docs in M02 (`connector-meta/src/status.ts`), Google's in M03 (`connector-google/src/status.ts`: `status`, then `primary_status` for an enabled entity); the real fixtures confirm them. Any value not listed is `unknown`:
 
 | Normalised | Google | Meta (`effective_status`) |
 |---|---|---|
-| active | `ENABLED` | `ACTIVE` |
-| paused | `PAUSED` | `PAUSED`, `CAMPAIGN_PAUSED`, `ADSET_PAUSED` |
-| removed | `REMOVED` | `DELETED`, `ARCHIVED` |
-| pending | — | `IN_PROCESS`, `PENDING_REVIEW`, `PREAPPROVED`, `PENDING_BILLING_INFO` |
-| limited | limited/ineligible serving (primary status) | `WITH_ISSUES`, `DISAPPROVED` |
+| active | `ENABLED` (primary status `ELIGIBLE`, `LEARNING` or none) | `ACTIVE` |
+| paused | `PAUSED`, or primary status `PAUSED` | `PAUSED`, `CAMPAIGN_PAUSED`, `ADSET_PAUSED` |
+| removed | `REMOVED`, or primary status `REMOVED` | `DELETED`, `ARCHIVED` |
+| pending | primary status `PENDING` | `IN_PROCESS`, `PENDING_REVIEW`, `PREAPPROVED`, `PENDING_BILLING_INFO` |
+| limited | primary status `LIMITED`, `NOT_ELIGIBLE`, `MISCONFIGURED`, `ENDED` | `WITH_ISSUES`, `DISAPPROVED` |
 | unknown | anything else | anything else |
 
 - **Meta specifics (M02, D-069).** Clicks are link clicks (`inline_link_clicks`). Platform conversions are the sum of the insights action types that the Meta feedback routes of the primary KPI stage map to (`offsite_conversion.fb_pixel_<event>`), with each row's `attribution_setting` recorded. Meta has no shared budgets, so `budget_shared` is always false; daily vs lifetime budget and the configured status go in `attributes`.
+- **Google specifics (M03, D-073).** Keywords are `<adGroupId>~<criterionId>` (positive keywords only). Platform conversions are `metrics.all_conversions` of the conversion actions that the Google feedback routes of the primary KPI stage name (`segments.conversion_action`). `budget_shared` is `explicitly_shared`, or true when Google omits it and the budget serves several campaigns, else null (unknown). The manager account to act through is `accounts.login_customer_id`.
 - **Money.** Conversions follow §3.1. **Timezones:** metric dates are in the account's local day, which must equal the product's timezone (trust check).
-- **Quota.** Every Google request increments `api_usage`. A soft cap stops the sync with a clear error.
+- **Quota.** Every Google request increments `api_usage` first (per UTC day). A soft cap (2,000 operations a day across every Google account: Explorer's 2,880 belong to the Cloud project) stops the sync with a clear error (D-073).
 
 ### 5.8 Trust checks
 
@@ -1440,7 +1443,7 @@ Methods are tried in this order, and the first match wins:
 3. A GAQL builder with an allowlist of resources and fields. No free-form GAQL.
 4. Quota accounting in `api_usage`, with a soft cap (Explorer allows 2,880 operations a day **per Cloud project**, so the cap sums every Google account for the day).
 5. Fixtures in `fixtures/google/*.json`, recorded via `connector-testing`. Extend its redactor and scanner to PEM private keys and `private_key` fields (service-account key files).
-6. `ads sync --product snappool --platform google --dry`.
+6. `ads sync --product snappool --platform google --dry`. (M03 also adds `ads accounts link --manager <id>`, which stores the manager account in `accounts.login_customer_id`, and the recorder: `RECORD=1 GOOGLE_CREDENTIAL=<key file> pnpm --filter @ads/connector-google record --account … [--manager …]`, D-073.)
 
 **Tests:**
 - Replay tests for every method.
