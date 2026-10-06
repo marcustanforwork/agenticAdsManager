@@ -2,30 +2,37 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-06 · cloud session · **M04 started** (milestone file `docs/milestones/M04-sync-drift-trust.md`). M03 was squash-merged through PR [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7). **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0.
+**Last updated:** 2026-10-06 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M04's cloud part is done**; its PR is open for Marcus's review (link in "In flight"). **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0.
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M04 (sync stage, drift, trust checks): in progress**, `docs/milestones/M04-sync-drift-trust.md`. M03 (Google read connector) is merged and awaiting live acceptance.
+- **Active milestone:** **M04 (sync stage, drift, trust checks): awaiting review and merge**, then live acceptance (`docs/milestones/M04-sync-drift-trust.md`). Next: **M05a** (pack SDK, SnapPool pack, settings).
 - **M02, M01a** and **M00** are merged and awaiting live acceptance too (below). Under D-074 that doesn't block the builds.
-- **Status:** BLUEPRINT v3.11, PROPOSAL v3.6. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). **D-069:** M02 build choices. **D-070:** Google API access comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client. **D-073:** M03 build choices (API v25; `accounts.login_customer_id`; KPI-stage conversions by action id; soft cap 2,000 operations a day). **D-074:** build first, set up accounts at the end of Phase 0.
+- **Status:** BLUEPRINT v3.11, PROPOSAL v3.6. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). **D-069:** M02 build choices. **D-070:** Google API access comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client. **D-073:** M03 build choices (API v25; `accounts.login_customer_id`; KPI-stage conversions by action id; soft cap 2,000 operations a day). **D-074:** build first, set up accounts at the end of Phase 0. **D-075:** M04 build choices (accounts' sync state, drift rules, `tracking_active` = `no_signal` for upload-only products before uploads, the cycle lock and resume).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Claude (this session):** M04 Build order in its milestone file: migration `0002` and repos → one sync stage → trust checks → `runCycle` and resume → `ads cycle` → plan updates (D-075) and close. If the session ends early, continue from the first unticked step.
-2. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
-3. **Marcus, any time (optional):** the SnapPool tracking change (T6b, prompt in `SNAPPOOL-TRACKING.md` §7) can be coded in a cloud session on the snappool repo; applying its database change to production waits for his PC.
-4. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
+1. **Marcus:** review the M04 PR; merge it when you're happy (say so, and Claude merges after CI passes, D-057).
+2. **Claude (next session: clean context, Opus 5.5, medium effort):** after the M04 merge, `start-milestone` for **M05a** (pack SDK, SnapPool pack, settings). Its setup need T6a waits (D-074): build the SnapPool adapter against a fixture. Read M04's "Leave behind" (trust checks to switch on: `outcome_source_fresh`). Cloud: the assigned branch's PR will be merged, so reset it to `origin/main` first (`start-session` §2).
+3. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
+4. **Marcus, any time (optional):** the SnapPool tracking change (T6b, prompt in `SNAPPOOL-TRACKING.md` §7) can be coded in a cloud session on the snappool repo; applying its database change to production waits for his PC.
+5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- M04 on branch `claude/gifted-franklin-hk0fku` (PR to be opened at the end of the session).
+- M04 on branch `claude/gifted-franklin-hk0fku`: PR opened at the end of this session (ready for review; CI to pass). Not merged.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
-- At the end of Phase 0: Q13; setup tasks T1 (optional part), T2–T14, T6b; then the live steps of M00, M01a, M02, M03 and the milestones after them.
+- At the end of Phase 0: Q13; setup tasks T1 (optional part), T2–T14, T6b; then the live steps of M00, M01a, M02, M03, M04 and the milestones after them.
 
 ## Live steps for Marcus
-_All of these wait until the end of Phase 0 (D-074), and run in milestone order: M00, M01a, M02, M03, then later ones._
+_All of these wait until the end of Phase 0 (D-074), and run in milestone order: M00, M01a, M02, M03, M04, then later ones._
+
+**M04** (to do; needs the M01a, M02 and M03 steps; Doppler `dev`, Neon dev branch, read credentials only). Full text in the M04 milestone file:
+1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (adds the accounts' sync columns).
+2. Day 1: `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads cycle --product snappool --kind daily --until trust_checked` → `"outcome": "finished"`, each account `"synced"`, `"trustResult"` `ok` or `degraded` (`degraded` while the Meta limit is unset or 80%+ used). Paste the JSON (counts only) and the time.
+3. Day 2: the same command → a new cycle; few snapshots, `"drift": 0` unless something changed by hand. Paste the JSON.
+4. Restart check with the dev stack: `docker compose -p ads-agent-dev exec worker ads-entrypoint ads cycle --product snappool --kind daily`, and during its sync `docker compose -p ads-agent-dev restart worker` → the worker logs `"unfinished cycles checked"` with the cycle `finished`; step 2's command then prints `"already_finished"`.
 
 **M03** (to do; needs T5, your Q13 answer, the M01a steps 1–4 and M02's step 2; Doppler `dev`, Neon dev branch, read credential only). Full text in the M03 milestone file:
 1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (adds `accounts.login_customer_id`).
@@ -70,8 +77,8 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 | M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
 | M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
 | M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Live: link, dry sync, record fixtures (to do; needs T5, Q13, M01a) |
-| M04 | Sync, drift, trust checks | 0 | **in progress** | — | Includes the Meta spending-limit check (D-063) |
-| M05a | Pack SDK, SnapPool pack, settings | 0 | not started | — | T6a (read-only DB URL); SnapPool facts in SNAPPOOL-TRACKING |
+| M04 | Sync, drift, trust checks | 0 | **cloud part done; PR open** | (this session's PR) | Live: two daily cycles + a restart (to do; after M03's steps) |
+| M05a | Pack SDK, SnapPool pack, settings | 0 | **next** | — | T6a (read-only DB URL); SnapPool facts in SNAPPOOL-TRACKING |
 | M05b | Property pack (G8), attribution, product docs | 0 | not started | — | Real attribution needs T6b shipped |
 | M06a | AI layer, finding registry, detectors | 0 | not started | — | T9 |
 | M06b | Analyst input, look-ups, analyse stage | 0 | not started | — | |
