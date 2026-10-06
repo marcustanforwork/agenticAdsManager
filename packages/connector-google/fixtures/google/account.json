@@ -1,0 +1,46 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "One customer row. int64 ids are strings, booleans are JSON booleans (proto3 JSON mapping).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.auto_tagging_enabled, customer.manager, customer.status, customer.test_account FROM customer"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "customer": {
+                  "resourceName": "customers/1234567890",
+                  "id": "1234567890",
+                  "descriptiveName": "Test Client Account",
+                  "currencyCode": "SGD",
+                  "timeZone": "Asia/Singapore",
+                  "autoTaggingEnabled": true,
+                  "manager": false,
+                  "status": "ENABLED",
+                  "testAccount": false
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

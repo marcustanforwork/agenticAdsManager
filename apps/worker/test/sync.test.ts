@@ -73,7 +73,12 @@ describe('ads sync', () => {
     );
   });
 
-  it('refuses Google until M03', async () => {
-    await expect(run(['--product', 'sync-cli', 'sync', '--platform', 'google', '--dry']).done).rejects.toThrow(/M03/);
+  it('runs for Google too (M03); with no Google account linked it says so', async () => {
+    const r = run(['--product', 'sync-cli', 'sync', '--platform', 'google', '--dry']);
+    await r.done;
+    const report = JSON.parse(r.printed.join('\n')) as { platform: string; warnings: string[]; accounts: unknown[] };
+    expect(report.platform).toBe('google');
+    expect(report.accounts).toEqual([]);
+    expect(report.warnings).toContain('no google account is linked to sync-cli');
   });
 });

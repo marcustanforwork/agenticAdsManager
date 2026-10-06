@@ -6,6 +6,7 @@ import {
   completeOperatorRequest,
   enqueueNotification,
   getApiUsage,
+  sumApiUsage,
   getBrief,
   getFlag,
   getOperatorRequest,
@@ -130,5 +131,15 @@ describe('API usage', () => {
     expect(await addApiUsage(t.db, { ...key, operations: 3 })).toBe(3);
     expect(await addApiUsage(t.db, { ...key, operations: 4 })).toBe(7);
     expect(await getApiUsage(t.db, { ...key, date: '2026-09-26' })).toBe(0);
+  });
+
+  it("sums a platform's operations for the day across accounts (the Cloud project quota)", async () => {
+    const day = { platform: 'google' as const, date: '2026-09-27' };
+    expect(await sumApiUsage(t.db, day)).toBe(0);
+    await addApiUsage(t.db, { ...day, accountExternalId: '1111111111', operations: 5 });
+    await addApiUsage(t.db, { ...day, accountExternalId: '2222222222', operations: 7 });
+    await addApiUsage(t.db, { ...day, platform: 'meta', accountExternalId: 'act_1', operations: 100 });
+    await addApiUsage(t.db, { ...day, date: '2026-09-28', accountExternalId: '1111111111', operations: 50 });
+    expect(await sumApiUsage(t.db, day)).toBe(12);
   });
 });

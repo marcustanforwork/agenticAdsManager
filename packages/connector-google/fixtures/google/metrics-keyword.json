@@ -1,0 +1,126 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "Keyword level (keyword_view); the keyword id is <adGroupId>~<criterionId>.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign.id, ad_group.id, ad_group_criterion.criterion_id, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros FROM keyword_view WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/211~311",
+                  "criterionId": "311"
+                },
+                "segments": {
+                  "date": "2026-09-28"
+                },
+                "metrics": {
+                  "impressions": "300",
+                  "costMicros": "7000000",
+                  "clicks": "15"
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/211~312",
+                  "criterionId": "312"
+                },
+                "segments": {
+                  "date": "2026-09-28"
+                },
+                "metrics": {
+                  "impressions": "100",
+                  "costMicros": "2870000",
+                  "clicks": "5"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign.id, ad_group.id, ad_group_criterion.criterion_id, segments.date, segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value FROM keyword_view WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/211~311",
+                  "criterionId": "311"
+                },
+                "segments": {
+                  "date": "2026-09-28",
+                  "conversionAction": "customers/1234567890/conversionActions/555"
+                },
+                "metrics": {
+                  "allConversions": 2.0,
+                  "allConversionsValue": 0.0
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

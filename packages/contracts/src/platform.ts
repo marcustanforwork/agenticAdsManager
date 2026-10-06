@@ -96,5 +96,11 @@ export const TrustSignalRow = z.object({
   datasetEventsReceived: z.number().int().min(0).nullable().optional(),
   /** Meta: when the dataset last received an event; null = never or not configured. Added in M02. */
   datasetLastEventAt: IsoDateTime.nullable().optional(),
+  /** Google: whether auto-tagging (gclid on clicks) is on. Added in M03. */
+  autoTaggingEnabled: z.boolean().nullable().optional(),
+  /** Google: enabled conversion actions in the account. Added in M03. */
+  conversionActionsEnabled: z.number().int().min(0).nullable().optional(),
+  /** Google: the KPI stage's conversion action ids that are missing or not enabled. Added in M03. */
+  conversionActionsMissing: z.array(z.string()).optional(),
 });
 export type TrustSignalRow = z.infer<typeof TrustSignalRow>;

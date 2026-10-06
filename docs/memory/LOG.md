@@ -4,6 +4,26 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-06 — PR #7 (M03) merged; account setup moved to the end of Phase 0
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7)
+- **Did:** Marcus asked to merge M03 and keep building without the account creation, doing it at the end. Recorded as D-074 (NOW, SESSIONS, QUESTIONS Q13 updated), then squash-merged PR #7 on his instruction after every check passed (D-057).
+- **Decided:** D-074 (Marcus): the builds carry on through Phase 0 without the setup tasks; all setup and live steps happen together after M07's cloud part, before the Phase 0 → 1 gate.
+- **Learned:** —
+- **Next:** a clean-context session starts M04.
+- **Open:** Q13 (at the setup); all live steps (batched, D-074).
+
+## 2026-10-06 — M03 built: Google read connector
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7)
+- **Did:**
+  - `packages/connector-google`: `GoogleAdsClient` (REST `searchStream`, API v25, no developer token, `login-customer-id`, retries, quota hook), token providers (service-account JWT, refresh token) outside the recorded fetch, the GAQL builder with an allowlist, `GoogleReadClient` (account, entities incl. keywords and budgets, metrics at 3 levels, search terms, click ids, snapshots, trust signals, manager → client resolution), 11 hand-written cassettes, the `record` script, the recorded-replay test, a `LIVE=1` smoke test.
+  - `connector-testing`: cassettes match the POST body and `login-customer-id`; redaction of PEM keys, JWTs, gclids and search terms (also inside resource names).
+  - `accounts.login_customer_id` (migration 0001), `sumApiUsage`, `ads accounts link --manager/--no-manager`; the core quota meter (soft cap 2,000 a day, under an advisory lock); `dryRunGoogle` and `ads sync --platform google --dry`.
+  - Code review (high): 10 candidates, 7 fixed, 3 recorded as not changed (milestone Notes). 97 new tests (563 in the repo). gitleaks clean.
+- **Decided:** D-073 (Claude, fix). BLUEPRINT v3.11 (§4 accounts column, §5.7 Google status column and specifics, quota cap).
+- **Learned:** GOTCHAS: Google Ads API v25 and minor releases on the same endpoint, `searchStream` REST shape, errors and rate limits, operations counting (sliding window unverified), `listAccessibleCustomers`, statuses, resource names holding personal data, conversion values as doubles, manager-owned conversion actions (unverified); `developers.google.cn` is blocked too.
+- **Next:** Marcus reviews PR #7; after the merge, a clean session starts M04.
+- **Open:** Q13; live steps M03, M02, M01a, M00; setup tasks.
+
 ## 2026-10-06 — PR #6 (M02) merged; Marcus works remotely for now
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6)
 - **Did:** squash-merged PR #6 on Marcus's instruction after every check passed (D-057). Answered his questions: the to-do list is the same except Google's setup (T5 is simpler: no developer token, no application) and the new Q13; M03's cloud work needs no accounts. He's moving house and working from a work machine, so browser-only setup tasks for now; secrets and live steps wait for his own PC.

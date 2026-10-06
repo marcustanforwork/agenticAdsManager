@@ -1,22 +1,22 @@
 // `ads sync --dry` (M02): read everything a sync would store, and report it without writing anything.
 // M04 turns this into the real sync stage (upserts, snapshots on change, drift, trust checks).
-import {
-  type AdEntityRecord,
-  type EntityType,
-  type Platform,
-  type ProductSettings,
-  localDate,
-  microsToJson,
-  minusDays,
-} from '@ads/contracts';
+import { type EntityType, type ProductSettings, localDate, minusDays } from '@ads/contracts';
 import { MetaReadClient, actionTypesForEvents } from '@ads/connector-meta';
-import { type DbOrTx, NotFoundError, findProductBySlug, listAccounts } from '@ads/db';
-import { type MasterKey, get as vaultGet } from '@ads/vault';
+import { NotFoundError, findProductBySlug, listAccounts } from '@ads/db';
+import { get as vaultGet } from '@ads/vault';
+import { dryRunGoogle } from './dryRunGoogle.ts';
+import {
+  type AccountReport,
+  type DrySyncInput,
+  type DrySyncReport,
+  type LevelSummary,
+  SYNC_WINDOW_DAYS,
+  TRUST_WINDOW_DAYS,
+  countBy,
+  summariseLevel,
+} from './report.ts';
 
-/** BLUEPRINT §5.7: each sync re-downloads the trailing 28 days. */
-export const SYNC_WINDOW_DAYS = 28;
-/** BLUEPRINT §5.8: trust signals look at the last 7 days. */
-export const TRUST_WINDOW_DAYS = 7;
+export * from './report.ts';
 
 const META_LEVELS: EntityType[] = ['campaign', 'ad_group', 'ad'];
 
@@ -56,66 +56,14 @@ export function metaReadConfig(settings: ProductSettings): {
   return datasetId === undefined ? { conversionActionTypes, warnings } : { conversionActionTypes, datasetId, warnings };
 }
 
-export interface LevelSummary {
-  rows: number;
-  days: number;
-  impressions: number;
-  clicks: number;
-  spendMicros: string;
-  platformConversions: number;
-}
-
-export interface AccountReport {
-  account: string;
-  outcome: 'read' | 'skipped' | 'error';
-  detail?: string;
-  timezone?: string;
-  currency?: string;
-  /** BLUEPRINT §5.8 `timezone_match`: the account's timezone must equal the product's. */
-  timezoneMatchesProduct?: boolean;
-  window?: { from: string; to: string };
-  entities?: Partial<Record<EntityType, { total: number; byStatus: Record<string, number> }>>;
-  snapshots?: number;
-  metrics?: Partial<Record<EntityType, LevelSummary>>;
-  trust?: Record<string, unknown>;
-  requests?: number;
-  durationMs?: number;
-}
-
-export interface DrySyncReport {
-  product: string;
-  platform: Platform;
-  dryRun: true;
-  warnings: string[];
-  accounts: AccountReport[];
-}
-
-export interface DrySyncInput {
-  db: DbOrTx;
-  productSlug: string;
-  platform: Platform;
-  /** The worker's read key (`VAULT_READ_KEY`). */
-  masterKey: MasterKey;
-  /** Replaces the network: the replayer in tests, the recorder with RECORD=1. */
-  fetch?: typeof fetch;
-  now?: () => Date;
-}
-
-function countBy(rows: AdEntityRecord[], type: EntityType) {
-  const mine = rows.filter((r) => r.ref.type === type);
-  const byStatus: Record<string, number> = {};
-  for (const r of mine) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-  return { total: mine.length, byStatus };
-}
-
 /** Reads every active account of the product on one platform, and summarises what a sync would store.
  *  Writes nothing except the vault's audit row for the credential read. Names are never printed. */
 export async function dryRunSync(input: DrySyncInput): Promise<DrySyncReport> {
   const { db, productSlug, platform, masterKey } = input;
   const now = input.now ?? (() => new Date());
-  if (platform !== 'meta') throw new Error('only --platform meta can sync yet; Google reads arrive in M03');
   const product = await findProductBySlug(db, productSlug);
   if (!product) throw new NotFoundError('product', productSlug);
+  if (platform === 'google') return dryRunGoogle(input, product);
 
   const config = metaReadConfig(product.settings);
   const report: DrySyncReport = {
@@ -171,17 +119,8 @@ async function readAccount(
   const entities = await client.listEntities(accountId, META_LEVELS);
 
   const metrics: Partial<Record<EntityType, LevelSummary>> = {};
-  for (const level of META_LEVELS) {
-    const rows = await client.getMetricsDaily(accountId, window, level);
-    metrics[level] = {
-      rows: rows.length,
-      days: new Set(rows.map((r) => r.day)).size,
-      impressions: rows.reduce((n, r) => n + r.impressions, 0),
-      clicks: rows.reduce((n, r) => n + r.clicks, 0),
-      spendMicros: microsToJson(rows.reduce((n, r) => n + BigInt(r.spendMicros), 0n)),
-      platformConversions: rows.reduce((n, r) => n + r.platformConversions, 0),
-    };
-  }
+  for (const level of META_LEVELS)
+    metrics[level] = summariseLevel(await client.getMetricsDaily(accountId, window, level));
 
   const trust = await client.trustSignals(accountId, { from: minusDays(today, TRUST_WINDOW_DAYS - 1), to: today });
 

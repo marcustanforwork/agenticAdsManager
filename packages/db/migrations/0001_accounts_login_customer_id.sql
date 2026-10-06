@@ -1,0 +1,2 @@
+ALTER TABLE "accounts" ADD COLUMN "login_customer_id" text;--> statement-breakpoint
+ALTER TABLE "accounts" ADD CONSTRAINT "accounts_login_customer_id_check" CHECK ("accounts"."login_customer_id" is null or ("accounts"."platform" = 'google' and "accounts"."login_customer_id" ~ '^[0-9]{10}$'));

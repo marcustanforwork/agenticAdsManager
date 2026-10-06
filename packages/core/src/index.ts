@@ -5,3 +5,5 @@ export * from './requests/settingsPatch.ts';
 export { HANDLERS, NOT_AVAILABLE_UNTIL, type RequestHandler } from './requests/handlers.ts';
 export * from './recovery.ts';
 export * from './sync/dryRun.ts';
+export * from './sync/dryRunGoogle.ts';
+export * from './sync/quota.ts';

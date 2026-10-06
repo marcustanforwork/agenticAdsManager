@@ -57,6 +57,38 @@ describe('ads accounts', () => {
     expect(line).toMatch(/^meta:act_777 {2}paused/);
   });
 
+  it('stores the manager account of a Google account, and refuses it elsewhere', async () => {
+    const link = (...extra: string[]) =>
+      run(['accounts', 'link', '--product', 'acc-a', '--platform', 'google', '--account', '1234567890', ...extra]);
+    expect(await link('--manager', '1112223333')).toEqual([
+      'linked google:1234567890 to acc-a through manager 1112223333',
+    ]);
+    expect(await link('--manager', '1112223333')).toEqual(['google:1234567890 is already linked to acc-a (active)']);
+    expect(await link('--manager', '4445556666')).toEqual([
+      'google:1234567890 is linked to acc-a through manager 4445556666',
+    ]);
+    const lines = await run(['accounts', 'list', '--product', 'acc-a']);
+    expect(lines.find((l) => l.startsWith('google:'))).toMatch(/via manager 4445556666$/);
+    expect(await link('--no-manager')).toEqual(['google:1234567890 is linked to acc-a, with direct access']);
+    const direct = await run(['accounts', 'list', '--product', 'acc-a']);
+    expect(direct.find((l) => l.startsWith('google:'))).not.toMatch(/via manager/);
+    await expect(link('--manager', '111-222-3333')).rejects.toThrow(/10 digits/);
+    await expect(
+      run([
+        'accounts',
+        'link',
+        '--product',
+        'acc-a',
+        '--platform',
+        'meta',
+        '--account',
+        'act_1',
+        '--manager',
+        '1112223333',
+      ]),
+    ).rejects.toThrow(/Google accounts only/);
+  });
+
   it("refuses another product's account and malformed ids", async () => {
     await expect(
       run(['accounts', 'link', '--product', 'acc-b', '--platform', 'meta', '--account', 'act_777']),

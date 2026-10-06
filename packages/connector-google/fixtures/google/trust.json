@@ -1,0 +1,172 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "Account info (auto-tagging on), 7-day totals, the KPI action's conversions, and the conversion actions.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.auto_tagging_enabled, customer.manager, customer.status, customer.test_account FROM customer"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "customer": {
+                  "resourceName": "customers/1234567890",
+                  "id": "1234567890",
+                  "descriptiveName": "Test Client Account",
+                  "currencyCode": "SGD",
+                  "timeZone": "Asia/Singapore",
+                  "autoTaggingEnabled": true,
+                  "manager": false,
+                  "status": "ENABLED",
+                  "testAccount": false
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT metrics.clicks, metrics.cost_micros FROM customer WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "customer": {
+                  "resourceName": "customers/1234567890"
+                },
+                "metrics": {
+                  "clicks": "120",
+                  "costMicros": "45670000"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value FROM customer WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "customer": {
+                  "resourceName": "customers/1234567890"
+                },
+                "segments": {
+                  "conversionAction": "customers/1234567890/conversionActions/555"
+                },
+                "metrics": {
+                  "allConversions": 7.0,
+                  "allConversionsValue": 0.0
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT conversion_action.id, conversion_action.status, conversion_action.type FROM conversion_action"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "conversionAction": {
+                  "resourceName": "customers/1234567890/conversionActions/555",
+                  "id": "555",
+                  "status": "ENABLED",
+                  "type": "UPLOAD_CLICKS"
+                }
+              },
+              {
+                "conversionAction": {
+                  "resourceName": "customers/1234567890/conversionActions/556",
+                  "id": "556",
+                  "status": "REMOVED",
+                  "type": "WEBPAGE"
+                }
+              },
+              {
+                "conversionAction": {
+                  "resourceName": "customers/1234567890/conversionActions/557",
+                  "id": "557",
+                  "status": "ENABLED",
+                  "type": "WEBPAGE"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "Made-up search terms. Real ones are untrusted text and are replaced by the redactor when recorded.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT search_term_view.search_term, search_term_view.status, ad_group.id, campaign.id, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros FROM search_term_view WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "searchTermView": {
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
+                  "searchTerm": "photo sharing app for weddings",
+                  "status": "NONE"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-28"
+                },
+                "metrics": {
+                  "impressions": "40",
+                  "clicks": "3",
+                  "costMicros": "1500000"
+                }
+              },
+              {
+                "searchTermView": {
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
+                  "searchTerm": "free event photo pool",
+                  "status": "ADDED"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-29"
+                },
+                "metrics": {
+                  "impressions": "25",
+                  "clicks": "2",
+                  "costMicros": "900000"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

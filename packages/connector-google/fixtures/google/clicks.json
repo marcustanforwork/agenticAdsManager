@@ -1,0 +1,83 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "One day of click_view. The last click has no gclid (e.g. an app campaign) and is skipped.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT click_view.gclid, campaign.id, ad_group.id, segments.date FROM click_view WHERE segments.date = '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "clickView": {
+                  "resourceName": "customers/1234567890/clickViews/2026-09-30~REDACTED",
+                  "gclid": "TestGclid-0001-abcdefghij"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-30"
+                }
+              },
+              {
+                "clickView": {
+                  "resourceName": "customers/1234567890/clickViews/2026-09-30~REDACTED",
+                  "gclid": "TestGclid-0002-klmnopqrst"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-30"
+                }
+              },
+              {
+                "clickView": {
+                  "resourceName": "customers/1234567890/clickViews/2026-09-30~REDACTED"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-30"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

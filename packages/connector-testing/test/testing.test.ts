@@ -135,3 +135,90 @@ describe('recording', () => {
     expect(() => saveCassette(join(dir, 'bad.json'), bad)).toThrow(/refusing to write/);
   });
 });
+
+describe('POST bodies and matched headers (Google searchStream)', () => {
+  const url = 'https://googleads.googleapis.com/v25/customers/1234567890/googleAds:searchStream';
+  const post = (query: string, manager?: string): RequestInit => ({
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ya29.not-a-real-token-0123456789',
+      'content-type': 'application/json',
+      ...(manager === undefined ? {} : { 'login-customer-id': manager }),
+    },
+    body: JSON.stringify({ query }),
+  });
+  const google: Cassette = {
+    source: 'hand-written for tests',
+    exchanges: [
+      {
+        request: {
+          method: 'POST',
+          path: '/customers/1234567890/googleAds:searchStream',
+          query: {},
+          headers: { 'login-customer-id': '1112223333' },
+          body: { query: 'SELECT campaign.id FROM campaign' },
+        },
+        response: { status: 200, headers: {}, body: [{ results: [] }] },
+      },
+    ],
+  };
+
+  it('match on the body and the login-customer-id header, never on the token', async () => {
+    const r = replayFetch(google);
+    await expect(r.fetch(url, post('SELECT ad_group.id FROM ad_group', '1112223333'))).rejects.toThrow(/no fixture/);
+    await expect(r.fetch(url, post('SELECT campaign.id FROM campaign'))).rejects.toThrow(/no fixture/);
+    const res = await r.fetch(url, post('SELECT campaign.id FROM campaign', '1112223333'));
+    expect(await res.json()).toEqual([{ results: [] }]);
+  });
+
+  it('are recorded without the authorization header', async () => {
+    const inner = replayFetch(google);
+    const rec = recordingFetch(inner.fetch);
+    await rec.fetch(url, post('SELECT campaign.id FROM campaign', '1112223333'));
+    const [x] = rec.exchanges;
+    expect(x?.request.headers).toEqual({ 'login-customer-id': '1112223333' });
+    expect(x?.request.body).toEqual({ query: 'SELECT campaign.id FROM campaign' });
+    expect(JSON.stringify(x)).not.toContain('ya29');
+  });
+});
+
+describe('service-account secrets', () => {
+  // Built at run time: a PEM literal in the repo would trip the secret scanner (gitleaks) on purpose.
+  const pem = ['-----BEGIN', 'PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----END', 'PRIVATE KEY-----\n'].join(
+    ' ',
+  );
+  const jwt = `eyJ${'a'.repeat(20)}.${'b'.repeat(20)}.${'c'.repeat(20)}`;
+
+  it('the scanner finds PEM keys (raw or JSON-escaped), private_key fields and JWTs', () => {
+    expect(findSecrets(pem)).toHaveLength(1);
+    expect(findSecrets(JSON.stringify({ k: pem }))).not.toEqual([]);
+    expect(findSecrets(JSON.stringify({ private_key: 'x' }))).toContain('json key: private_key');
+    expect(findSecrets(`assertion=${jwt}`)).not.toEqual([]);
+  });
+
+  it('the redactor clears click ids and search terms, also inside resource names', () => {
+    const r = new Redactor();
+    const row = {
+      clickView: {
+        resourceName: 'customers/1/clickViews/2026-09-30~Cj0KCQjwRealLookingGclid',
+        gclid: 'Cj0KCQjwRealLookingGclid',
+      },
+      searchTermView: { resourceName: 'customers/1/searchTermViews/11~22~amFuZSB0YW4', searchTerm: 'jane tan' },
+    };
+    const out = JSON.stringify(r.value(row));
+    expect(out).not.toMatch(/Cj0KCQjw|amFuZSB0YW4|jane tan/);
+    expect(findSecrets(out)).toEqual([]);
+    expect(findSecrets(JSON.stringify(row))).toHaveLength(2);
+  });
+
+  it('the redactor drops private_key fields, replaces keys and search terms', () => {
+    const r = new Redactor();
+    const out = r.value({ private_key: pem, note: pem, searchTerm: 'jane tan photos', descriptiveName: 'Acme' });
+    expect(out).toEqual({
+      note: 'REDACTED\n',
+      searchTerm: 'redacted searchTerm 1',
+      descriptiveName: 'redacted descriptiveName 2',
+    });
+    expect(findSecrets(JSON.stringify(out))).toEqual([]);
+  });
+});

@@ -1,0 +1,84 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "The signed-in identity reaches the manager account directly; the client accounts sit one level below it.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/customers:listAccessibleCustomers",
+        "query": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": {
+          "resourceNames": [
+            "customers/1112223333"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1112223333/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT customer_client.id, customer_client.level, customer_client.manager, customer_client.status, customer_client.time_zone, customer_client.currency_code FROM customer_client WHERE customer_client.level <= 1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "customerClient": {
+                  "resourceName": "customers/1112223333/customerClients/1112223333",
+                  "id": "1112223333",
+                  "level": "0",
+                  "manager": true,
+                  "status": "ENABLED",
+                  "timeZone": "Asia/Singapore",
+                  "currencyCode": "SGD"
+                }
+              },
+              {
+                "customerClient": {
+                  "resourceName": "customers/1112223333/customerClients/1234567890",
+                  "id": "1234567890",
+                  "level": "1",
+                  "manager": false,
+                  "status": "ENABLED",
+                  "timeZone": "Asia/Singapore",
+                  "currencyCode": "SGD"
+                }
+              },
+              {
+                "customerClient": {
+                  "resourceName": "customers/1112223333/customerClients/9876543210",
+                  "id": "9876543210",
+                  "level": "1",
+                  "manager": false,
+                  "status": "ENABLED",
+                  "timeZone": "Asia/Singapore",
+                  "currencyCode": "SGD"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}

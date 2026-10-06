@@ -1,0 +1,342 @@
+{
+  "source": "hand-written from the Google Ads API REST reference (v25), M03",
+  "notes": "Campaigns come in two stream batches. Campaign 112 uses the shared budget 412; budget 413 omits explicitlyShared but serves two campaigns. Ad group 213 is enabled inside a paused campaign (primary status PAUSED).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.primary_status, campaign.primary_status_reasons, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.campaign_budget, campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.period FROM campaign"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111",
+                  "name": "Signups - Search",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "advertisingChannelType": "SEARCH",
+                  "biddingStrategyType": "MAXIMIZE_CONVERSIONS",
+                  "campaignBudget": "customers/1234567890/campaignBudgets/411"
+                },
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/411",
+                  "amountMicros": "20000000",
+                  "period": "DAILY",
+                  "explicitlyShared": false
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/112",
+                  "id": "112",
+                  "name": "Brand - Search",
+                  "status": "ENABLED",
+                  "primaryStatus": "LIMITED",
+                  "advertisingChannelType": "SEARCH",
+                  "biddingStrategyType": "MANUAL_CPC",
+                  "campaignBudget": "customers/1234567890/campaignBudgets/412",
+                  "primaryStatusReasons": [
+                    "BUDGET_CONSTRAINED"
+                  ]
+                },
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/412",
+                  "amountMicros": "10000000",
+                  "period": "DAILY",
+                  "explicitlyShared": true
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          },
+          {
+            "results": [
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/113",
+                  "id": "113",
+                  "name": "Old test",
+                  "status": "PAUSED",
+                  "primaryStatus": "PAUSED",
+                  "advertisingChannelType": "SEARCH",
+                  "biddingStrategyType": "MANUAL_CPC",
+                  "campaignBudget": "customers/1234567890/campaignBudgets/413",
+                  "primaryStatusReasons": [
+                    "CAMPAIGN_PAUSED"
+                  ]
+                },
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/413",
+                  "amountMicros": "5000000",
+                  "period": "DAILY"
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/114",
+                  "id": "114",
+                  "name": "Removed test",
+                  "status": "REMOVED",
+                  "primaryStatus": "REMOVED",
+                  "advertisingChannelType": "SEARCH",
+                  "biddingStrategyType": "MANUAL_CPC",
+                  "campaignBudget": "customers/1234567890/campaignBudgets/413",
+                  "primaryStatusReasons": [
+                    "CAMPAIGN_REMOVED"
+                  ]
+                },
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/413",
+                  "amountMicros": "5000000",
+                  "period": "DAILY"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req1"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT ad_group.id, ad_group.name, ad_group.status, ad_group.primary_status, ad_group.primary_status_reasons, ad_group.type, ad_group.cpc_bid_micros, campaign.id FROM ad_group"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211",
+                  "name": "Photo sharing",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "type": "SEARCH_STANDARD",
+                  "cpcBidMicros": "1500000"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                }
+              },
+              {
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/212",
+                  "id": "212",
+                  "name": "Brand",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "type": "SEARCH_STANDARD",
+                  "cpcBidMicros": "1500000"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/112",
+                  "id": "112"
+                }
+              },
+              {
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/213",
+                  "id": "213",
+                  "name": "Old",
+                  "status": "ENABLED",
+                  "primaryStatus": "PAUSED",
+                  "type": "SEARCH_STANDARD",
+                  "cpcBidMicros": "1500000"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/113",
+                  "id": "113"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT ad_group_criterion.criterion_id, ad_group_criterion.status, ad_group_criterion.primary_status, ad_group_criterion.primary_status_reasons, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.cpc_bid_micros, ad_group.id, campaign.id FROM ad_group_criterion WHERE ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/211~311",
+                  "criterionId": "311",
+                  "status": "ENABLED",
+                  "primaryStatus": "ELIGIBLE",
+                  "keyword": {
+                    "text": "photo sharing app",
+                    "matchType": "BROAD"
+                  }
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                }
+              },
+              {
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/211~312",
+                  "criterionId": "312",
+                  "status": "ENABLED",
+                  "primaryStatus": "PENDING",
+                  "keyword": {
+                    "text": "event photo pool",
+                    "matchType": "PHRASE"
+                  }
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                }
+              },
+              {
+                "adGroupCriterion": {
+                  "resourceName": "customers/1234567890/adGroupCriteria/212~313",
+                  "criterionId": "313",
+                  "status": "PAUSED",
+                  "primaryStatus": "PAUSED",
+                  "keyword": {
+                    "text": "brand name",
+                    "matchType": "EXACT"
+                  }
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/212",
+                  "id": "212"
+                },
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/112",
+                  "id": "112"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT campaign_budget.id, campaign_budget.name, campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.status, campaign_budget.period, campaign_budget.delivery_method, campaign_budget.reference_count FROM campaign_budget"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/411",
+                  "id": "411",
+                  "name": "Signups budget",
+                  "amountMicros": "20000000",
+                  "status": "ENABLED",
+                  "period": "DAILY",
+                  "deliveryMethod": "STANDARD",
+                  "referenceCount": "1",
+                  "explicitlyShared": false
+                }
+              },
+              {
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/412",
+                  "id": "412",
+                  "name": "Shared brand budget",
+                  "amountMicros": "10000000",
+                  "status": "ENABLED",
+                  "period": "DAILY",
+                  "deliveryMethod": "STANDARD",
+                  "referenceCount": "2",
+                  "explicitlyShared": true
+                }
+              },
+              {
+                "campaignBudget": {
+                  "resourceName": "customers/1234567890/campaignBudgets/413",
+                  "id": "413",
+                  "name": "Old budget",
+                  "amountMicros": "5000000",
+                  "status": "ENABLED",
+                  "period": "DAILY",
+                  "deliveryMethod": "STANDARD",
+                  "referenceCount": "2"
+                }
+              }
+            ],
+            "fieldMask": "x",
+            "requestId": "req0"
+          }
+        ]
+      }
+    }
+  ]
+}
