@@ -54,8 +54,7 @@ const BriefSection = z.strictObject({ id: NamedQueryId, title: z.string().min(1)
 
 /** The fact schema as JSON Schema: the shape a form must produce (zod's input side). Throws for a schema JSON
  *  Schema can't represent (transforms, bigint, dates…), which definePack reports. */
-export const factsJsonSchema = (schema: z.ZodType): Record<string, unknown> =>
-  z.toJSONSchema(schema, { io: 'input' });
+export const factsJsonSchema = (schema: z.ZodType): Record<string, unknown> => z.toJSONSchema(schema, { io: 'input' });
 
 /** Every problem with a manifest, by path; empty when it's valid. */
 export function manifestIssues(manifest: PackManifest): string[] {
@@ -119,12 +118,21 @@ export function manifestIssues(manifest: PackManifest): string[] {
   return [...new Set(issues)];
 }
 
+/** Packs definePack has already checked (and frozen): checking one again returns it unchanged. */
+const DEFINED = new WeakSet<ProductPack>();
+
 /** Checks a pack and returns it frozen. Throws PackDefinitionError naming every problem. */
 export function definePack(pack: ProductPack): ProductPack {
+  if (DEFINED.has(pack)) return pack;
   const id = typeof pack.manifest?.id === 'string' ? pack.manifest.id : '(no id)';
   const issues = pack.manifest === undefined ? ['manifest: missing'] : manifestIssues(pack.manifest);
   if (typeof pack.runtime?.outcomeAdapter !== 'function') issues.push('runtime.outcomeAdapter: must be a function');
   if (typeof pack.runtime?.detectPhase !== 'function') issues.push('runtime.detectPhase: must be a function');
   if (issues.length > 0) throw new PackDefinitionError(id, issues);
-  return Object.freeze({ manifest: Object.freeze({ ...pack.manifest }), runtime: Object.freeze({ ...pack.runtime }) });
+  const defined = Object.freeze({
+    manifest: Object.freeze({ ...pack.manifest }),
+    runtime: Object.freeze({ ...pack.runtime }),
+  });
+  DEFINED.add(defined);
+  return defined;
 }

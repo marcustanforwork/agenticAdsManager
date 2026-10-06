@@ -19,6 +19,12 @@
   },
   "dependencies": {
     "@ads/contracts": "workspace:*",
-    "@ads/pack-sdk": "workspace:*"
+    "@ads/pack-sdk": "workspace:*",
+    "pg": "8.23.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "ajv": "8.20.0"
   }
 }
