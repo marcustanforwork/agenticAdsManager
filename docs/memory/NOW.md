@@ -28,7 +28,7 @@
 ## Live steps for Marcus
 _All of these wait until the end of Phase 0 (D-074), and run in milestone order: M00, M01a, M02, M03, M04, then later ones._
 
-**M04** (to do; needs the M01a, M02 and M03 steps; Doppler `dev`, Neon dev branch, read credentials only). Full text in the M04 milestone file:
+**M04** (to do; needs the M01a, M02 and M03 steps, and since M05a `SNAPPOOL_DATABASE_URL` (T6a) in Doppler `dev`; Neon dev branch, read credentials only). Full text in the M04 milestone file:
 1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (adds the accounts' sync columns).
 2. Day 1: `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads cycle --product snappool --kind daily --until trust_checked` → `"outcome": "finished"`, each account `"synced"`, `"trustResult"` `ok` or `degraded` (`degraded` while the Meta limit is unset or 80%+ used). Paste the JSON (counts only) and the time.
 3. Day 2: the same command → a new cycle; few snapshots, `"drift": 0` unless something changed by hand. Paste the JSON.
@@ -58,8 +58,8 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 1. `git pull` on `main`, then `pnpm install`.
 2. Add `DATABASE_URL` (Neon **dev** branch, owner) to Doppler's `dev` config.
 3. `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (twice) → `migrations and roles.sql applied` both times.
-4. `doppler run --config dev -- pnpm --filter @ads/db db:seed` → `{"productsCreated":["snappool","property-sg"],...}`.
-5. Prod: `read -rs DATABASE_URL && export DATABASE_URL` (paste the **prod** owner string), then `pnpm --filter @ads/db db:migrate && pnpm --filter @ads/db db:seed && unset DATABASE_URL`.
+4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads seed` → `{"productsCreated":["snappool","property-sg"],...}` (was `db:seed`, D-076).
+5. Prod: `read -rs DATABASE_URL && export DATABASE_URL` (paste the **prod** owner string), then `pnpm --filter @ads/db db:migrate && pnpm --silent --filter @ads/app-worker ads seed && unset DATABASE_URL`.
 6. Neon SQL editor on prod: `select slug, status, settings_version from products order by slug; select key, value from system_flags;` → `property-sg dormant 1`, `snappool active 1`, `writes_enabled false`.
 7. Report "migrated and seeded", or paste the error.
 

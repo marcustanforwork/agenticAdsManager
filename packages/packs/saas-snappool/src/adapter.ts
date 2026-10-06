@@ -22,14 +22,14 @@ import pg from 'pg';
 export const DATABASE_URL_ENV = 'SNAPPOOL_DATABASE_URL';
 
 /** Every outcome since $1, oldest first, at most $2 rows. `is_superadmin` comes from the host with the
- *  request's email (SnapPool stores emails lower-cased). */
+ *  request's email (SnapPool stores emails lower-cased; compared case-blind, one row per request either way). */
 export const OUTCOMES_SQL = `
 with req as (
   select pr.id, pr.email, pr.status, pr.created_at, pr.claimed_at, pr.event_id,
          pr.attribution, pr.user_agent, pr.page_url,
-         coalesce(h.is_superadmin, false) as is_superadmin
+         coalesce((select bool_or(h.is_superadmin) from hosts h where lower(h.email) = lower(pr.email)), false)
+           as is_superadmin
   from pool_requests pr
-  left join hosts h on lower(h.email) = lower(pr.email)
 )
 select 'pool_request' as stage, r.id::text as source_id, r.created_at as occurred_at,
        r.email, r.is_superadmin, r.attribution, r.user_agent, r.page_url
