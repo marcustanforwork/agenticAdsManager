@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-06 — PR #6 (M02) merged; Marcus works remotely for now
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6)
+- **Did:** squash-merged PR #6 on Marcus's instruction after every check passed (D-057). Answered his questions: the to-do list is the same except Google's setup (T5 is simpler: no developer token, no application) and the new Q13; M03's cloud work needs no accounts. He's moving house and working from a work machine, so browser-only setup tasks for now; secrets and live steps wait for his own PC.
+- **Decided:** —
+- **Learned:** —
+- **Next:** a clean-context session starts M03.
+- **Open:** Q13; live steps M02, M01a, M00; setup tasks.
+
 ## 2026-10-02 — M02 built: Meta read connector
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6)
 - **Did:**
