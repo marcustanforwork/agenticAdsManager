@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-10-06 — M04: sync stage, drift, trust checks, resumable cycles
-- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR opened at the end of the session (see NOW.md)
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8)
 - **Did:** migration `0002` (`accounts.trust_signals`, `last_sync_error`, `clicks_synced_through`); one sync stage for both platforms (`core/src/sync/stage.ts`, `clients.ts`; the dry runs share the client opening); drift (`core/src/sync/drift.ts`); trust checks (`core/src/cycle/trust.ts`); `runCycle` with a per-cycle advisory lock, `--until`, resume and recovery (`core/src/cycle/runCycle.ts`, `db/src/queue/locks.ts`); `ads cycle`; the worker resumes unfinished cycles at startup (`apps/worker/src/startup.ts`). Code review at high effort: 10 findings, 9 fixed (one performance note left in the milestone file). 602 tests pass, including crash-resume with a SIGKILLed child process.
 - **Decided:** D-075 (M04 build choices; notably `tracking_active` gives `no_signal`, not `fail`, while an upload-only product's KPI conversions haven't been uploaded yet: otherwise every SnapPool cycle would fail until Phase 2).
 - **Learned:** GOTCHAS: Meta by-id 100/33 for a deleted object (unverified against a real one); drizzle's jsonb reader also turns numeric strings into numbers; the crash test's child process.

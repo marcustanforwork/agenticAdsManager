@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-06 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M04's cloud part is done**; its PR is open for Marcus's review (link in "In flight"). **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0.
+**Last updated:** 2026-10-06 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M04's cloud part is done**; PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) is open for Marcus's review. **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0.
 
 ## Where we are
 - **Phase:** 0.
@@ -12,14 +12,14 @@
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review the M04 PR; merge it when you're happy (say so, and Claude merges after CI passes, D-057).
+1. **Marcus:** review PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) (M04); merge it when you're happy (say so, and Claude merges after CI passes, D-057).
 2. **Claude (next session: clean context, Opus 5.5, medium effort):** after the M04 merge, `start-milestone` for **M05a** (pack SDK, SnapPool pack, settings). Its setup need T6a waits (D-074): build the SnapPool adapter against a fixture. Read M04's "Leave behind" (trust checks to switch on: `outcome_source_fresh`). Cloud: the assigned branch's PR will be merged, so reset it to `origin/main` first (`start-session` §2).
 3. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
 4. **Marcus, any time (optional):** the SnapPool tracking change (T6b, prompt in `SNAPPOOL-TRACKING.md` §7) can be coded in a cloud session on the snappool repo; applying its database change to production waits for his PC.
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- M04 on branch `claude/gifted-franklin-hk0fku`: PR opened at the end of this session (ready for review; CI to pass). Not merged.
+- M04: PR [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) from `claude/gifted-franklin-hk0fku`, ready for review. Not merged.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -77,7 +77,7 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 | M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
 | M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
 | M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Live: link, dry sync, record fixtures (to do; needs T5, Q13, M01a) |
-| M04 | Sync, drift, trust checks | 0 | **cloud part done; PR open** | (this session's PR) | Live: two daily cycles + a restart (to do; after M03's steps) |
+| M04 | Sync, drift, trust checks | 0 | **cloud part done; PR open** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) | Live: two daily cycles + a restart (to do; after M03's steps) |
 | M05a | Pack SDK, SnapPool pack, settings | 0 | **next** | — | T6a (read-only DB URL); SnapPool facts in SNAPPOOL-TRACKING |
 | M05b | Property pack (G8), attribution, product docs | 0 | not started | — | Real attribution needs T6b shipped |
 | M06a | AI layer, finding registry, detectors | 0 | not started | — | T9 |
