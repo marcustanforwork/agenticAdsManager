@@ -33,24 +33,30 @@ The first two cycle steps, end to end, for both platforms and both products.
 - Cut first, if behind at ~300k: **nothing moves out of this milestone** (BLUEPRINT). If behind, the session stops with `WIP:` and the next session continues M04.
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented (took ~210k with the session's fixed context: reading M02/M03's code and the schema)
-  - [ ] ~300k built, typecheck green
+  - [x] ~300k built, typecheck green (~400k incl. the session's fixed context; nothing cut)
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
-- [ ] 1. `core/cycle/runCycle(productId, kind)`: the stages are functions, `stage_reached` advances after each one, and the whole cycle is resumable.
-- [ ] 2. Sync stage: for each active account, read into the repositories. Snapshots are stored only on change. Also sync search terms and click ids (Google).
-- [ ] 3. Drift detection (§5.7). The platform is the truth; drift is surfaced, never overwritten.
-- [ ] 4. Trust checks (§5.8), including the `no_signal` result and `spend_cap_headroom` (from the account info synced in M02, D-063). A `fail` stops the cycle after the diagnostic report.
-- [ ] 5. `ads cycle --product X --kind daily --until trust_checked` prints a summary.
-- [ ] 6. Recovery: unfinished cycles resume from `stage_reached`.
+- [x] 1. `core/cycle/runCycle(productId, kind)`: the stages are functions, `stage_reached` advances after each one, and the whole cycle is resumable.
+  - notes: `core/src/cycle/runCycle.ts` (`STAGES`, `runCycle`, `resumeCycle`); a named advisory lock per cycle on its own connection (`db/queue/locks.ts`); `until` leaves it resumable; a failed trust check skips all but `reported`. Commit c06f970.
+- [x] 2. Sync stage: for each active account, read into the repositories. Snapshots are stored only on change. Also sync search terms and click ids (Google).
+  - notes: `core/src/sync/stage.ts` + `clients.ts` (shared with the dry run, now one loop). Trust signals stored in `accounts.trust_signals`; click ids from `accounts.clicks_synced_through` (re-read that day) to yesterday, at most 90 days back; known entities missing from a listing read by id (`EntityNotFoundError` → removed). Commits e057d08, cda92e1.
+- [x] 3. Drift detection (§5.7). The platform is the truth; drift is surfaced, never overwritten.
+  - notes: `core/src/sync/drift.ts`: status (Meta configured / Google `status`), daily budget, bid strategy, name; explained only by our change-log action setting that value (a Google budget and its campaigns count as one); stored with the snapshot in one transaction. Commit cda92e1.
+- [x] 4. Trust checks (§5.8), including the `no_signal` result and `spend_cap_headroom` (from the account info synced in M02, D-063). A `fail` stops the cycle after the diagnostic report.
+  - notes: `core/src/cycle/trust.ts`: database only (no API call on resume); `tracking_active` rule fixed for upload-only products (D-075). The diagnostic report itself is M07's `reported` stage. Commit ec031a7.
+- [x] 5. `ads cycle --product X --kind daily --until trust_checked` prints a summary.
+  - notes: `apps/worker/src/cli.ts` (JSON summary, counts only; exit 1 on an account error or a trust fail).
+- [x] 6. Recovery: unfinished cycles resume from `stage_reached`.
+  - notes: `resumeUnfinishedCycles` (closes cycles unfinished for over 24 h as abandoned; skips ones another process holds), called by `recoverWorker` when given the cycle deps. Commit c06f970.
 
 ## Tests
-- [ ] Drift, using pairs of fixtures.
-- [ ] Trust-check tables, including low volume (`no_signal`, not `fail`).
-- [ ] A timezone mismatch is a `fail`.
-- [ ] **Crash-resume:** kill the process after sync; the rerun resumes at the trust check and creates no duplicate snapshots.
-- [ ] Uniqueness of scheduled cycles.
+- [x] Drift, using pairs of fixtures. (`core/test/syncStage.test.ts`: v1 then an edited v2 of both platforms' listings, with two of our own changes in the change log.)
+- [x] Trust-check tables, including low volume (`no_signal`, not `fail`). (`core/test/trust.test.ts`)
+- [x] A timezone mismatch is a `fail`. (table and stage tests)
+- [x] **Crash-resume:** kill the process after sync; the rerun resumes at the trust check and creates no duplicate snapshots. (`core/test/cycle.test.ts`, a SIGKILLed child process: `test/support/cycleChild.ts`)
+- [x] Uniqueness of scheduled cycles. (two racing runs → one cycle; a rerun the same day is `already_finished`)
 
 ## Done when (cloud)
 - [ ] Tests are green, including crash-resume with a killed child process.
