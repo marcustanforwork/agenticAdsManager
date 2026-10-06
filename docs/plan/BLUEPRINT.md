@@ -1048,8 +1048,8 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 - Scheduled cycles are unique per (product, kind, date), enforced by a unique index. A second start the same day continues that cycle if it is unfinished, and does nothing if it finished.
 - **One runner per cycle (M04, D-075).** A run holds a named advisory lock (`cycle:<id>`) on a direct connection of its own; another process finds it busy. A killed process's lock goes with its connection.
 - Every stage is idempotent: upserts, snapshots written only on change, and findings and proposals keyed to the cycle.
-- An interrupted cycle resumes from `stage_reached`. If it was interrupted mid-analysis, the AI call is simply made again, and that extra cost is recorded. A resumed sync skips the accounts it already synced. Worker startup resumes unfinished cycles; one unfinished for more than 24 hours is closed as abandoned instead (the next cycle covers its days).
-- `ads cycle --product X --kind daily|weekly|manual [--until <stage>]` runs or continues today's cycle; `--until` stops after that stage and leaves the cycle resumable.
+- An interrupted cycle resumes from `stage_reached`. If it was interrupted mid-analysis, the AI call is simply made again, and that extra cost is recorded. A resumed sync skips the accounts it already synced. Worker startup (`apps/worker/src/startup.ts` from M04; part of `recoverWorker` from M07) resumes unfinished daily and weekly cycles; one unfinished for more than 24 hours is closed as abandoned instead (the next cycle covers its days). Unfinished manual cycles are never resumed unasked: they wait for the next manual run that day, or close after 24 hours.
+- `ads cycle --product X --kind daily|weekly|manual [--until <stage>]` runs or continues today's cycle (a manual run continues today's unfinished manual cycle); `--until` stops after that stage, also on a rerun, and leaves the cycle resumable.
 
 ### 5.7 Sync details
 
