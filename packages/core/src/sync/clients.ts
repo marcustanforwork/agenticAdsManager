@@ -148,7 +148,12 @@ export async function openReadClient(deps: OpenClientDeps, product: Product, acc
   let foundManager: string | undefined;
   if (login === undefined) {
     // No manager stored: find the one the identity reaches this account through (manager → client).
-    login = await client.findManagerFor(account.externalId);
+    try {
+      login = await client.findManagerFor(account.externalId);
+    } catch (error) {
+      // The lookup was metered: say how many requests it made (`requestsOf`).
+      throw Object.assign(error as Error, { requests: requests() });
+    }
     if (login !== undefined) {
       foundManager = login;
       client = clientFor(login);

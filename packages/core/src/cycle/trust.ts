@@ -13,6 +13,7 @@ import {
   replaceTrustChecks,
   trustSignalsOf,
 } from '@ads/db';
+import { TRUST_WINDOW_DAYS } from '../sync/report.ts';
 
 export type CheckResult = 'pass' | 'warn' | 'fail' | 'no_signal';
 export type TrustResult = 'ok' | 'degraded' | 'fail';
@@ -26,8 +27,8 @@ export interface CheckOutcome {
 export const DATA_FRESH_MAX_HOURS = 26;
 /** `spend_cap_headroom`: warn from 80% of the Meta spending limit used (D-063). */
 export const SPEND_CAP_WARN_PCT = 80;
-/** The trust signals cover the last 7 days (the account's local days). */
-export const TRUST_WINDOW_MS = 7 * 86_400_000;
+/** The trust signals cover the last 7 days (the account's local days, `TRUST_WINDOW_DAYS`). */
+export const TRUST_WINDOW_MS = TRUST_WINDOW_DAYS * 86_400_000;
 
 const HOUR_MS = 3_600_000;
 
@@ -151,7 +152,8 @@ export async function trustStage(
             productId: product.id,
             platform: account.platform,
             stage: product.settings.outcomes.primaryKpiStage,
-            since: new Date(now.getTime() - TRUST_WINDOW_MS),
+            // The uploads that could show in those signals: the 7 days before they were read.
+            since: new Date(Date.parse(signals.readAt) - TRUST_WINDOW_MS),
           })
         : 0;
       const outcome = trackingActive({

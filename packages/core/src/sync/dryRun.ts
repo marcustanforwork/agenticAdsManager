@@ -5,6 +5,7 @@ import type { MetaReadClient } from '@ads/connector-meta';
 import { NotFoundError, findProductBySlug, listAccounts } from '@ads/db';
 import { type OpenedClient, SYNC_LEVELS, openReadClient, readConfigWarnings } from './clients.ts';
 import { readGoogleAccount } from './dryRunGoogle.ts';
+import { requestsOf } from './stage.ts';
 import {
   type AccountReport,
   type DrySyncInput,
@@ -74,7 +75,13 @@ export async function dryRunSync(input: DrySyncInput): Promise<DrySyncReport> {
             },
       );
     } catch (e) {
-      report.accounts.push({ account: label, outcome: 'error', detail: (e as Error).message });
+      const requests = requestsOf(e);
+      report.accounts.push({
+        account: label,
+        outcome: 'error',
+        detail: (e as Error).message,
+        ...(requests === undefined ? {} : { requests }),
+      });
     }
     const last = report.accounts.at(-1);
     if (last) {

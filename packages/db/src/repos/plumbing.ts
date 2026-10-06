@@ -189,6 +189,15 @@ export async function acknowledgeDrift(db: DbOrTx, id: string, at: Date = new Da
     .where(and(eq(driftEvents.id, id), isNull(driftEvents.acknowledgedAt)));
 }
 
+/** The database's clock. Times compared with database-stamped ones (`change_log.applied_at`) are taken from it,
+ *  so a skew between the worker's clock and the database's can't reorder them. */
+export async function databaseNow(db: DbOrTx): Promise<Date> {
+  const result = await db.execute<{ now: string | Date }>(sql`select clock_timestamp() as now`);
+  const value = result.rows[0]?.now;
+  if (value === undefined) throw new Error('select clock_timestamp() returned nothing');
+  return value instanceof Date ? value : new Date(value);
+}
+
 // ── System flags (GLOBAL) ─────────────────────────────────────────────────────────────────────
 
 export const WRITES_ENABLED = 'writes_enabled';

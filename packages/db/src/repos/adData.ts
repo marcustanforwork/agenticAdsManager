@@ -248,7 +248,8 @@ export async function latestSnapshot(db: DbOrTx, adEntityId: string): Promise<Sn
   return row ?? null;
 }
 
-/** Stores the snapshot (hash = hashOf(snapshot)) unless it equals the latest one.
+/** Stores the snapshot (hash = hashOf(snapshot)) unless it equals the latest one, or is older than it (`takenAt`
+ *  is when the platform was read: a read that a newer snapshot already superseded is ignored).
  *  Returns whether a row was written, and the snapshot that was the latest before (null for a new entity), which
  *  drift detection compares against. Concurrent writers for the same entity are serialised. */
 export async function recordSnapshot(
@@ -260,6 +261,7 @@ export async function recordSnapshot(
     await tx.execute(sql`select 1 from ${adEntities} where ${adEntities.id} = ${input.adEntityId} for update`);
     const latest = await latestSnapshot(tx, input.adEntityId);
     if (latest?.hash === hash) return { stored: false, hash, previous: latest };
+    if (latest && input.takenAt && latest.takenAt > input.takenAt) return { stored: false, hash, previous: latest };
     await tx.insert(adEntitySnapshots).values({
       productId: input.productId,
       adEntityId: input.adEntityId,

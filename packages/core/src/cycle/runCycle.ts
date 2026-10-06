@@ -13,6 +13,7 @@ import {
   type Product,
   advance,
   findScheduledCycle,
+  findUnfinishedManualCycle,
   finish,
   getCycle,
   getProduct,
@@ -133,10 +134,16 @@ export async function runCycle(
   }
   const cycleDate = localDate(deps.now(), product.timezone);
   let cycle: Cycle;
-  if (input.kind === 'manual') cycle = await startManual(db, { productId: product.id, cycleDate });
-  else {
+  // Cycles are dated and timed on the worker's clock, like `last_synced_at`, which a resumed sync compares with.
+  const startedAt = deps.now();
+  if (input.kind === 'manual') {
+    // A manual run stopped with --until today is continued, not left behind for recovery.
+    cycle =
+      (await findUnfinishedManualCycle(db, { productId: product.id, cycleDate })) ??
+      (await startManual(db, { productId: product.id, cycleDate, startedAt }));
+  } else {
     try {
-      cycle = await startScheduled(db, { productId: product.id, kind: input.kind, cycleDate });
+      cycle = await startScheduled(db, { productId: product.id, kind: input.kind, cycleDate, startedAt });
     } catch (error) {
       if (!(error instanceof DuplicateCycleError)) throw error;
       const existing = await findScheduledCycle(db, { productId: product.id, kind: input.kind, cycleDate });
@@ -152,8 +159,14 @@ export async function resumeCycle(deps: CycleDeps, cycleId: string, until?: Cycl
   const cycle = await getCycle(deps.db, cycleId);
   const product = await getProduct(deps.db, cycle.productId);
   if (cycle.finishedAt === null && product.status !== 'active') {
-    const done = await finish(deps.db, cycle.id, { error: `abandoned: product is ${product.status}` });
-    return { ...summaryOf(product, done, 'skipped'), detail: `product is ${product.status}` };
+    const lock = await tryAdvisoryLock(deps.lockUrl, `cycle:${cycle.id}`, { applicationName: 'ads-cycle' });
+    if (lock === null) return { ...summaryOf(product, cycle, 'busy'), detail: 'another process is running this cycle' };
+    try {
+      const done = await finish(deps.db, cycle.id, { error: `abandoned: product is ${product.status}` });
+      return { ...summaryOf(product, done, 'skipped'), detail: `product is ${product.status}` };
+    } finally {
+      await lock.release();
+    }
   }
   return continueCycle(deps, product, cycle, until);
 }
@@ -185,6 +198,11 @@ async function continueCycle(
       );
     let stopped = false;
     for (let next = pending()[0]; next !== undefined; next = pending()[0]) {
+      // Checked before each stage, so a rerun with the same --until doesn't go past it either.
+      if (until !== undefined && order(cycle.stageReached) >= order(until)) {
+        stopped = true;
+        break;
+      }
       const out = await next.run({ deps, product, cycle, summary });
       cycle = await advance(
         db,
@@ -193,10 +211,6 @@ async function continueCycle(
         out.trustResult === undefined ? {} : { trustResult: out.trustResult },
       );
       await deps.onStage?.(next.stage, cycle);
-      if (until !== undefined && order(next.stage) >= order(until) && pending().length > 0) {
-        stopped = true;
-        break;
-      }
     }
     if (!stopped) cycle = await finish(db, cycle.id);
     return {
@@ -216,8 +230,9 @@ export interface ResumeSummary {
   errors: { cycleId: string; error: string }[];
 }
 
-/** Worker startup (BLUEPRINT §5.5): resume every unfinished cycle from `stage_reached`. One unfinished for more
- *  than `maxAgeHours` (default 24) is closed as abandoned instead: the next scheduled cycle covers its days. */
+/** Worker startup (BLUEPRINT §5.5): resume every unfinished daily and weekly cycle from `stage_reached`. One
+ *  unfinished for more than `maxAgeHours` (default 24) is closed as abandoned instead (the next scheduled cycle
+ *  covers its days); manual ones are only closed that way. */
 export async function resumeUnfinishedCycles(
   deps: CycleDeps,
   opts: { maxAgeHours?: number } = {},
@@ -239,6 +254,9 @@ export async function resumeUnfinishedCycles(
         }
         continue;
       }
+      // Manual cycles are Marcus's own runs: an unfinished one waits for his next `ads cycle --kind manual` (or
+      // closes as abandoned above), so stages he stopped with --until never run unasked.
+      if (cycle.kind === 'manual') continue;
       out.resumed.push(await resumeCycle(deps, cycle.id));
     } catch (error) {
       out.errors.push({ cycleId: cycle.id, error: (error as Error).message });

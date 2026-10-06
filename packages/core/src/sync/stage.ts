@@ -13,14 +13,21 @@ import {
   localDate,
   minusDays,
 } from '@ads/contracts';
-import { snapshotOf as googleSnapshotOf } from '@ads/connector-google';
-import { snapshotOf as metaSnapshotOf } from '@ads/connector-meta';
+import {
+  GoogleAdsApiError,
+  GoogleAuthError,
+  GoogleQuotaError,
+  GoogleRateLimitError,
+  snapshotOf as googleSnapshotOf,
+} from '@ads/connector-google';
+import { MetaApiError, MetaRateLimitError, snapshotOf as metaSnapshotOf } from '@ads/connector-meta';
 import {
   type Account,
   type AdEntity,
   type AdEntityInput,
   type MetricsInput,
   type Product,
+  databaseNow,
   latestSnapshot,
   listAccounts,
   listEntities,
@@ -51,8 +58,15 @@ export const CLICK_LOOKBACK_DAYS = 90;
  *  metrics. More wait for the next sync. */
 export const MAX_READS_BY_ID = 50;
 
-/** Errors that mean "stop this account's sync now" even while reading a single entity. */
-const STOP_ERRORS = new Set(['GoogleQuotaError', 'GoogleRateLimitError', 'GoogleAuthError', 'MetaRateLimitError']);
+/** Errors that stop the account's sync even while reading a single entity: quota and rate limits, and a sign-in
+ *  or token the platform refuses (Meta 190 / 102, HTTP 401 or 403). Anything else skips that one entity. */
+export function stopsTheSync(e: unknown): boolean {
+  if (e instanceof GoogleQuotaError || e instanceof GoogleRateLimitError || e instanceof GoogleAuthError) return true;
+  if (e instanceof MetaRateLimitError) return true;
+  if (e instanceof MetaApiError) return e.code === 190 || e.code === 102 || e.status === 401 || e.status === 403;
+  if (e instanceof GoogleAdsApiError) return e.status === 401 || e.status === 403;
+  return false;
+}
 
 export type SyncDeps = Omit<OpenClientDeps, 'purpose'>;
 
@@ -108,25 +122,36 @@ const entityInput = (account: Account, record: AdEntityRecord, parentId: string 
   attributes: record.attributes ?? {},
 });
 
-/** An entity row refreshed from a by-id snapshot (which carries the tracked fields, not the parent or the other
- *  attributes: those are kept). */
-function inputFromSnapshot(e: AdEntity, s: Record<string, unknown>): AdEntityInput {
+/** An entity row from a by-id snapshot, which carries the tracked fields only: a known entity keeps its parent
+ *  and other attributes; a new one gets them from the next listing that includes it. */
+function inputFromSnapshot(
+  account: Account,
+  entityRef: EntityRef,
+  s: Record<string, unknown>,
+  existing: AdEntity | null,
+): AdEntityInput {
   const str = (k: string): string | undefined => (typeof s[k] === 'string' ? s[k] : undefined);
+  const budget = str('dailyBudgetMicros');
   return {
-    productId: e.productId,
-    accountId: e.accountId,
-    platform: e.platform,
-    type: e.type,
-    externalId: e.externalId,
-    parentId: e.parentId,
-    name: str('name') ?? e.name,
+    productId: account.productId,
+    accountId: account.id,
+    platform: account.platform,
+    type: entityRef.type,
+    externalId: entityRef.externalId,
+    parentId: existing?.parentId ?? null,
+    name: str('name') ?? existing?.name ?? '',
     status: str('status') ?? 'unknown',
-    rawStatus: str('rawStatus') ?? e.rawStatus,
-    dailyBudgetMicros: str('dailyBudgetMicros') === undefined ? null : BigInt(str('dailyBudgetMicros') as string),
-    budgetShared: typeof s['budgetShared'] === 'boolean' ? s['budgetShared'] : e.budgetShared,
-    attributes: attributesOf(e),
+    rawStatus: str('rawStatus') ?? existing?.rawStatus ?? '',
+    dailyBudgetMicros: budget === undefined ? null : BigInt(budget),
+    // Unknown counts as shared: this system never changes a shared budget (D-073).
+    budgetShared: typeof s['budgetShared'] === 'boolean' ? s['budgetShared'] : (existing?.budgetShared ?? true),
+    attributes: existing === null ? {} : attributesOf(existing),
   };
 }
+
+/** The HTTP requests a failed open made, if it says (Google's manager lookup is metered too). */
+export const requestsOf = (e: unknown): number | undefined =>
+  typeof (e as { requests?: unknown }).requests === 'number' ? (e as { requests: number }).requests : undefined;
 
 /** Syncs every active account of the product. A failing account is recorded (`last_sync_error`) and the others
  *  carry on: the `data_fresh` trust check then judges how old its data is. `syncedSince` (a resumed cycle's start)
@@ -164,7 +189,13 @@ export async function syncStage(
     } catch (e) {
       const detail = (e as Error).message;
       await markAccountSyncFailed(deps.db, account.id, detail);
-      result.accounts.push({ account: label, outcome: 'error', detail });
+      const requests = requestsOf(e);
+      result.accounts.push({
+        account: label,
+        outcome: 'error',
+        detail,
+        ...(requests === undefined ? {} : { requests }),
+      });
     }
     const last = result.accounts.at(-1);
     if (last) {
@@ -200,7 +231,9 @@ async function syncAccount(
   const today = localDate(deps.now(), info.timezone);
   const window = { from: minusDays(today, SYNC_WINDOW_DAYS - 1), to: today };
   const levels = SYNC_LEVELS[account.platform];
-  const entities = await entityStore(deps, account, client);
+  // Snapshots are dated when the platform was read, on the database's clock: drift then looks for our changes
+  // applied after that read, even when the gateway applies one while this sync is still storing entities.
+  const entities = await entityStore(deps, account, client, await databaseNow(db));
 
   await entities.storeListing(await client.listEntities(account.externalId, levels.entities));
   await entities.confirmMissing(levels.entities);
@@ -280,7 +313,7 @@ async function syncAccount(
 
 /** The account's entities during one sync: what was known before, what the listing returned, and the reads by id
  *  (bounded by MAX_READS_BY_ID). */
-async function entityStore(deps: SyncDeps, account: Account, client: ReadClient) {
+async function entityStore(deps: SyncDeps, account: Account, client: ReadClient, readAt: Date) {
   const { db } = deps;
   const ref = (type: EntityType, externalId: string): EntityRef => ({
     platform: account.platform,
@@ -303,7 +336,7 @@ async function entityStore(deps: SyncDeps, account: Account, client: ReadClient)
     const entity = await upsertAdEntity(db, input, deps.now());
     if (!ids.has(key)) counts.new++;
     ids.set(key, entity.id);
-    const result = await recordSnapshotAndDrift(db, { entity, ref: entityRef, snapshot });
+    const result = await recordSnapshotAndDrift(db, { entity, ref: entityRef, snapshot, takenAt: readAt });
     if (result.stored) counts.snapshots++;
     counts.drift += result.drift.length;
     return entity;
@@ -321,7 +354,7 @@ async function entityStore(deps: SyncDeps, account: Account, client: ReadClient)
       return (await client.snapshot(entityRef)).snapshot;
     } catch (e) {
       if (e instanceof EntityNotFoundError) return 'gone';
-      if (STOP_ERRORS.has((e as Error).name)) throw e;
+      if (stopsTheSync(e)) throw e;
       warnings.push(`could not read ${entityRef.type} ${entityRef.externalId}: ${(e as Error).message}`);
       return null;
     }
@@ -372,7 +405,7 @@ async function entityStore(deps: SyncDeps, account: Account, client: ReadClient)
             ...('configuredStatus' in base ? { configuredStatus: 'NOT_FOUND' } : {}),
           };
         } else snapshot = read;
-        const updated = await store(inputFromSnapshot(e, snapshot), entityRef, snapshot);
+        const updated = await store(inputFromSnapshot(account, entityRef, snapshot, e), entityRef, snapshot);
         if (updated.status === 'removed') counts.removed++;
       }
     },
@@ -389,24 +422,7 @@ async function entityStore(deps: SyncDeps, account: Account, client: ReadClient)
         unreadable.add(key);
         return null;
       }
-      const str = (k: string): string | undefined => (typeof read[k] === 'string' ? read[k] : undefined);
-      const entity = await store(
-        {
-          productId: account.productId,
-          accountId: account.id,
-          platform: account.platform,
-          type: entityRef.type,
-          externalId: entityRef.externalId,
-          parentId: null,
-          name: str('name') ?? '',
-          status: str('status') ?? 'unknown',
-          rawStatus: str('rawStatus') ?? '',
-          dailyBudgetMicros: str('dailyBudgetMicros') === undefined ? null : BigInt(str('dailyBudgetMicros') as string),
-          budgetShared: typeof read['budgetShared'] === 'boolean' ? read['budgetShared'] : true,
-        },
-        entityRef,
-        read,
-      );
+      const entity = await store(inputFromSnapshot(account, entityRef, read, null), entityRef, read);
       return entity.id;
     },
 

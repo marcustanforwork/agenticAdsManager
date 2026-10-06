@@ -12,7 +12,9 @@ import {
 } from '@ads/db';
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { changedFields, clickDaysToSync, explainedBy, refKey, syncStage } from '../src/index.ts';
+import { GoogleQuotaError } from '@ads/connector-google';
+import { MetaApiError, MetaRateLimitError } from '@ads/connector-meta';
+import { changedFields, clickDaysToSync, explainedBy, refKey, stopsTheSync, syncStage } from '../src/index.ts';
 import {
   GOOGLE_ACCOUNT,
   META_ACCOUNT,
@@ -317,6 +319,18 @@ describe('drift rules', () => {
     expect(explainedBy(change('dailyBudgetMicros', '6000000'), budget('5000000'), targets)).toBe(false);
     expect(explainedBy(change('name', 'x (abandoned)'), { action: 'mark_abandoned', target: ref }, targets)).toBe(true);
     expect(explainedBy(change('bidStrategy', 'TARGET_SPEND'), budget('5000000'), targets)).toBe(false);
+  });
+});
+
+describe('errors while reading one entity', () => {
+  it('stop the account only for quota, rate limits and refused sign-ins', () => {
+    expect(stopsTheSync(new GoogleQuotaError('cap'))).toBe(true);
+    expect(stopsTheSync(new MetaRateLimitError({ status: 400, message: 'm', code: 17, retryAfterMs: 60_000 }))).toBe(
+      true,
+    );
+    expect(stopsTheSync(new MetaApiError({ status: 400, message: 'token expired', code: 190 }))).toBe(true);
+    expect(stopsTheSync(new MetaApiError({ status: 400, message: 'bad field', code: 100 }))).toBe(false);
+    expect(stopsTheSync(new Error('unexpected shape'))).toBe(false);
   });
 });
 

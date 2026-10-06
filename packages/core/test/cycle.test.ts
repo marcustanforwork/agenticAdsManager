@@ -9,6 +9,7 @@ import {
   listTrustChecks,
   setProductStatus,
   startManual,
+  startScheduled,
   tryAdvisoryLock,
   upsertAccount,
 } from '@ads/db';
@@ -112,6 +113,19 @@ describe('runCycle', () => {
     expect(await count('ad_entity_snapshots')).toBe(snapshots);
   });
 
+  it('a rerun with the same --until stops there too; a manual run continues the one stopped today', async () => {
+    const first = await runCycle(deps(fixtures()), { productId: world.productId, kind: 'manual', until: 'synced' });
+    expect(first).toMatchObject({ outcome: 'stopped', stageReached: 'synced' });
+    const quiet = replayFetch([]);
+    const again = await runCycle(deps(quiet), { productId: world.productId, kind: 'manual', until: 'synced' });
+    expect(again).toMatchObject({ cycleId: first.cycleId, outcome: 'stopped', stageReached: 'synced' });
+    expect(again.trust).toBeUndefined();
+    const rest = await runCycle(deps(quiet), { productId: world.productId, kind: 'manual' });
+    expect(rest).toMatchObject({ cycleId: first.cycleId, outcome: 'finished', resumedFrom: 'synced' });
+    expect(quiet.calls).toHaveLength(0);
+    expect(await listCycles(t.db, world.productId)).toHaveLength(1);
+  });
+
   it('a failed trust check stops the cycle: later stages are skipped, the diagnostic report still runs', async () => {
     // An account that never synced (no credential) fails data_fresh.
     await upsertAccount(t.db, { productId: world.productId, platform: 'meta', externalId: 'act_999' });
@@ -147,8 +161,14 @@ describe('recovery', () => {
       stale.id,
       new Date(NOW.getTime() - 30 * 3_600_000),
     ]);
-    const running = await startManual(t.db, { productId: world.productId, cycleDate: '2026-10-01' });
-    await t.pool.query(`update cycles set started_at = $2 where id = $1`, [running.id, NOW]);
+    const running = await startScheduled(t.db, {
+      productId: world.productId,
+      kind: 'weekly',
+      cycleDate: '2026-10-01',
+      startedAt: NOW,
+    });
+    // A manual run Marcus stopped with --until: recovery leaves it for him.
+    const mine = await startManual(t.db, { productId: world.productId, cycleDate: '2026-10-01', startedAt: NOW });
     const held = await tryAdvisoryLock(t.url, `cycle:${running.id}`);
     try {
       const out = await resumeUnfinishedCycles(deps(replayFetch([])));
@@ -157,8 +177,10 @@ describe('recovery', () => {
       const byId = new Map(out.resumed.map((r) => [r.cycleId, r]));
       expect(byId.get(stopped.cycleId)).toMatchObject({ outcome: 'finished', resumedFrom: 'synced' });
       expect(byId.get(running.id)?.outcome).toBe('busy');
+      expect(byId.has(mine.id)).toBe(false);
       expect((await getCycle(t.db, stale.id)).error).toMatch(/abandoned/);
       expect((await getCycle(t.db, running.id)).finishedAt).toBeNull();
+      expect((await getCycle(t.db, mine.id)).finishedAt).toBeNull();
     } finally {
       await held?.release();
     }

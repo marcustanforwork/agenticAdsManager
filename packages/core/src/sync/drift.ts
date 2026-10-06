@@ -106,11 +106,16 @@ async function targetsFor(db: DbOrTx, entity: AdEntity, ref: EntityRef): Promise
  *  its drift (the next sync would compare against the new snapshot and miss it). A first snapshot is never drift. */
 export async function recordSnapshotAndDrift(
   db: DbOrTx,
-  input: { entity: AdEntity; ref: EntityRef; snapshot: Record<string, unknown> },
+  input: { entity: AdEntity; ref: EntityRef; snapshot: Record<string, unknown>; takenAt?: Date },
 ): Promise<{ stored: boolean; drift: DriftEvent[] }> {
   const { entity, ref, snapshot } = input;
   return db.transaction(async (tx) => {
-    const result = await recordSnapshot(tx, { productId: entity.productId, adEntityId: entity.id, snapshot });
+    const result = await recordSnapshot(tx, {
+      productId: entity.productId,
+      adEntityId: entity.id,
+      snapshot,
+      ...(input.takenAt === undefined ? {} : { takenAt: input.takenAt }),
+    });
     if (!result.stored || result.previous === null) return { stored: result.stored, drift: [] };
     const changes = changedFields(ref.platform, result.previous.snapshot as Record<string, unknown>, snapshot);
     if (changes.length === 0) return { stored: true, drift: [] };

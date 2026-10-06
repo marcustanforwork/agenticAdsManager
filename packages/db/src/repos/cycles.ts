@@ -25,7 +25,7 @@ export const CYCLE_STAGE_ORDER: readonly CycleStage[] = CYCLE_STAGES;
  *  (the unique index cycles_one_scheduled_per_day decides, so two replicas can't both start one). */
 export async function startScheduled(
   db: DbOrTx,
-  input: { productId: string; kind: Exclude<CycleKind, 'manual'>; cycleDate: string },
+  input: { productId: string; kind: Exclude<CycleKind, 'manual'>; cycleDate: string; startedAt?: Date },
 ): Promise<Cycle> {
   try {
     // A savepoint, so a refused insert doesn't abort a caller's surrounding transaction.
@@ -56,8 +56,32 @@ export async function findScheduledCycle(
   return row ?? null;
 }
 
-/** Manual cycles have no per-day limit. */
-export async function startManual(db: DbOrTx, input: { productId: string; cycleDate: string }): Promise<Cycle> {
+/** The latest unfinished manual cycle of a product for a date, if any (a manual run stopped with `--until`). */
+export async function findUnfinishedManualCycle(
+  db: DbOrTx,
+  input: { productId: string; cycleDate: string },
+): Promise<Cycle | null> {
+  const [row] = await db
+    .select()
+    .from(cycles)
+    .where(
+      and(
+        eq(cycles.productId, input.productId),
+        eq(cycles.kind, 'manual'),
+        eq(cycles.cycleDate, input.cycleDate),
+        isNull(cycles.finishedAt),
+      ),
+    )
+    .orderBy(desc(cycles.startedAt))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Manual cycles have no per-day limit. `startedAt` defaults to the database's time. */
+export async function startManual(
+  db: DbOrTx,
+  input: { productId: string; cycleDate: string; startedAt?: Date },
+): Promise<Cycle> {
   const [row] = await db
     .insert(cycles)
     .values({ ...input, kind: 'manual' })

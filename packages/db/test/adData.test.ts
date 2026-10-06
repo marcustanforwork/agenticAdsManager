@@ -249,6 +249,19 @@ describe('snapshots', () => {
     });
   });
 
+  it('ignores a read older than the latest snapshot (a newer one already superseded it)', async () => {
+    const { product, campaign } = await makeCampaign(t.db);
+    const base = { productId: product.id, adEntityId: campaign.id };
+    await recordSnapshot(t.db, { ...base, snapshot: { status: 'paused' }, takenAt: new Date('2026-10-01T10:00:00Z') });
+    const late = await recordSnapshot(t.db, {
+      ...base,
+      snapshot: { status: 'active' },
+      takenAt: new Date('2026-10-01T09:59:00Z'),
+    });
+    expect(late.stored).toBe(false);
+    expect((await latestSnapshot(t.db, campaign.id))?.snapshot).toEqual({ status: 'paused' });
+  });
+
   it('concurrent identical snapshots store one row', async () => {
     const { product, campaign } = await makeCampaign(t.db);
     const input = { productId: product.id, adEntityId: campaign.id, snapshot: { status: 'active' } };
