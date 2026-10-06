@@ -199,6 +199,18 @@ describe('GoogleAdsClient.search', () => {
     expect(replay.remaining()).toBe(1); // the refused request was never sent
   });
 
+  it('does not count a sign-in failure as an operation', async () => {
+    let consumed = 0;
+    const api = new GoogleAdsClient({
+      tokens: { getAccessToken: () => Promise.reject(new Error('sign-in failed')), invalidate: () => undefined },
+      quota: { consume: (n) => ((consumed += n), Promise.resolve()) },
+      fetch: () => Promise.reject(new Error('never called')),
+    });
+    await expect(api.search(ACCOUNT, QUERY, Row)).rejects.toThrow(/sign-in failed/);
+    expect(consumed).toBe(0);
+    expect(api.requestCount).toBe(0);
+  });
+
   it('refuses bad ids before calling Google', async () => {
     const { api } = setup([]);
     await expect(api.search('123-456-7890', QUERY, Row)).rejects.toThrow(/10 digits/);

@@ -87,7 +87,7 @@ export async function dryRunGoogle(input: DrySyncInput, product: Product): Promi
         login = await client.findManagerFor(account.externalId);
         if (login !== undefined) {
           report.warnings.push(
-            `${label} is reached through manager ${login}; store it with: ads accounts link --platform google --account ${account.externalId} --manager ${login}`,
+            `${label} is reached through manager ${login}; store it with: ads accounts link --product ${input.productSlug} --platform google --account ${account.externalId} --manager ${login}`,
           );
           client = clientFor(login);
         }

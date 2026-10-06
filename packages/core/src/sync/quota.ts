@@ -2,6 +2,7 @@
 // `api_usage`, and a soft cap on the day's total across every Google account stops the sync with a clear error.
 import { GOOGLE_SYNC_SOFT_CAP, GoogleQuotaError, type QuotaMeter, quotaDay } from '@ads/connector-google';
 import { type DbOrTx, addApiUsage, sumApiUsage } from '@ads/db';
+import { sql } from 'drizzle-orm';
 
 export interface ApiUsageMeterInput {
   db: DbOrTx;
@@ -17,14 +18,18 @@ export function apiUsageMeter(input: ApiUsageMeterInput): QuotaMeter {
   return {
     async consume(operations: number): Promise<void> {
       const date = quotaDay(now());
-      const used = await sumApiUsage(input.db, { platform: 'google', date });
-      if (used + operations > cap) {
-        throw new GoogleQuotaError(
-          `the soft cap is reached: ${used} of ${cap} operations used on ${date} (UTC) across all Google accounts; ` +
-            'the sync stops and resumes tomorrow',
-        );
-      }
-      await addApiUsage(input.db, { platform: 'google', accountExternalId: input.accountExternalId, date, operations });
+      // One transaction under an advisory lock, so two processes can't both pass the check at the cap.
+      await input.db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('api_usage:google'))`);
+        const used = await sumApiUsage(tx, { platform: 'google', date });
+        if (used + operations > cap) {
+          throw new GoogleQuotaError(
+            `the soft cap is reached: ${used} of ${cap} operations used on ${date} (UTC) across all Google accounts; ` +
+              'the sync stops and resumes tomorrow',
+          );
+        }
+        await addApiUsage(tx, { platform: 'google', accountExternalId: input.accountExternalId, date, operations });
+      });
     },
   };
 }

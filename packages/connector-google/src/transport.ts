@@ -149,11 +149,10 @@ export class GoogleAdsClient {
     const url = `${this.#base}/${path}`;
     let refreshed = false;
     for (let attempt = 1; ; attempt++) {
+      // Sign in first: a failed sign-in never reaches Google, so it isn't counted as an operation.
+      const token = await this.#tokens.getAccessToken();
       await this.#quota?.consume(1);
-      const headers: Record<string, string> = {
-        authorization: `Bearer ${await this.#tokens.getAccessToken()}`,
-        accept: 'application/json',
-      };
+      const headers: Record<string, string> = { authorization: `Bearer ${token}`, accept: 'application/json' };
       if (body !== undefined) headers['content-type'] = 'application/json';
       if (login !== undefined && method === 'POST') headers['login-customer-id'] = login;
       const sent = await this.#send(url, {
@@ -162,8 +161,9 @@ export class GoogleAdsClient {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       if (sent.ok === false) {
-        // Only network failures and timeouts are retried; anything else (e.g. the test replayer refusing an
-        // unexpected request) propagates as it is. The error is never rethrown as is: it may quote the request.
+        // Only network failures and timeouts are retried, and they're never rethrown (a network error may quote
+        // the request). Anything else, e.g. the test replayer refusing an unexpected request, propagates as it is:
+        // it names the query and the manager id, never the authorization header.
         if (!isNetworkError(sent.error)) throw sent.error;
         if (attempt >= this.#maxAttempts) {
           throw new Error(`Google Ads request for ${what} failed after ${attempt} attempts (network or timeout)`);

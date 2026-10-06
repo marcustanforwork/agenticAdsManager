@@ -303,4 +303,49 @@ describe('manager → client accounts', () => {
     const { client } = replayClient(['clients']);
     expect(await client.findManagerFor(ACCOUNT)).toBe(MANAGER);
   });
+
+  it('skips an accessible account it cannot list, and keeps looking', async () => {
+    const c = cassette('clients');
+    const [accessible, clients] = c.exchanges;
+    if (!accessible || !clients) throw new Error('clients.json changed');
+    const query = (clients.request.body as { query: string }).query;
+    const cancelled = {
+      ...clients,
+      request: {
+        ...clients.request,
+        path: '/customers/9990001111/googleAds:searchStream',
+        headers: { 'login-customer-id': '9990001111' },
+        body: { query },
+      },
+      response: {
+        status: 403,
+        headers: {},
+        body: {
+          error: {
+            code: 403,
+            message: 'The customer account is not enabled.',
+            status: 'PERMISSION_DENIED',
+            details: [
+              {
+                '@type': 'type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure',
+                errors: [{ errorCode: { authorizationError: 'CUSTOMER_NOT_ENABLED' } }],
+              },
+            ],
+          },
+        },
+      },
+    };
+    const both = {
+      ...accessible,
+      response: { ...accessible.response, body: { resourceNames: ['customers/9990001111', `customers/${MANAGER}`] } },
+    };
+    const { client } = replayClient([{ ...c, exchanges: [both, cancelled, clients] }]);
+    expect(await client.findManagerFor(ACCOUNT)).toBe(MANAGER);
+  });
+
+  it('says how to fix access when no accessible account holds the client', async () => {
+    const c = cassette('clients');
+    const { client } = replayClient([c]);
+    await expect(client.findManagerFor('5555555555')).rejects.toThrow(/can't reach 5555555555/);
+  });
 });

@@ -175,7 +175,7 @@ describe('dryRunSync (google)', () => {
       const report = await run(replay.fetch);
       expect(report.accounts[0]).toMatchObject({ outcome: 'read', loginCustomerId: MANAGER });
       expect(report.warnings).toEqual([
-        `google:${ACCOUNT} is reached through manager ${MANAGER}; store it with: ads accounts link --platform google --account ${ACCOUNT} --manager ${MANAGER}`,
+        `google:${ACCOUNT} is reached through manager ${MANAGER}; store it with: ads accounts link --product dry-google --platform google --account ${ACCOUNT} --manager ${MANAGER}`,
       ]);
       expect(report.accounts[0]?.requests).toBe(replay.calls.length);
     } finally {

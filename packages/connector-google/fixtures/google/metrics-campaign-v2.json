@@ -93,7 +93,7 @@
           "login-customer-id": "1112223333"
         },
         "body": {
-          "query": "SELECT campaign.id, segments.date, segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value FROM campaign WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30' AND segments.conversion_action IN ('customers/1234567890/conversionActions/555')"
+          "query": "SELECT campaign.id, segments.date, segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value FROM campaign WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
         }
       },
       "response": {
@@ -115,6 +115,20 @@
                 },
                 "metrics": {
                   "allConversions": 3.0,
+                  "allConversionsValue": 0.0
+                }
+              },
+              {
+                "campaign": {
+                  "resourceName": "customers/1234567890/campaigns/111",
+                  "id": "111"
+                },
+                "segments": {
+                  "date": "2026-09-29",
+                  "conversionAction": "customers/1234567890/conversionActions/557"
+                },
+                "metrics": {
+                  "allConversions": 4.0,
                   "allConversionsValue": 0.0
                 }
               },

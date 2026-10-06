@@ -18,6 +18,7 @@ import {
   sha256Hex,
 } from '@ads/contracts';
 import { z } from 'zod';
+import { GoogleAdsApiError, GoogleRateLimitError } from './errors.ts';
 import { type GaqlCondition, type GaqlResource, type SelectField, type WhereField, gaql, lit } from './gaql.ts';
 import { doubleToMicros, microsFromGoogle } from './money.ts';
 import { normaliseGoogleStatus } from './status.ts';
@@ -304,7 +305,14 @@ export class GoogleReadClient implements PlatformReadClient {
     const accessible = await this.api.listAccessibleCustomers();
     if (accessible.includes(clientId)) return undefined;
     for (const id of accessible) {
-      const clients = await this.listClientAccounts(id);
+      let clients: ClientAccount[];
+      try {
+        clients = await this.listClientAccounts(id);
+      } catch (e) {
+        // A cancelled or unreachable account in the list doesn't stop the search; quota and rate limits do.
+        if (e instanceof GoogleAdsApiError && !(e instanceof GoogleRateLimitError)) continue;
+        throw e;
+      }
       if (clients.some((c) => c.id === clientId && c.level === 1)) return id;
     }
     throw new Error(
@@ -534,7 +542,9 @@ export class GoogleReadClient implements PlatformReadClient {
   }
 
   /** Conversions of the KPI stage's conversion actions only (`segments.conversion_action`), so funnel stages are
-   *  never added together (D-069's rule, applied to Google). Nothing configured = no query. */
+   *  never added together (D-069's rule, applied to Google). Nothing configured = no query. The rows are kept by
+   *  action id, whoever owns the action: one owned by the manager account (cross-account conversion tracking) is
+   *  `customers/<manager>/conversionActions/<id>`, so filtering on the client's resource name would miss it. */
   async #conversionsBy(
     accountId: string,
     from: 'campaign' | 'ad_group' | 'keyword_view' | 'customer',
@@ -549,24 +559,12 @@ export class GoogleReadClient implements PlatformReadClient {
       'metrics.all_conversions',
       'metrics.all_conversions_value',
     ] as SelectField<typeof from>[];
-    return this.api.search(
-      accountId,
-      gaql({
-        from,
-        select,
-        where: [
-          between(range),
-          {
-            field: 'segments.conversion_action',
-            op: 'IN',
-            values: this.#conversionActionIds.map((id) =>
-              lit.resource(`customers/${accountId}/conversionActions/${id}`),
-            ),
-          },
-        ],
-      }),
-      MetricsRow,
-    );
+    const rows = await this.api.search(accountId, gaql({ from, select, where: [between(range)] }), MetricsRow);
+    const wanted = new Set(this.#conversionActionIds);
+    return rows.filter((r) => {
+      const id = /\/conversionActions\/(\d+)$/.exec(r.segments?.conversionAction ?? '')?.[1];
+      return id !== undefined && wanted.has(id);
+    });
   }
 
   #metricRow(accountId: string, level: Level, r: MetricsRow): MetricRow {

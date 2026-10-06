@@ -29,9 +29,10 @@ async function productId(db: DbOrTx, slug: string): Promise<string> {
 }
 
 /** Google only: the manager account to act through (`login-customer-id`, M03). */
-export function checkManager(platform: Platform, manager: string | undefined): string | undefined {
+export function checkManager(platform: Platform, manager: string | null | undefined): string | null | undefined {
   if (manager === undefined) return undefined;
   if (platform !== 'google') throw new InvalidArgumentError('--manager is for Google accounts only');
+  if (manager === null) return null; // --no-manager: act on the account directly
   if (!ACCOUNT_ID_PATTERNS.google.test(manager))
     throw new InvalidArgumentError(`--manager: ${ACCOUNT_ID_HINTS.google}`);
   return manager;
@@ -39,12 +40,12 @@ export function checkManager(platform: Platform, manager: string | undefined): s
 
 export async function linkAccount(
   db: DbOrTx,
-  input: { product: string; platform: Platform; account: string; manager?: string },
+  input: { product: string; platform: Platform; account: string; manager?: string | null },
 ): Promise<string> {
   const id = await productId(db, input.product);
   const externalId = checkAccountId(input.platform, input.account);
   const manager = checkManager(input.platform, input.manager);
-  const via = manager === undefined ? '' : ` through manager ${manager}`;
+  const via = manager === undefined ? '' : manager === null ? ', with direct access' : ` through manager ${manager}`;
   const existing = await findAccount(db, input.platform, externalId);
   if (existing && existing.productId !== id)
     throw new Error(`${input.platform}:${externalId} is linked to another product`);
@@ -56,7 +57,7 @@ export async function linkAccount(
     return `${input.platform}:${externalId} is linked to ${input.product}${via}`;
   }
   const account = await upsertAccount(db, { productId: id, platform: input.platform, externalId });
-  if (manager !== undefined) await setAccountLoginCustomerId(db, account.id, manager);
+  if (manager !== undefined && manager !== null) await setAccountLoginCustomerId(db, account.id, manager);
   return `linked ${input.platform}:${externalId} to ${input.product}${via}`;
 }
 
@@ -97,8 +98,9 @@ export function accountsCommand(
     .addOption(platform())
     .requiredOption('--account <id>', 'Meta act_<digits> or Google customer id')
     .option('--manager <id>', 'Google only: the manager account (MCC) id to act through, 10 digits')
-    .action(async (opts: { platform: Platform; account: string; manager?: string }) => {
-      const manager = checkManager(opts.platform, opts.manager);
+    .option('--no-manager', 'Google only: forget the stored manager and act on the account directly')
+    .action(async (opts: { platform: Platform; account: string; manager?: string | false }) => {
+      const manager = checkManager(opts.platform, opts.manager === false ? null : opts.manager);
       const input = {
         product: product(),
         platform: opts.platform,

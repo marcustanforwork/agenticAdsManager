@@ -69,6 +69,9 @@ describe('ads accounts', () => {
     ]);
     const lines = await run(['accounts', 'list', '--product', 'acc-a']);
     expect(lines.find((l) => l.startsWith('google:'))).toMatch(/via manager 4445556666$/);
+    expect(await link('--no-manager')).toEqual(['google:1234567890 is linked to acc-a, with direct access']);
+    const direct = await run(['accounts', 'list', '--product', 'acc-a']);
+    expect(direct.find((l) => l.startsWith('google:'))).not.toMatch(/via manager/);
     await expect(link('--manager', '111-222-3333')).rejects.toThrow(/10 digits/);
     await expect(
       run([

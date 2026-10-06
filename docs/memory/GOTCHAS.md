@@ -84,6 +84,8 @@ These come from the v3 review. The ones marked *(training knowledge)* weren't re
 - **Meta money units:** budgets are in minor units (SGD cents), while insights report spend as decimal strings. Google uses micros. Convert exactly; never `parseFloat`.
 - **Meta can't map an `fbclid` to a campaign.** Put `{{campaign.id}}`, `{{adset.id}}` and `{{ad.id}}` URL parameters on every ad, and capture them at landing.
 - **Google shared budgets** belong to several campaigns, so this system never changes them.
+- **Google conversion values are doubles** (`metrics.all_conversions_value`, in currency units): the only place a float meets money. `doubleToMicros` converts it once, exactly, via `toFixed(6)` (rounded to the micro), and nothing does arithmetic on the double. Don't copy the pattern for any money Google sends as micros. *(M03, D-073)*
+- **Manager-owned Google conversion actions** (cross-account conversion tracking) are `customers/<manager>/conversionActions/<id>`; the connector matches KPI conversions by action id for that reason. **UNVERIFIED:** whether a client account's `conversion_action` listing includes the manager's actions (if not, `conversionActionsMissing` names them wrongly). T11 creates the actions in the client account, which avoids it. *(M03)*
 - **Telegram `callback_data` is limited to 1–64 bytes.** *(training knowledge; well established. Confirm in M09.)*
 - **Telegram allows one `getUpdates` consumer per bot.** Only the leader replica polls. *(training knowledge; M09)*
 - **Google `click_view`** can be queried for only one day at a time, and only for the last ~90 days. *(training knowledge; M03)*
