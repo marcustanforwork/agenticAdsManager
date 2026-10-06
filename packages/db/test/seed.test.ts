@@ -1,18 +1,22 @@
 // The seed, run with the real products/seed.json. Expectations are read from that file, so this shared
-// package names no product (hard rule 2).
+// package names no product (hard rule 2). Products without settings get them from their pack (`ads seed`, in the
+// worker, M05a); here they get the test settings.
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getFlag } from '../src/repos/plumbing.ts';
 import { findProductBySlug, listOfferings, updateSettings } from '../src/repos/products.ts';
 import { SeedSpec, seed } from '../src/seed.ts';
-import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
+import { TEST_SETTINGS, createTestDatabase, type TestDatabase } from '../src/testing.ts';
 
 let t: TestDatabase;
 let raw: unknown;
 let spec: SeedSpec;
 beforeAll(async () => {
   t = await createTestDatabase();
-  raw = JSON.parse(await readFile(new URL('../../../products/seed.json', import.meta.url), 'utf8'));
+  const file = JSON.parse(await readFile(new URL('../../../products/seed.json', import.meta.url), 'utf8')) as {
+    products: Record<string, unknown>[];
+  };
+  raw = { ...file, products: file.products.map((p) => ({ settings: TEST_SETTINGS, ...p })) };
   spec = SeedSpec.parse(raw);
 });
 afterAll(async () => t.drop());

@@ -24,8 +24,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
     "db:generate": "NODE_OPTIONS=--conditions=@ads/source drizzle-kit generate",
-    "db:migrate": "node --conditions=@ads/source src/cli.ts migrate",
-    "db:seed": "node --conditions=@ads/source src/cli.ts seed"
+    "db:migrate": "node --conditions=@ads/source src/cli.ts migrate"
   },
   "dependencies": {
     "@ads/contracts": "workspace:*",
