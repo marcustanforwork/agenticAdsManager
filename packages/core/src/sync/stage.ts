@@ -241,7 +241,7 @@ async function syncAccount(
         clicks: t.clicks,
         spendMicros: BigInt(t.spendMicros),
         // The search-terms read has no conversions yet (KPI conversions per term need a query segmented by
-        // conversion action); SnapPool's are 0 until uploads start anyway. M06a adds them with its detector.
+        // conversion action); an upload-only product's are 0 until uploads start anyway. M06a adds them.
         conversions: '0',
       });
     }
