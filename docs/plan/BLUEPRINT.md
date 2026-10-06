@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.7 — 2026-09-25 (M01b: the queue lives in `db`; the gateway may write credentials, D-068) |
+| **Version** | v3.10 — 2026-10-02 (Google: no developer token, D-070; service accounts proposed, D-071; REST API with our own client, D-072) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -334,7 +334,7 @@ export interface OutcomeAdapter {
 ```ts
 export interface PlatformReadClient {
   platform: z.infer<typeof Platform>;
-  getAccountInfo(accountId: string): Promise<{ name: string; timezone: string; currency: string; spendCapMicros?: bigint }>;
+  getAccountInfo(accountId: string): Promise<{ name: string; timezone: string; currency: string; spendCapMicros?: bigint; amountSpentMicros?: bigint }>;
   listEntities(accountId: string, types: EntityTypeId[]): Promise<AdEntityRecord[]>;   // normalised + raw status
   getMetricsDaily(accountId: string, range: DateRange, level: EntityTypeId): Promise<MetricRow[]>;
   getSearchTerms?(accountId: string, range: DateRange): Promise<SearchTermRow[]>;     // Google only
@@ -1047,7 +1047,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 - **Levels.** Metrics are stored for campaigns, ad groups/ad sets, ads and (Google) keywords. The entity list also includes budgets, with `explicitly_shared` recorded.
 - **Snapshots.** A snapshot is the canonical JSON of the tracked fields, stored only if its hash differs from the latest one.
 - **Drift.** The tracked fields are status, daily budget, bid strategy type and name. A change is drift unless the change log explains it (we set that value on that field).
-- **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync:
+- **Status normalisation.** Confirm the details in M02/M03 and keep this table in sync. Meta's column was checked against the docs in M02 (`connector-meta/src/status.ts`); the real fixtures confirm it. Any value not listed is `unknown`:
 
 | Normalised | Google | Meta (`effective_status`) |
 |---|---|---|
@@ -1058,6 +1058,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | limited | limited/ineligible serving (primary status) | `WITH_ISSUES`, `DISAPPROVED` |
 | unknown | anything else | anything else |
 
+- **Meta specifics (M02, D-069).** Clicks are link clicks (`inline_link_clicks`). Platform conversions are the sum of the insights action types that the Meta feedback routes of the primary KPI stage map to (`offsite_conversion.fb_pixel_<event>`), with each row's `attribution_setting` recorded. Meta has no shared budgets, so `budget_shared` is always false; daily vs lifetime budget and the configured status go in `attributes`.
 - **Money.** Conversions follow §3.1. **Timezones:** metric dates are in the account's local day, which must equal the product's timezone (trust check).
 - **Quota.** Every Google request increments `api_usage`. A soft cap stops the sync with a clear error.
 
@@ -1387,10 +1388,10 @@ Methods are tried in this order, and the first match wins:
    - `trustSignals` (dataset events received in the last 7 days).
 3. Exact money conversion (§3.1).
 4. `packages/connector-testing`:
-   - `RECORD=1` writes responses to `fixtures/meta/*.json`;
+   - `RECORD=1` writes responses to `fixtures/meta/*.json` (M02: `RECORD=1 META_CREDENTIAL=<token file> pnpm --filter @ads/connector-meta record --account act_…` writes `packages/connector-meta/fixtures/meta/recorded/`);
    - redaction removes tokens, `appsecret_proof`, and any names or emails;
    - a replayer serves the fixtures in tests.
-5. `ads sync --product snappool --platform meta --dry` prints what would be stored.
+5. `ads sync --product snappool --platform meta --dry` prints what would be stored. (M02 also adds `ads accounts link | list | set-status`, the setup command that links an ad account to a product, D-069.)
 
 **Tests:**
 - Replay tests for every method.
@@ -1416,18 +1417,18 @@ Methods are tried in this order, and the first match wins:
 ---
 
 ### M03 — Google read connector
-**Phase 0 · Size ~500k · Needs:** T5. Explorer access is enough to begin live work.
+**Phase 0 · Size ~500k · Needs:** T5 (as rewritten for D-070), for the live steps only. Explorer access, which comes with enabling the Google Ads API in the Cloud project, is enough. Q13 decides the identity type (D-071).
 
 **Goal:** typed, deterministic, quota-aware Google Ads reads.
 
-**Read first:** M02's milestone file (mirror its shape and reuse `connector-testing`); this file §3.5–3.6; PROPOSAL §7. Check `google-ads-api` and the Google Ads API version with the `verify-external-facts` skill.
+**Read first:** M02's milestone file (mirror its shape and reuse `connector-testing`); this file §3.5–3.6; PROPOSAL §7; D-070, D-071, D-072 and Q13's answer. Check the Google Ads API version and its REST interface (`searchStream`, response shape, errors, `login-customer-id`) with the `verify-external-facts` skill.
 
 **Builds:**
-1. Auth:
-   - the developer token and OAuth client come from Doppler;
-   - the refresh token comes from the vault (`read` role = the **read-only** Google login, D-046);
-   - resolution from manager account to client account;
-   - the API version and the library version are pinned **together**.
+1. Transport and sign-in (D-070, D-071, D-072):
+   - a small REST client on `fetch`, like M02's `GraphClient`: `googleAds:searchStream` for reads; the API version pinned in one constant; **no developer token**;
+   - one token-provider interface; the credential comes from the vault (`read` role): the **Read only** service account's key file (D-071, if Q13 approves it), or the read-only Google login's refresh token plus the OAuth client from Doppler (D-046). The token exchange happens outside the recorded `fetch`;
+   - the manager account's id in the `login-customer-id` header (decide where it's stored, e.g. a nullable `accounts` column via the `db-migration` skill);
+   - resolution from manager account to client account.
 2. Read methods:
    - `getAccountInfo`;
    - `listEntities` for campaigns, ad groups, keywords and budgets (with `explicitly_shared`);
@@ -1437,8 +1438,8 @@ Methods are tried in this order, and the first match wins:
    - `snapshot`;
    - `trustSignals`: conversion actions exist, conversions were recorded in the last 7 days, and auto-tagging is on.
 3. A GAQL builder with an allowlist of resources and fields. No free-form GAQL.
-4. Quota accounting in `api_usage`, with a soft cap (Explorer allows 2,880 operations a day).
-5. Fixtures in `fixtures/google/*.json`, recorded via `connector-testing`.
+4. Quota accounting in `api_usage`, with a soft cap (Explorer allows 2,880 operations a day **per Cloud project**, so the cap sums every Google account for the day).
+5. Fixtures in `fixtures/google/*.json`, recorded via `connector-testing`. Extend its redactor and scanner to PEM private keys and `private_key` fields (service-account key files).
 6. `ads sync --product snappool --platform google --dry`.
 
 **Tests:**
@@ -1447,6 +1448,7 @@ Methods are tried in this order, and the first match wins:
 - The quota cap.
 - Restatement overwrites old values.
 - Shared budgets are flagged.
+- Redaction: no private key or access token in any fixture file.
 - A live smoke test, skipped unless `LIVE=1`.
 
 **Done when (cloud):** all replay tests are green.
@@ -1455,7 +1457,7 @@ Methods are tried in this order, and the first match wins:
 
 **Cut first:** `getSearchTerms` (moves to M04, its one allowed move); keyword-level metrics (keep ad group level).
 
-**Leave behind:** the pinned API + library versions and the next upgrade-check date, recorded in GOTCHAS.
+**Leave behind:** the pinned REST API version and the next upgrade-check date, recorded in GOTCHAS.
 
 ---
 
@@ -2056,7 +2058,7 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
 ---
 
 ### M13 — Google write adapter + Data Manager uploads (Phase 2 exit)
-**Phase 2 · Size ~500k · Needs:** T5's standard-access login and T11 (Data Manager API enabled, conversion actions)
+**Phase 2 · Size ~500k · Needs:** T5's Standard identity (D-071 or D-046) and T11 (Data Manager API enabled, conversion actions)
 
 **Goal:** real Google negatives and pauses with `validate_only` first, conversion uploads through the Data Manager API, and an integration suite on the test account.
 
@@ -2064,7 +2066,7 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
 
 **Builds:**
 1. `connector-google-write`:
-   - authenticates as the standard-access login (`write` role);
+   - authenticates as the **Standard** identity (`write` role: the service account per D-071, or the login), through M03's REST client and token provider (`:mutate`, D-072);
    - `validate` with `validate_only=true`;
    - `apply` sends a **byte-identical** request (asserted) with `partial_failure=false`;
    - `readBack`;

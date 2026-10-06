@@ -1,0 +1,113 @@
+{
+  "source": "hand-written from Meta Marketing API v26.0 documented shapes (2026-10-02); replace with recorded fixtures in the M02 live steps",
+  "notes": "A later download: Meta restated 2026-09-28 (late conversions and a spend correction).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/act_1234567890/insights",
+        "query": {
+          "level": "campaign",
+          "time_range": "{\"since\":\"2026-09-28\",\"until\":\"2026-09-30\"}",
+          "time_increment": "1",
+          "fields": "campaign_id,date_start,date_stop,impressions,inline_link_clicks,spend,actions,action_values,attribution_setting",
+          "limit": "500"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "x-business-use-case-usage": "{\"1234567890\":[{\"type\":\"ads_management\",\"call_count\":3,\"total_cputime\":1,\"total_time\":2,\"estimated_time_to_regain_access\":0,\"ads_api_access_tier\":\"development_access\"}]}",
+          "x-fb-ads-insights-throttle": "{\"app_id_util_pct\":4,\"acc_id_util_pct\":2,\"ads_api_access_tier\":\"development_access\"}"
+        },
+        "body": {
+          "data": [
+            {
+              "campaign_id": "120200000000000001",
+              "date_start": "2026-09-28",
+              "date_stop": "2026-09-28",
+              "impressions": "1525",
+              "spend": "18.97",
+              "attribution_setting": "7d_click_1d_view",
+              "inline_link_clicks": "32",
+              "actions": [
+                {
+                  "action_type": "link_click",
+                  "value": "32"
+                },
+                {
+                  "action_type": "page_engagement",
+                  "value": "35"
+                },
+                {
+                  "action_type": "offsite_conversion.fb_pixel_lead",
+                  "value": "3"
+                }
+              ],
+              "action_values": [
+                {
+                  "action_type": "offsite_conversion.fb_pixel_lead",
+                  "value": "0"
+                }
+              ]
+            },
+            {
+              "campaign_id": "120200000000000001",
+              "date_start": "2026-09-29",
+              "date_stop": "2026-09-29",
+              "impressions": "1610",
+              "spend": "19.07",
+              "attribution_setting": "7d_click_1d_view",
+              "actions": [
+                {
+                  "action_type": "link_click",
+                  "value": "0"
+                },
+                {
+                  "action_type": "page_engagement",
+                  "value": "3"
+                }
+              ]
+            },
+            {
+              "campaign_id": "120200000000000001",
+              "date_start": "2026-09-30",
+              "date_stop": "2026-09-30",
+              "impressions": "1490",
+              "spend": "17.95",
+              "attribution_setting": "7d_click_1d_view",
+              "inline_link_clicks": "28",
+              "actions": [
+                {
+                  "action_type": "link_click",
+                  "value": "28"
+                },
+                {
+                  "action_type": "page_engagement",
+                  "value": "31"
+                },
+                {
+                  "action_type": "offsite_conversion.fb_pixel_lead",
+                  "value": "1"
+                }
+              ],
+              "action_values": [
+                {
+                  "action_type": "offsite_conversion.fb_pixel_lead",
+                  "value": "0"
+                }
+              ]
+            }
+          ],
+          "paging": {
+            "cursors": {
+              "before": "MA==",
+              "after": "Mg=="
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -2,8 +2,11 @@
 // The `ads` CLI. Like every surface, it will only create operator requests (invariant 9). The `credentials`
 // commands are setup: they store tokens in the vault and never touch an ad account.
 import { readFileSync } from 'node:fs';
-import { credentialsCommand, defaultCliDeps, type CliDeps } from '@ads/vault';
-import { Command, InvalidArgumentError } from 'commander';
+import { dryRunSync } from '@ads/core';
+import type { DbOrTx } from '@ads/db';
+import { accountsCommand } from './accounts.ts';
+import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, withDatabase, type CliDeps } from '@ads/vault';
+import { Command, InvalidArgumentError, Option } from 'commander';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 
@@ -12,9 +15,14 @@ const productSlug = (value: string): string => {
   return value;
 };
 
+/** What the commands touch. `fetch` and `now` replace the network and the clock in tests. */
+export interface WorkerCliDeps extends CliDeps {
+  fetch?: typeof fetch;
+  now?: () => Date;
+}
 export type { CliDeps };
 
-export function buildProgram(deps: CliDeps = defaultCliDeps('ads')): Command {
+export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Command {
   const program = new Command('ads')
     .description('Ads Agent worker CLI')
     .option('--product <slug>', 'the product to act on', productSlug);
@@ -26,11 +34,49 @@ export function buildProgram(deps: CliDeps = defaultCliDeps('ads')): Command {
       console.log(`ads ${pkg.version}`);
     });
 
+  const requireProduct = (): string => {
+    const product = program.opts<{ product?: string }>().product;
+    if (product === undefined) throw new InvalidArgumentError('--product <slug> is required');
+    return product;
+  };
+  const withDb = <T>(run: (db: DbOrTx) => Promise<T>): Promise<T> => withDatabase(deps, run);
+
+  program.addCommand(accountsCommand(withDb, requireProduct, deps.print));
+
+  program
+    .command('sync')
+    .description(
+      'read a platform and print what a sync would store (only --dry until M04); needs DATABASE_URL and VAULT_READ_KEY',
+    )
+    .addOption(new Option('--platform <platform>', 'which platform').choices(['meta', 'google']).makeOptionMandatory())
+    .option('--dry', 'read only, store nothing')
+    .action(async (opts: { platform: 'meta' | 'google'; dry?: boolean }) => {
+      const product = requireProduct();
+      if (opts.dry !== true) throw new InvalidArgumentError('only --dry is available until M04 (the sync stage)');
+      const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', deps.env);
+      await withDb(async (db) => {
+        const report = await dryRunSync({
+          db,
+          productSlug: product,
+          platform: opts.platform,
+          masterKey,
+          ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
+          ...(deps.now === undefined ? {} : { now: deps.now }),
+        });
+        deps.print(JSON.stringify(report, null, 2));
+        if (report.accounts.some((a) => a.outcome === 'error')) process.exitCode = 1;
+      });
+    });
+
   program.addCommand(credentialsCommand(deps, { keyEnv: 'VAULT_READ_KEY', keyClass: 'read', roles: ['read'] }));
 
   return program;
 }
 
+/** `pnpm --filter @ads/app-worker ads -- …` passes the `--` on; drop it so the flags after it still parse. */
+export const withoutLeadingDashes = (argv: string[]): string[] =>
+  argv[2] === '--' ? [...argv.slice(0, 2), ...argv.slice(3)] : argv;
+
 if (import.meta.main) {
-  await buildProgram().parseAsync(process.argv);
+  await buildProgram().parseAsync(withoutLeadingDashes(process.argv));
 }

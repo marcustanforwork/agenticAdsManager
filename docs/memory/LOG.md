@@ -4,6 +4,30 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-06 — PR #6 (M02) merged; Marcus works remotely for now
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6)
+- **Did:** squash-merged PR #6 on Marcus's instruction after every check passed (D-057). Answered his questions: the to-do list is the same except Google's setup (T5 is simpler: no developer token, no application) and the new Q13; M03's cloud work needs no accounts. He's moving house and working from a work machine, so browser-only setup tasks for now; secrets and live steps wait for his own PC.
+- **Decided:** —
+- **Learned:** —
+- **Next:** a clean-context session starts M03.
+- **Open:** Q13; live steps M02, M01a, M00; setup tasks.
+
+## 2026-10-02 — M02 built: Meta read connector
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6)
+- **Did:**
+  - Marcus confirmed M01b complete; M00/M01a live-step checklists left unticked as he asked.
+  - `packages/connector-testing`: cassettes, `replayFetch`, `recordingFetch` + `saveCassette`, `Redactor` + `findSecrets`.
+  - `packages/connector-meta`: `GraphClient` (Graph API v26.0, `appsecret_proof`, cursor paging, rate-limit back-off), `MetaReadClient` (account, entities, daily metrics at 3 levels, snapshots, trust signals), exact money, status table, hand-written fixtures, the `record` script and a record→replay round-trip test.
+  - `packages/core/src/sync/dryRun.ts` + `ads sync --dry`; `ads accounts link | list | set-status`; `localDate`/`minusDays` in contracts; contract fields added (D-069).
+  - Code review (high), twice: the whole diff (9 findings, 7 fixed), then the code added after it (9 candidates, 7 fixed); the rest are recorded in the milestone Notes. 81 new tests (466 in the repo).
+  - `record-fixture` skill created.
+  - CI `secret-scan` flagged a made-up test secret (false positive): built at run time now, plus a one-finding `.gitleaksignore`. CI green afterwards.
+  - Marcus created the Google manager account (T5). Its API Center no longer issues developer tokens: Google moved API access to the Cloud project on 2026-09-09/10. T5, PROPOSAL §6.1/§6.13/§7 and BLUEPRINT M03 rewritten; Q13 asked. Then Marcus asked what code or design that changes: no existing code; for M03/M13 the `google-ads-api` library (25.1.0, read from its published code) needs refresh tokens and a developer token and uses axios/gRPC, so D-072 moves the Google connector to the REST API with our own `fetch` client.
+- **Decided:** D-069, D-070 and D-072 (Claude, fix); D-071 proposed (Q13). BLUEPRINT v3.10, PROPOSAL v3.6.
+- **Learned:** GOTCHAS: Graph v26.0 and its 2026-10-27 changes, rate-limit headers, access-tier rename, ad account fields, attribution changes, dataset stats, `appsecret_proof`, `effective_status`; unverified: action-type mapping and archived listings.
+- **Next:** Marcus reviews the PR; then a clean session starts M03.
+- **Open:** Q13; live steps M02, M01a, M00; setup tasks.
+
 ## 2026-09-26 — PR #5 (M01b) merged; Marcus starts his to-do list
 - **Where:** cloud · branch `claude/trusting-wozniak-dcdxfu` · PR [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5)
 - **Did:** squash-merged PR #5 on Marcus's instruction after CI passed (D-057). Guided Marcus through the open setup tasks and live steps (T1 status checks, M00 SER9 check, T2 Neon, T3 Doppler, M01a migrate + seed, T6b, T4, T5, T6a).
