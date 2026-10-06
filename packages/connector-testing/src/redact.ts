@@ -1,7 +1,7 @@
 // Redaction: what the recorder runs on every exchange before it is written, and the scanner every fixture
 // file must pass (invariant 13: no secrets or personal data in the repo).
 import type { Exchange } from './cassette.ts';
-import { SECRET_PARAMS } from './cassette.ts';
+import { MATCHED_HEADERS, SECRET_PARAMS } from './cassette.ts';
 
 /** Response headers worth keeping (the back-off logic reads them). Everything else is dropped. */
 export const KEPT_HEADERS = [
@@ -25,6 +25,8 @@ export const PERSONAL_KEYS = [
   'email',
   'phone',
   'owner',
+  'descriptiveName', // Google's account name (REST JSON is camelCase)
+  'searchTerm', // what people typed into Google: may name a person
 ] as const;
 
 export const REDACTED = 'REDACTED';
@@ -34,6 +36,9 @@ const TOKEN_PATTERNS: RegExp[] = [
   /EAA[A-Za-z0-9]{20,}/g, // Meta access tokens
   /ya29\.[A-Za-z0-9_-]{10,}/g, // Google OAuth access tokens
   /\b1\/\/[A-Za-z0-9_-]{20,}/g, // Google OAuth refresh tokens
+  /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, // JWTs (a signed service-account assertion)
+  // PEM private keys (service-account key files), raw or JSON-escaped; a lone BEGIN line counts too.
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----(?:[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)?/g,
 ];
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const secretParam = (p: string) => new RegExp(`([?&]${p}=)([^&"\\s]*)`, 'g');
@@ -89,10 +94,14 @@ export class Redactor {
     for (const [k, v] of Object.entries(x.request.query)) {
       if (!(SECRET_PARAMS as readonly string[]).includes(k)) query[k] = redactString(v);
     }
-    return {
-      request: { method: x.request.method, path: redactString(x.request.path), query },
-      response: { status: x.response.status, headers, body: this.value(x.response.body) },
-    };
+    const request: Exchange['request'] = { method: x.request.method, path: redactString(x.request.path), query };
+    const sent: Record<string, string> = {};
+    for (const [k, v] of Object.entries(x.request.headers ?? {})) {
+      if ((MATCHED_HEADERS as readonly string[]).includes(k.toLowerCase())) sent[k.toLowerCase()] = redactString(v);
+    }
+    if (Object.keys(sent).length > 0) request.headers = sent;
+    if (x.request.body !== undefined) request.body = this.value(x.request.body);
+    return { request, response: { status: x.response.status, headers, body: this.value(x.response.body) } };
   }
 }
 

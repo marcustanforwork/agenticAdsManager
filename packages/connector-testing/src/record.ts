@@ -2,7 +2,7 @@
 // pass the secret scanner. Used only with RECORD=1, by Marcus or a local session with read credentials.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { Cassette, type Exchange, requestKey } from './cassette.ts';
+import { Cassette, type Exchange, requestParts } from './cassette.ts';
 import { Redactor, findSecrets } from './redact.ts';
 
 /** True when the environment asks for recording (`RECORD=1`). */
@@ -17,8 +17,7 @@ export interface RecordingFetch {
 export function recordingFetch(inner: typeof fetch, redactor: Redactor = new Redactor()): RecordingFetch {
   const exchanges: Exchange[] = [];
   const record = async (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
-    const url = input instanceof Request ? input.url : input;
-    const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+    const request = requestParts(input, init);
     const res = await inner(input, init);
     const text = await res.clone().text();
     let body: unknown = text;
@@ -31,10 +30,7 @@ export function recordingFetch(inner: typeof fetch, redactor: Redactor = new Red
     res.headers.forEach((v, k) => {
       headers[k] = v;
     });
-    const { path, query } = requestKey(url);
-    exchanges.push(
-      redactor.exchange({ request: { method, path, query }, response: { status: res.status, headers, body } }),
-    );
+    exchanges.push(redactor.exchange({ request, response: { status: res.status, headers, body } }));
     return res;
   };
   return { fetch: record, exchanges };
