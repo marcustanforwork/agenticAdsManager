@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-10-06 |
 | **Finished** | 2026-10-06 (cloud part) |
-| **PRs** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) |
+| **PRs** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) (merged 2026-10-06) |
 
 ## Goal
 The first two cycle steps, end to end, for both platforms and both products.
