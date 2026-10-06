@@ -8,3 +8,4 @@ export * from './tokens.ts';
 export * from './credential.ts';
 export * from './transport.ts';
 export * from './client.ts';
+export * from './quota.ts';

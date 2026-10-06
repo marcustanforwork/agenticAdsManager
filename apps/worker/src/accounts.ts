@@ -6,6 +6,7 @@ import {
   findProductBySlug,
   listAccounts,
   NotFoundError,
+  setAccountLoginCustomerId,
   setAccountStatus,
   upsertAccount,
   type DbOrTx,
@@ -27,18 +28,36 @@ async function productId(db: DbOrTx, slug: string): Promise<string> {
   return product.id;
 }
 
+/** Google only: the manager account to act through (`login-customer-id`, M03). */
+export function checkManager(platform: Platform, manager: string | undefined): string | undefined {
+  if (manager === undefined) return undefined;
+  if (platform !== 'google') throw new InvalidArgumentError('--manager is for Google accounts only');
+  if (!ACCOUNT_ID_PATTERNS.google.test(manager))
+    throw new InvalidArgumentError(`--manager: ${ACCOUNT_ID_HINTS.google}`);
+  return manager;
+}
+
 export async function linkAccount(
   db: DbOrTx,
-  input: { product: string; platform: Platform; account: string },
+  input: { product: string; platform: Platform; account: string; manager?: string },
 ): Promise<string> {
   const id = await productId(db, input.product);
   const externalId = checkAccountId(input.platform, input.account);
+  const manager = checkManager(input.platform, input.manager);
+  const via = manager === undefined ? '' : ` through manager ${manager}`;
   const existing = await findAccount(db, input.platform, externalId);
   if (existing && existing.productId !== id)
     throw new Error(`${input.platform}:${externalId} is linked to another product`);
-  if (existing) return `${input.platform}:${externalId} is already linked to ${input.product} (${existing.status})`;
-  await upsertAccount(db, { productId: id, platform: input.platform, externalId });
-  return `linked ${input.platform}:${externalId} to ${input.product}`;
+  if (existing) {
+    if (manager === undefined || manager === existing.loginCustomerId) {
+      return `${input.platform}:${externalId} is already linked to ${input.product} (${existing.status})`;
+    }
+    await setAccountLoginCustomerId(db, existing.id, manager);
+    return `${input.platform}:${externalId} is linked to ${input.product}${via}`;
+  }
+  const account = await upsertAccount(db, { productId: id, platform: input.platform, externalId });
+  if (manager !== undefined) await setAccountLoginCustomerId(db, account.id, manager);
+  return `linked ${input.platform}:${externalId} to ${input.product}${via}`;
 }
 
 export async function listProductAccounts(db: DbOrTx, product: string): Promise<string[]> {
@@ -46,7 +65,7 @@ export async function listProductAccounts(db: DbOrTx, product: string): Promise<
   if (rows.length === 0) return [`no accounts are linked to ${product}`];
   return rows.map(
     (a) =>
-      `${a.platform}:${a.externalId}  ${a.status}  ${a.timezone ?? '-'}  ${a.currency ?? '-'}  last synced ${a.lastSyncedAt?.toISOString() ?? 'never'}`,
+      `${a.platform}:${a.externalId}  ${a.status}  ${a.timezone ?? '-'}  ${a.currency ?? '-'}  last synced ${a.lastSyncedAt?.toISOString() ?? 'never'}${a.loginCustomerId ? `  via manager ${a.loginCustomerId}` : ''}`,
   );
 }
 
@@ -77,11 +96,14 @@ export function accountsCommand(
     .description('link an ad account to the product')
     .addOption(platform())
     .requiredOption('--account <id>', 'Meta act_<digits> or Google customer id')
-    .action(async (opts: { platform: Platform; account: string }) => {
+    .option('--manager <id>', 'Google only: the manager account (MCC) id to act through, 10 digits')
+    .action(async (opts: { platform: Platform; account: string; manager?: string }) => {
+      const manager = checkManager(opts.platform, opts.manager);
       const input = {
         product: product(),
         platform: opts.platform,
         account: checkAccountId(opts.platform, opts.account),
+        ...(manager === undefined ? {} : { manager }),
       };
       print(await withDb((db) => linkAccount(db, input)));
     });

@@ -12,6 +12,7 @@ import {
   listEntities,
   markAccountSynced,
   recordSnapshot,
+  setAccountLoginCustomerId,
   setAccountStatus,
   upsertAccount,
   upsertAdEntity,
@@ -21,7 +22,7 @@ import {
   type MetricsInput,
 } from '../src/repos/adData.ts';
 import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
-import { makeCampaign, makeProduct } from './helpers.ts';
+import { makeCampaign, makeProduct, expectConstraint } from './helpers.ts';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -50,6 +51,18 @@ describe('accounts', () => {
     expect(found?.status).toBe('paused');
     expect(found?.lastSyncedAt).toBeInstanceOf(Date);
     expect((await listAccounts(t.db, p.id)).map((x) => x.id)).toEqual([a.id]);
+  });
+
+  it('stores a Google manager account id, and only a Google one', async () => {
+    const p = await makeProduct(t.db);
+    const g = await upsertAccount(t.db, { productId: p.id, platform: 'google', externalId: '1234567890' });
+    await setAccountLoginCustomerId(t.db, g.id, '1112223333');
+    expect((await findAccount(t.db, 'google', '1234567890'))?.loginCustomerId).toBe('1112223333');
+    await setAccountLoginCustomerId(t.db, g.id, null);
+    expect((await findAccount(t.db, 'google', '1234567890'))?.loginCustomerId).toBeNull();
+    await expectConstraint(setAccountLoginCustomerId(t.db, g.id, '111-222-3333'), 'accounts_login_customer_id_check');
+    const m = await upsertAccount(t.db, { productId: p.id, platform: 'meta', externalId: 'act_77' });
+    await expectConstraint(setAccountLoginCustomerId(t.db, m.id, '1112223333'), 'accounts_login_customer_id_check');
   });
 
   it('refuses to move an account to another product', async () => {

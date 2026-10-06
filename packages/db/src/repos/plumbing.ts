@@ -229,6 +229,16 @@ export async function addApiUsage(
   return row.operations;
 }
 
+/** Today's operations across every account of a platform: Google's Explorer quota belongs to the Cloud project,
+ *  so the soft cap is checked against this total (D-072). */
+export async function sumApiUsage(db: DbOrTx, input: { platform: Platform; date: string }): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<number>`coalesce(sum(${apiUsage.operations}), 0)::int` })
+    .from(apiUsage)
+    .where(and(eq(apiUsage.platform, input.platform), eq(apiUsage.date, input.date)));
+  return row?.total ?? 0;
+}
+
 export async function getApiUsage(
   db: DbOrTx,
   input: { platform: Platform; accountExternalId: string; date: string },

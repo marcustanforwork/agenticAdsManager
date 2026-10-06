@@ -71,6 +71,16 @@ export async function setAccountStatus(
   if (rows.length === 0) throw new NotFoundError('account', id);
 }
 
+/** Google: the manager account to act through (`login-customer-id`), or null for direct access. */
+export async function setAccountLoginCustomerId(db: DbOrTx, id: string, loginCustomerId: string | null): Promise<void> {
+  const rows = await db
+    .update(accounts)
+    .set({ loginCustomerId })
+    .where(eq(accounts.id, id))
+    .returning({ id: accounts.id });
+  if (rows.length === 0) throw new NotFoundError('account', id);
+}
+
 export async function markAccountSynced(db: DbOrTx, id: string, at: Date = new Date()): Promise<void> {
   await db.update(accounts).set({ lastSyncedAt: at }).where(eq(accounts.id, id));
 }

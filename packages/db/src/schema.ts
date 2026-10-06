@@ -126,12 +126,18 @@ export const accounts = pgTable(
     currency: char('currency', { length: 3 }),
     status: text('status', { enum: ACCOUNT_STATUSES }).notNull().default('active'),
     lastSyncedAt: tstz('last_synced_at'),
+    /** Google only: the manager account to act through (`login-customer-id`); null = direct access (M03). */
+    loginCustomerId: text('login_customer_id'),
   },
   (t) => [
     unique().on(t.platform, t.externalId),
     index().on(t.productId),
     check('accounts_platform_check', oneOf('platform', PLATFORMS)),
     check('accounts_status_check', oneOf('status', ACCOUNT_STATUSES)),
+    check(
+      'accounts_login_customer_id_check',
+      sql`${t.loginCustomerId} is null or (${t.platform} = 'google' and ${t.loginCustomerId} ~ '^[0-9]{10}$')`,
+    ),
   ],
 );
 

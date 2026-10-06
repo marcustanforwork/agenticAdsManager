@@ -110,10 +110,7 @@ describe('dryRunSync (meta)', () => {
     expect(report.accounts[0]?.detail).toMatch(/no fixture/);
   });
 
-  it('refuses Google until M03, and an unknown product', async () => {
-    await expect(dryRunSync({ db: t.db, productSlug: 'dry-test', platform: 'google', masterKey })).rejects.toThrow(
-      /M03/,
-    );
+  it('refuses an unknown product', async () => {
     await expect(dryRunSync({ db: t.db, productSlug: 'nope', platform: 'meta', masterKey })).rejects.toThrow(/nope/);
   });
 });
