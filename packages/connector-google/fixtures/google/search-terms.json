@@ -24,7 +24,7 @@
             "results": [
               {
                 "searchTermView": {
-                  "resourceName": "customers/1234567890/searchTermViews/111~211~x",
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
                   "searchTerm": "photo sharing app for weddings",
                   "status": "NONE"
                 },
@@ -47,7 +47,7 @@
               },
               {
                 "searchTermView": {
-                  "resourceName": "customers/1234567890/searchTermViews/111~211~x",
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
                   "searchTerm": "free event photo pool",
                   "status": "ADDED"
                 },

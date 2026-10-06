@@ -27,6 +27,9 @@ export const PERSONAL_KEYS = [
   'owner',
   'descriptiveName', // Google's account name (REST JSON is camelCase)
   'searchTerm', // what people typed into Google: may name a person
+  'gclid', // click ids identify one person's click
+  'gbraid',
+  'wbraid',
 ] as const;
 
 export const REDACTED = 'REDACTED';
@@ -41,6 +44,11 @@ const TOKEN_PATTERNS: RegExp[] = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----(?:[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)?/g,
 ];
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+/** Google resource names that embed personal data: a click view's gclid, a search term view's (encoded) term. */
+const PERSONAL_RESOURCE_NAMES: RegExp[] = [
+  /(clickViews\/[^~"\s/]+~)([^"\s/]+)/g,
+  /(searchTermViews\/\d+~\d+~)([^"\s/]+)/g,
+];
 const secretParam = (p: string) => new RegExp(`([?&]${p}=)([^&"\\s]*)`, 'g');
 
 /** Replaces tokens, emails and secret URL parameters inside one string. */
@@ -48,6 +56,7 @@ export function redactString(text: string): string {
   let out = text;
   for (const p of SECRET_PARAMS) out = out.replace(secretParam(p), `$1${REDACTED}`);
   for (const re of TOKEN_PATTERNS) out = out.replace(re, REDACTED);
+  for (const re of PERSONAL_RESOURCE_NAMES) out = out.replace(re, `$1${REDACTED}`);
   return out.replace(EMAIL, SAFE_EMAIL);
 }
 
@@ -114,5 +123,8 @@ export function findSecrets(text: string): string[] {
     if (new RegExp(`"${p}"\\s*:`).test(text)) found.push(`json key: ${p}`);
   }
   for (const m of text.matchAll(EMAIL)) if (m[0] !== SAFE_EMAIL) found.push(`email: …@${m[0].split('@')[1]}`);
+  for (const re of PERSONAL_RESOURCE_NAMES) {
+    for (const m of text.matchAll(re)) if (m[2] !== REDACTED) found.push(`resource name: ${m[1]}…`);
+  }
   return found;
 }

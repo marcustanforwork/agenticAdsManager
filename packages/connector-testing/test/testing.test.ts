@@ -196,6 +196,21 @@ describe('service-account secrets', () => {
     expect(findSecrets(`assertion=${jwt}`)).not.toEqual([]);
   });
 
+  it('the redactor clears click ids and search terms, also inside resource names', () => {
+    const r = new Redactor();
+    const row = {
+      clickView: {
+        resourceName: 'customers/1/clickViews/2026-09-30~Cj0KCQjwRealLookingGclid',
+        gclid: 'Cj0KCQjwRealLookingGclid',
+      },
+      searchTermView: { resourceName: 'customers/1/searchTermViews/11~22~amFuZSB0YW4', searchTerm: 'jane tan' },
+    };
+    const out = JSON.stringify(r.value(row));
+    expect(out).not.toMatch(/Cj0KCQjw|amFuZSB0YW4|jane tan/);
+    expect(findSecrets(out)).toEqual([]);
+    expect(findSecrets(JSON.stringify(row))).toHaveLength(2);
+  });
+
   it('the redactor drops private_key fields, replaces keys and search terms', () => {
     const r = new Redactor();
     const out = r.value({ private_key: pem, note: pem, searchTerm: 'jane tan photos', descriptiveName: 'Acme' });

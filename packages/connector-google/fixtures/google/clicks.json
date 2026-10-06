@@ -24,7 +24,7 @@
             "results": [
               {
                 "clickView": {
-                  "resourceName": "customers/1234567890/clickViews/2026-09-30~x",
+                  "resourceName": "customers/1234567890/clickViews/2026-09-30~REDACTED",
                   "gclid": "TestGclid-0001-abcdefghij"
                 },
                 "campaign": {
@@ -41,7 +41,7 @@
               },
               {
                 "clickView": {
-                  "resourceName": "customers/1234567890/clickViews/2026-09-30~x",
+                  "resourceName": "customers/1234567890/clickViews/2026-09-30~REDACTED",
                   "gclid": "TestGclid-0002-klmnopqrst"
                 },
                 "campaign": {
@@ -58,7 +58,7 @@
               },
               {
                 "clickView": {
-                  "resourceName": "customers/1234567890/clickViews/2026-09-30~y"
+                  "resourceName": "customers/1234567890/clickViews/2026-09-30~REDACTED"
                 },
                 "campaign": {
                   "resourceName": "customers/1234567890/campaigns/111",
