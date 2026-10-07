@@ -35,7 +35,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
 - Cut first, if behind at ~300k: the utm fallback; live Airtable wiring (keep the fixture and the interface).
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented (~230k with the session's fixed context and the code M05b changes)
-  - [ ] ~300k built, typecheck green (at Build 4: Builds 1, 2, 3 and 5 done at ~375k with the fixed context)
+  - [x] ~300k built, typecheck green (all five Builds done at ~390k with the session's fixed context; no cut needed: both "Cut first" items were already built)
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
@@ -56,8 +56,8 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - handle `product_doc_put` requests, plus `ads docs set --product X --doc strategy --file <path>`;
   - the analyst reads the latest version (M06b).
   - notes: commit ff5b088. `product_doc_put` in `core/src/requests/handlers.ts` (stale base refused; at most `PRODUCT_DOC_MAX_CHARS` = 20,000 characters, since the analyst reads every document in full). `ads seed` creates version 1 of each document from `products/<slug>/{STRATEGY,PLAYBOOK,LEARNINGS}.md` (`apps/worker/src/seedDocs.ts`; `SeedSpec.products[].docs`, `SeedReport.docsCreated`; a document with a version is never replaced). `ads docs get` prints the latest Markdown; `ads docs set --doc <d> --file <path> [--base-version n]` records a `product_doc_put` (`apps/worker/src/docs.ts`). M06b reads the latest with `getProductDoc`.
-- [ ] 4. The trust checks `attribution_gap` and `id_capture` are switched on.
-  - notes: —
+- [x] 4. The trust checks `attribution_gap` and `id_capture` are switched on.
+  - notes: commit cf03a20. `attributionGap` and `idCapture` in `core/src/cycle/trust.ts`, wired into `trustStage` (a cycle now stores 11 checks for a product with one Meta and one Google account). `attribution_gap` is per account: the platform's KPI conversions (`trust_signals.platformConversions`) against our non-test KPI outcomes attributed to that account's campaigns, both over the 7 days before the signals were read; gap = difference ÷ the larger count; no_signal below `minOutcomesForGap` on both sides, or for an upload-only route before any upload (as `tracking_active`, D-075). `id_capture` is product level: the share of the last 7 days' non-test KPI outcomes carrying a click or platform id (`CAPTURED_ID_KEYS`; utm values alone don't count); no outcomes is no_signal, and low volume is still judged, as the BLUEPRINT table says.
 - [x] 5. `facts_put` (moved from M05a): validate an offering's facts against its pack's fact schema in the request processor (`HandlerContext.packs`), then `putOfferingFacts`.
   - notes: commit ff5b088. `core/src/requests/facts.ts` (`validateFacts`, `FactsError`, a refusal) and the handler in `handlers.ts`; removed from `NOT_AVAILABLE_UNTIL`. A product whose pack isn't installed is refused. `unknownPaths` now also compares objects inside lists (`unitMix.0.size`), for `settings_patch` too. No CLI: the dashboard's fact form (M10a) is the surface.
 
@@ -66,7 +66,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
 - [x] `facts_put`: facts the pack's schema rejects are refused; unknown keys are refused by name. (`core/test/requests.test.ts > facts_put`)
 - [x] Attribution: platform ids, gclid lookup, utm, none. (`core/test/attribution.test.ts`: every method, the order, the 90-day window, retries, other products; `apps/worker/test/settings.test.ts > credits outcomes to campaigns and prints the KPI stage's attribution rate`)
 - [x] Product docs: versions increase; a stale `baseVersion` is refused. (`core/test/requests.test.ts > product_doc_put`; `db/test/seed.test.ts`; `apps/worker/test/settings.test.ts > ads docs`)
-- [ ] The new trust checks, table-driven, including low volume.
+- [x] The new trust checks, table-driven, including low volume. (`core/test/trust.test.ts`: the `attribution_gap` and `id_capture` tables, and `trustStage > attribution_gap compares the platform with outcomes attributed to that account; id_capture counts ids`)
 
 ## Done when (cloud)
 - [ ] All tests are green.
