@@ -34,7 +34,7 @@ const RAW_EMAILS = [
   'alice.tan@example.com',
   'bob@example.net',
   'carol@example.com',
-  'marcus@staff.example',
+  'tester@staff.example',
   'dave@example.com',
   'erin@example.com',
   'frank@example.com',
