@@ -29,3 +29,5 @@ export * from './model/tracing.ts';
 export * from './model/generate.ts';
 export * from './findings/registry.ts';
 export * from './findings/evidence.ts';
+export * from './findings/detectors.ts';
+export * from './findings/stage.ts';

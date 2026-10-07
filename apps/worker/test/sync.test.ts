@@ -95,8 +95,10 @@ describe('ads cycle', () => {
     // The expired token is an account error: recorded, and the exit code says so.
     expect(first['sync']).toMatchObject({ accounts: [{ account: 'meta:act_42', outcome: 'error' }] });
     expect(process.exitCode).toBe(1);
-    const second = await cycle(['--kind', 'manual']).summary();
+    // --until detected (M06a) is accepted; the failed trust check stops the cycle before the detectors anyway.
+    const second = await cycle(['--kind', 'manual', '--until', 'detected']).summary();
     expect(second).toMatchObject({ cycleId: first['cycleId'], outcome: 'finished', resumedFrom: 'synced' });
+    expect(second['detected']).toBeUndefined();
   });
 
   it('runs a daily cycle to the end: the sync error leaves the data stale, so the trust check fails (exit 1)', async () => {

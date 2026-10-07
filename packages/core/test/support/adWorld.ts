@@ -44,6 +44,8 @@ export interface AdWorld {
   ): Promise<void>;
 }
 
+let worlds = 0;
+
 export async function makeAdWorld(
   db: DbOrTx,
   opts: { slug?: string; settings?: ProductSettings; packId?: string } = {},
@@ -55,17 +57,19 @@ export async function makeAdWorld(
     timezone: TZ,
     settings: opts.settings ?? TEST_SETTINGS,
   });
+  // Account ids are unique per product, so several worlds can share one database.
+  const n = String(++worlds).padStart(4, '0');
   const google = await upsertAccount(db, {
     productId: product.id,
     platform: 'google',
-    externalId: '1110001111',
+    externalId: `111000${n}`,
     timezone: TZ,
     currency: 'SGD',
   });
   const meta = await upsertAccount(db, {
     productId: product.id,
     platform: 'meta',
-    externalId: 'act_222',
+    externalId: `act_222${n}`,
     timezone: TZ,
     currency: 'SGD',
   });

@@ -1,8 +1,8 @@
 // The cycle (BLUEPRINT §5.6, M04): one run of the agent for a product. Its stages are functions run in order;
 // `stage_reached` advances after each one, so an interrupted cycle resumes where it stopped. Every stage is
 // idempotent, a scheduled cycle is unique per (product, kind, date), and a named advisory lock keeps two
-// processes from running the same cycle at once. M04 has the first two stages: sync and trust check. The later
-// ones (detect, analyse, draft, report) join the STAGES list in M06a, M06b, M08 and M07.
+// processes from running the same cycle at once. M04 has the first two stages: sync and trust check; M06a adds
+// detect. The later ones (analyse, draft, report) join the STAGES list in M06b, M08 and M07.
 import { localDate } from '@ads/contracts';
 import {
   CYCLE_STAGE_ORDER,
@@ -27,6 +27,7 @@ import {
 } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { type AttributionRunSummary, attributeOutcomes } from '../attribution/attribute.ts';
+import { type DetectSummary, detectStage } from '../findings/stage.ts';
 import { type OutcomeReadSummary, syncOutcomes } from '../outcomes/sync.ts';
 import { alertInvalidSettings, assertSettingsUsable } from '../settings/settings.ts';
 import { type SyncDeps, type SyncStageResult, syncStage } from '../sync/stage.ts';
@@ -69,6 +70,8 @@ export interface CycleSummary {
     result: TrustResult;
     checks: { account: string | null; check: string; result: CheckResult; detail: unknown }[];
   };
+  /** The detectors' candidate findings (M06a). */
+  detected?: DetectSummary;
 }
 
 export interface StageContext {
@@ -125,6 +128,18 @@ export const STAGES: readonly StageStep[] = [
         })),
       };
       return { trustResult: result };
+    },
+  },
+  {
+    stage: 'detected',
+    kinds: ALL_KINDS,
+    async run({ deps, product, cycle, summary }) {
+      summary.detected = await detectStage(
+        { db: deps.db, now: deps.now, ...(deps.packs === undefined ? {} : { packs: deps.packs }) },
+        product,
+        cycle.id,
+      );
+      return {};
     },
   },
 ];
