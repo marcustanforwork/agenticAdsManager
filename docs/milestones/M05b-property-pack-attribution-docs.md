@@ -40,7 +40,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
-- [ ] 1. `packs/property-sg`, as **its own commit, made first. This is the G8 test.**
+- [x] 1. `packs/property-sg`, as **its own commit, made first. This is the G8 test.**
   - defaults: form_fill = success, qualified_viewing = hard, booked = hard; KPI = form_fill;
   - phases: teaser / vvip / booking / clearing, with `detectPhase` reading `offerings.facts.launchDates`;
   - fact schema: district, mrt, psfBand, unitMix, developer, top, launchDates;
@@ -48,7 +48,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - `platformPolicy.meta.specialAdCategories = ['HOUSING']` (confirmed by Marcus, D-062);
   - copy tier `fragments`, with placeholder required strings;
   - runtime: an Airtable adapter built against a recorded fixture of the existing base.
-  - notes: —
+  - notes: commit c1d9798. `src/manifest.ts` (pure), `src/runtime.ts` (`detectPhase`: the last phase whose `launchDates` day has started, 00:00 Singapore time; teaser before any), `src/airtable.ts` (list records over `fetch`, read only; `LEAD_FIELDS` is the field mapping; env `PROPERTY_AIRTABLE_TOKEN`, `PROPERTY_AIRTABLE_BASE_ID`, `PROPERTY_AIRTABLE_TABLE`). The fixture is **hand-made** in Airtable's documented shape (the base isn't reachable; `test/fixtures/README.md`). Default feedback routes `form_fill → Meta Lead` and `form_fill → Google`, destinations unset (like SnapPool's, D-076). Installed in `INSTALLED_PACKS`; `products/seed.json` lost the stub settings.
 - [ ] 2. `core/attribution` (§5.12). `ads outcomes` gains the attribution rate.
   - notes: —
 - [ ] 3. Product docs:
@@ -62,7 +62,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - notes: —
 
 ## Tests
-- [ ] The property pack passes `definePack`, and its fixture adapter passes its tests and `healthcheck`.
+- [x] The property pack passes `definePack`, and its fixture adapter passes its tests and `healthcheck`. (`packs/property-sg/test/pack.test.ts`, `adapter.test.ts`: 27 tests)
 - [ ] `facts_put`: facts the pack's schema rejects are refused; unknown keys are refused by name.
 - [ ] Attribution: platform ids, gclid lookup, utm, none.
 - [ ] Product docs: versions increase; a stale `baseVersion` is refused.
@@ -71,8 +71,8 @@ The second pack is added with zero changes to the core, outcomes are attributed 
 ## Done when (cloud)
 - [ ] All tests are green.
   - evidence: —
-- [ ] **G8 check:** `git show --stat <property-pack commit>` lists no files under `packages/core`, `packages/gateway` or `packages/connector-*`.
-  - evidence: —
+- [x] **G8 check:** `git show --stat <property-pack commit>` lists no files under `packages/core`, `packages/gateway` or `packages/connector-*`.
+  - evidence: `git show --stat --format= c1d9798 | grep -E "packages/(core|gateway|connector-)"` → nothing. The commit's 16 files: `packages/packs/property-sg/**`, `apps/worker/src/packs.ts`, `apps/worker/test/settings.test.ts`, `products/seed.json`, `pnpm-lock.yaml`.
 
 ## Done when (live, run by Marcus)
 - [ ] `ads outcomes --product snappool` shows the attribution rate on real outcomes.
