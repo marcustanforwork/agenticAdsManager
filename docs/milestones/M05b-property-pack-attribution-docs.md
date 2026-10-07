@@ -51,21 +51,21 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - notes: commit c1d9798. `src/manifest.ts` (pure), `src/runtime.ts` (`detectPhase`: the last phase whose `launchDates` day has started, 00:00 Singapore time; teaser before any), `src/airtable.ts` (list records over `fetch`, read only; `LEAD_FIELDS` is the field mapping; env `PROPERTY_AIRTABLE_TOKEN`, `PROPERTY_AIRTABLE_BASE_ID`, `PROPERTY_AIRTABLE_TABLE`). The fixture is **hand-made** in Airtable's documented shape (the base isn't reachable; `test/fixtures/README.md`). Default feedback routes `form_fill → Meta Lead` and `form_fill → Google`, destinations unset (like SnapPool's, D-076). Installed in `INSTALLED_PACKS`; `products/seed.json` lost the stub settings.
 - [ ] 2. `core/attribution` (§5.12). `ads outcomes` gains the attribution rate.
   - notes: —
-- [ ] 3. Product docs:
+- [x] 3. Product docs:
   - seed `product_docs` from `products/<slug>/*.md`;
   - handle `product_doc_put` requests, plus `ads docs set --product X --doc strategy --file <path>`;
   - the analyst reads the latest version (M06b).
-  - notes: —
+  - notes: commit ff5b088. `product_doc_put` in `core/src/requests/handlers.ts` (stale base refused; at most `PRODUCT_DOC_MAX_CHARS` = 20,000 characters, since the analyst reads every document in full). `ads seed` creates version 1 of each document from `products/<slug>/{STRATEGY,PLAYBOOK,LEARNINGS}.md` (`apps/worker/src/seedDocs.ts`; `SeedSpec.products[].docs`, `SeedReport.docsCreated`; a document with a version is never replaced). `ads docs get` prints the latest Markdown; `ads docs set --doc <d> --file <path> [--base-version n]` records a `product_doc_put` (`apps/worker/src/docs.ts`). M06b reads the latest with `getProductDoc`.
 - [ ] 4. The trust checks `attribution_gap` and `id_capture` are switched on.
   - notes: —
-- [ ] 5. `facts_put` (moved from M05a): validate an offering's facts against its pack's fact schema in the request processor (`HandlerContext.packs`), then `putOfferingFacts`.
-  - notes: —
+- [x] 5. `facts_put` (moved from M05a): validate an offering's facts against its pack's fact schema in the request processor (`HandlerContext.packs`), then `putOfferingFacts`.
+  - notes: commit ff5b088. `core/src/requests/facts.ts` (`validateFacts`, `FactsError`, a refusal) and the handler in `handlers.ts`; removed from `NOT_AVAILABLE_UNTIL`. A product whose pack isn't installed is refused. `unknownPaths` now also compares objects inside lists (`unitMix.0.size`), for `settings_patch` too. No CLI: the dashboard's fact form (M10a) is the surface.
 
 ## Tests
 - [x] The property pack passes `definePack`, and its fixture adapter passes its tests and `healthcheck`. (`packs/property-sg/test/pack.test.ts`, `adapter.test.ts`: 27 tests)
-- [ ] `facts_put`: facts the pack's schema rejects are refused; unknown keys are refused by name.
+- [x] `facts_put`: facts the pack's schema rejects are refused; unknown keys are refused by name. (`core/test/requests.test.ts > facts_put`)
 - [ ] Attribution: platform ids, gclid lookup, utm, none.
-- [ ] Product docs: versions increase; a stale `baseVersion` is refused.
+- [x] Product docs: versions increase; a stale `baseVersion` is refused. (`core/test/requests.test.ts > product_doc_put`; `db/test/seed.test.ts`; `apps/worker/test/settings.test.ts > ads docs`)
 - [ ] The new trust checks, table-driven, including low volume.
 
 ## Done when (cloud)
