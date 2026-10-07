@@ -3,6 +3,7 @@ import type { OutcomeEvent } from '@ads/contracts';
 import { settingsFromPack } from '@ads/core';
 import { connect, findProductBySlug, getPackManifest } from '@ads/db';
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
+import propertySg from '@ads/pack-property-sg';
 import snappool from '@ads/pack-saas-snappool';
 import { createRegistry } from '@ads/pack-sdk';
 import type { Command } from 'commander';
@@ -43,6 +44,7 @@ const stubPacks = createRegistry([
       }),
     },
   },
+  propertySg,
 ]);
 
 function run(args: string[], env: NodeJS.ProcessEnv = {}, packs = stubPacks) {
@@ -60,7 +62,7 @@ function run(args: string[], env: NodeJS.ProcessEnv = {}, packs = stubPacks) {
 }
 
 describe('ads seed', () => {
-  it("creates the products from products/seed.json, SnapPool's settings from its pack; a rerun creates nothing", async () => {
+  it("creates the products from products/seed.json, each one's settings from its pack; a rerun creates nothing", async () => {
     expect(await run(['seed']).json()).toEqual({
       productsCreated: ['snappool', 'property-sg'],
       offeringsEnsured: 2,
@@ -69,6 +71,9 @@ describe('ads seed', () => {
     const product = await findProductBySlug(t.db, 'snappool');
     expect(product?.settings).toEqual(settingsFromPack(snappool.manifest));
     expect(product?.settings.outcomes.primaryKpiStage).toBe('signup');
+    const property = await findProductBySlug(t.db, 'property-sg');
+    expect(property?.settings).toEqual(settingsFromPack(propertySg.manifest));
+    expect(property?.status).toBe('dormant');
     expect(await run(['seed']).json()).toMatchObject({ productsCreated: [], flagsCreated: [] });
   });
 });
@@ -172,8 +177,15 @@ describe('publishing manifests at startup', () => {
     const logged: string[] = [];
     const logger = { info: (_: object, msg: string) => void logged.push(msg) };
     expect(await publishManifestsAtStartup({}, logger)).toBeNull();
-    expect(await publishManifestsAtStartup({ DATABASE_URL: t.url }, logger)).toEqual(['saas-snappool@0.1.0']);
+    expect(await publishManifestsAtStartup({ DATABASE_URL: t.url }, logger)).toEqual([
+      'property-sg@0.1.0',
+      'saas-snappool@0.1.0',
+    ]);
     expect(logged).toEqual(['no DATABASE_URL: pack manifests are not published', 'pack manifests published']);
     expect((await getPackManifest(t.db, 'saas-snappool', '0.1.0'))?.manifest).toMatchObject({ id: 'saas-snappool' });
+    expect((await getPackManifest(t.db, 'property-sg', '0.1.0'))?.manifest).toMatchObject({
+      id: 'property-sg',
+      platformPolicy: { meta: { specialAdCategories: ['HOUSING'] } },
+    });
   });
 });

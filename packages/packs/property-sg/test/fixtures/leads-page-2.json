@@ -1,0 +1,44 @@
+{
+  "records": [
+    {
+      "id": "recLeadTest000004",
+      "createdTime": "2026-09-28T01:00:00.000Z",
+      "fields": {
+        "Email": "marcus@staff.example",
+        "utm_source": "google",
+        "utm_campaign": "Brand campaign"
+      }
+    },
+    {
+      "id": "recLeadFuture0005",
+      "createdTime": "2026-10-05T03:00:00.000Z",
+      "fields": {
+        "Email": "dave@example.com",
+        "Qualified viewing on": "2026-10-20",
+        "gclid": "Cj0KCQjwFIXTUREgclidDave",
+        "utm_source": "google",
+        "utm_campaign": "21987654321"
+      }
+    },
+    {
+      "id": "recLeadOlder00006",
+      "createdTime": "2026-08-01T00:00:00.000Z",
+      "fields": {
+        "Email": "erin@example.com",
+        "Booked on": "2026-09-30",
+        "utm_source": "meta",
+        "utm_campaign": "120210000000000001"
+      }
+    },
+    {
+      "id": "recLeadBadDay0007",
+      "createdTime": "2026-09-29T00:00:00.000Z",
+      "fields": {
+        "Email": "frank@example.com",
+        "Qualified viewing on": "2026-02-31",
+        "utm_source": "google",
+        "utm_campaign": 21987654321
+      }
+    }
+  ]
+}

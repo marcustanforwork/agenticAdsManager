@@ -1,0 +1,40 @@
+{
+  "records": [
+    {
+      "id": "recLeadGoogle0001",
+      "createdTime": "2026-09-21T02:15:00.000Z",
+      "fields": {
+        "Email": " Alice.Tan@Example.com ",
+        "Qualified viewing on": "2026-09-27",
+        "Booked on": "2026-10-03",
+        "gclid": "Cj0KCQjwFIXTUREgclidAlice",
+        "utm_source": "google",
+        "utm_medium": "cpc",
+        "utm_campaign": "21987654321",
+        "sp_agid": "16543210987"
+      }
+    },
+    {
+      "id": "recLeadMeta000002",
+      "createdTime": "2026-09-22T11:40:00.000Z",
+      "fields": {
+        "Email": "bob@example.net",
+        "Qualified viewing on": "2026-10-02T07:30:00.000Z",
+        "fbclid": "IwARFIXTUREfbclidBob",
+        "utm_source": "facebook",
+        "utm_medium": "paid_social",
+        "utm_campaign": "120210000000000001",
+        "sp_agid": "120210000000000002",
+        "sp_adid": "120210000000000003"
+      }
+    },
+    {
+      "id": "recLeadOrganic003",
+      "createdTime": "2026-09-25T09:00:00.000Z",
+      "fields": {
+        "Email": "carol@example.com"
+      }
+    }
+  ],
+  "offset": "itrFIXTUREpage2/recLeadOrganic003"
+}

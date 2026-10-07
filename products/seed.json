@@ -1,5 +1,5 @@
 {
-  "_comment": "The seed (BLUEPRINT M01a Build 4), run with `ads seed` (M05a). A product without \"settings\" gets its pack's defaults; property-sg keeps stub settings until its pack arrives in M05b. Re-running the seed never overwrites existing rows. Test email domains are set later with `ads settings set`, never here (D-059).",
+  "_comment": "The seed (BLUEPRINT M01a Build 4), run with `ads seed` (M05a). A product without \"settings\" gets its pack's defaults. Re-running the seed never overwrites existing rows. Test email domains are set later with `ads settings set`, never here (D-059).",
   "products": [
     {
       "slug": "snappool",
@@ -19,49 +19,6 @@
       "name": "Property SG",
       "packId": "property-sg",
       "status": "dormant",
-      "settings": {
-        "spend": {
-          "dailyCeilingMicros": null,
-          "monthlyCeilingMicros": null,
-          "autoPauseOnMonthlyBreach": false
-        },
-        "outcomes": {
-          "stages": [
-            {
-              "id": "enquiry",
-              "label": "Enquiry",
-              "tier": "success"
-            }
-          ],
-          "primaryKpiStage": "enquiry",
-          "feedback": []
-        },
-        "trust": {
-          "minClicksToJudgeTracking": 30,
-          "maxOutcomeStalenessHours": 48,
-          "maxAttributionGapPct": 50,
-          "minOutcomesForGap": 10,
-          "minIdCapturePct": 60
-        },
-        "agent": {
-          "analystLookupBudget": 20,
-          "autoApproveFeedback": false,
-          "feedbackDailyCap": 200
-        },
-        "notifications": {
-          "digest": "auto"
-        },
-        "copy": {
-          "tier": "fragments",
-          "requiredStrings": [],
-          "bannedPhrases": []
-        },
-        "testTraffic": {
-          "emailDomains": []
-        },
-        "guardOverrides": {},
-        "disabledActions": []
-      },
       "offerings": [
         {
           "kind": "project",
