@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.13 — 2026-10-06 (M05a build choices: route destinations may be unset, two email hashes, the products' outcome-source state, outcome reads, seeding with `ads seed`, D-076) |
+| **Version** | v3.14 — 2026-10-07 (M05b build choices: the property pack and its Airtable adapter, attribution details, the `attribution_gap` and `id_capture` rules, product docs, D-077) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1094,8 +1094,8 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | `timezone_match` | every account's timezone = the product's | — | any differs | — |
 | `tracking_active` | the platform recorded conversions in the last 7 days | — | clicks ≥ `minClicksToJudgeTracking` and zero conversions | fewer clicks than that; or the KPI stage reaches the platform only through the agent's uploads and none were uploaded in the 7 days (D-075) |
 | `outcome_source_fresh` (product) | adapter healthy, activity within `maxOutcomeStalenessHours` | healthy but quiet (or no activity yet) | adapter unreachable, never read, or not read for 26 h | — |
-| `attribution_gap` | the gap between platform conversions and our attributed outcomes is within `maxAttributionGapPct` | above it | — (never fails alone) | fewer outcomes than `minOutcomesForGap` |
-| `id_capture` | the share of recent outcomes carrying click/platform ids ≥ `minIdCapturePct` | below it | — | no recent outcomes |
+| `attribution_gap` | the gap between platform conversions and our attributed outcomes is within `maxAttributionGapPct` (per account, KPI stage, the signals' days; gap = difference ÷ the larger count) | above it | — (never fails alone) | fewer outcomes than `minOutcomesForGap` on both sides; or the KPI stage reaches the platform only through uploads and none were made (D-077) |
+| `id_capture` | the share of recent outcomes carrying click/platform ids ≥ `minIdCapturePct` (KPI stage, last 7 days; utm values and `fbp` alone don't count) | below it | — | no recent outcomes |
 | `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total that Marcus resets by hand, D-063), or not read yet | — | — |
 
 The checks run per active account (`trust_checks.account_id`), from what the sync stored: they read only the database, so a resumed cycle runs them without calling the platforms, and a re-run replaces the cycle's checks. No active account at all is a product-level `data_fresh` fail. `outcome_source_fresh` is switched on in M05a, `attribution_gap` and `id_capture` in M05b. `outcome_source_fresh` is product level: the sync stage reads the product's outcomes through its pack (35 days back each time, so a source that deletes unconfirmed records after 30 days is seen whole; outcomes are kept, only `is_test` follows the source) and stores how the read went in `products.outcome_source`, which the check reads (D-076).
@@ -1155,6 +1155,8 @@ Methods are tried in this order, and the first match wins:
 2. A Google `gclid` is looked up in `google_clicks` (90-day lookback).
 3. `utm_campaign` exactly equals a campaign id or name.
 4. Otherwise the method is `none`. Unattributed outcomes are **reported, never dropped**.
+
+Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm_campaign` matches only on the platform `utm_source` names (any platform without a `utm_source`; none for a source that isn't an ad platform), and a name two campaigns share matches nothing. A `none` outcome is tried again for 7 days, because a same-day click's id arrives with the next day's click sync. Attribution runs in the sync stage, after the entities, clicks and outcomes are read.
 
 ### 5.13 Feedback uploads
 
@@ -1611,6 +1613,8 @@ Methods are tried in this order, and the first match wins:
 **Leave behind:** the stage ↔ Airtable field mapping; the attribution rate observed.
 
 **Skills to create:** `add-product-pack`.
+
+**As built (D-077):** the Airtable adapter's field mapping (`LEAD_FIELDS`) was written against a hand-made fixture and is confirmed when property resumes; attribution retries `none` outcomes for 7 days and matches `utm_campaign` only on the platform `utm_source` names; `attribution_gap` compares over the signals' account days; `ads docs set` needs `--base-version` once a document has a version (`ads docs list` shows them).
 
 ---
 
