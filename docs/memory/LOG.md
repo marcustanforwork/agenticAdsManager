@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-07 — PR #9 (M05a) merged
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9)
+- **Did:** CI was green on the PR (`ci`, `secret-scan`, `memory-check`), with no review comments. Marcus asked to close the PR; asked to choose, he picked "merge". Squash-merged PR #9 on his instruction after every check passed (D-057).
+- **Decided:** —
+- **Learned:** —
+- **Next:** a clean-context session starts M05b; then M06a, M06b, M07, one session each.
+- **Open:** Q13 (at the setup); all live steps, M05a's included (batched, D-074).
+
 ## 2026-10-06 — M05a: pack SDK, SnapPool pack, settings, outcome reads
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9)
 - **Did:** `pack-sdk` (`definePack`, the registry, the threshold engine, the manifest document); the SnapPool pack (defaults, phases, facts, thresholds, a draft `analystContext`, the read-only adapter tested on a fixture copy of SnapPool's tables); migration `0003` (`products.outcome_source`, `outcomes.web`); `core/settings` (pack defaults, the pack's guard layer, invalid stored settings → `blocked` + one alert, repair by patch, history, seeding); outcome reads in the sync stage and the `outcome_source_fresh` check; `ads settings get|set|history`, `ads outcomes`, `ads seed` (replaces `db:seed`); manifests published at worker startup. Code review at high effort: 10 findings, all fixed.

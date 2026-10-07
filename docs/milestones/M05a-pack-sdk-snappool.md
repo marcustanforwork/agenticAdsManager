@@ -6,7 +6,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-10-06 |
 | **Finished** | 2026-10-06 (cloud part) |
-| **PRs** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) |
+| **PRs** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged 2026-10-07) |
 
 ## Goal
 The first real pack loads through the registry, SnapPool's outcomes flow in, and settings are one validated document.
