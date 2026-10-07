@@ -1,14 +1,16 @@
 // The trust checks (BLUEPRINT §5.8, M04): named checks that pass, warn, fail, or have too little data to judge
 // (`no_signal`). They read only the database (what the sync stored), never the platforms, so a resumed cycle can
-// run them again for free. `outcome_source_fresh` is on from M05a; `attribution_gap` and `id_capture` arrive
-// in M05b. A cycle whose checks fail produces a diagnostic report only.
+// run them again for free. `outcome_source_fresh` is on from M05a; `attribution_gap` and `id_capture` from M05b.
+// A cycle whose checks fail produces a diagnostic report only.
 import type { OutcomeSourceState, Platform, ProductSettings } from '@ads/contracts';
 import {
   type Account,
   type DbOrTx,
   type Product,
   type TrustCheck,
+  countAttributedToAccount,
   countFedBackSince,
+  countIdCapture,
   getProduct,
   listAccounts,
   outcomeSourceOf,
@@ -121,6 +123,49 @@ export function outcomeSourceFresh(input: {
     : { result: 'warn', detail: { ...detail, reason: 'healthy but quiet' } };
 }
 
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+/** `attribution_gap` (per account): the platform's own conversions against our outcomes attributed to the account's
+ *  campaigns, both at the KPI stage over the trust window. The gap is the difference as a share of the larger
+ *  count. Fewer than `minOutcomes` on both sides is too little to compare; so is a platform that only learns of
+ *  conversions from the agent's uploads before any were made (as in `tracking_active`, D-075). It never fails:
+ *  a gap is a warning to look at tracking, not proof that it's broken. */
+export function attributionGap(input: {
+  platformConversions: number;
+  attributedOutcomes: number;
+  maxGapPct: number;
+  minOutcomes: number;
+  routedByUploads: boolean;
+  uploads: number;
+}): CheckOutcome {
+  const detail = {
+    platformConversions: input.platformConversions,
+    attributedOutcomes: input.attributedOutcomes,
+    maxAttributionGapPct: input.maxGapPct,
+    minOutcomesForGap: input.minOutcomes,
+    ...(input.routedByUploads ? { uploads: input.uploads } : {}),
+  };
+  if (input.routedByUploads && input.uploads === 0) {
+    return { result: 'no_signal', detail: { ...detail, reason: 'conversions arrive only through uploads; none yet' } };
+  }
+  const larger = Math.max(input.platformConversions, input.attributedOutcomes);
+  if (larger < input.minOutcomes) {
+    return { result: 'no_signal', detail: { ...detail, reason: 'too few conversions to compare' } };
+  }
+  const gapPct = round1((Math.abs(input.platformConversions - input.attributedOutcomes) / larger) * 100);
+  return { result: gapPct <= input.maxGapPct ? 'pass' : 'warn', detail: { ...detail, gapPct } };
+}
+
+/** `id_capture` (product level): the share of recent KPI-stage outcomes (test traffic apart) that carry a click or
+ *  platform id. Without ids neither attribution nor uploads can work (PROPOSAL §8). Below `minPct` warns; no
+ *  recent outcomes is no signal. */
+export function idCapture(input: { outcomes: number; withIds: number; minPct: number }): CheckOutcome {
+  const detail = { outcomes: input.outcomes, withIds: input.withIds, minIdCapturePct: input.minPct };
+  if (input.outcomes === 0) return { result: 'no_signal', detail: { ...detail, reason: 'no recent outcomes' } };
+  const capturePct = round1((input.withIds / input.outcomes) * 100);
+  return { result: capturePct >= input.minPct ? 'pass' : 'warn', detail: { ...detail, capturePct } };
+}
+
 /** The cycle's trust result: `fail` if any check fails, `degraded` if any warns, else `ok`. */
 export function trustResultOf(results: CheckResult[]): TrustResult {
   if (results.includes('fail')) return 'fail';
@@ -156,6 +201,7 @@ export async function trustStage(
     });
   };
 
+  const kpiStage = product.settings.outcomes.primaryKpiStage;
   const accounts = (await listAccounts(db, product.id)).filter((a) => a.status === 'active');
   if (accounts.length === 0)
     add(null, 'data_fresh', { result: 'fail', detail: { reason: 'no active ad account is linked' } });
@@ -176,15 +222,18 @@ export async function trustStage(
     const read = signals === null ? {} : { range: signals.range, readAt: signals.readAt };
     if (signals === null) {
       add(account, 'tracking_active', { result: 'no_signal', detail: { reason: 'no trust signals stored yet' } });
+      add(account, 'attribution_gap', { result: 'no_signal', detail: { reason: 'no trust signals stored yet' } });
     } else {
       const routed = routedByUploads(product.settings, account.platform);
+      // What could show in those signals: the 7 days before they were read.
+      const readAt = Date.parse(signals.readAt);
+      const window = { from: new Date(readAt - TRUST_WINDOW_MS), to: new Date(readAt) };
       const uploads = routed
         ? await countFedBackSince(db, {
             productId: product.id,
             platform: account.platform,
-            stage: product.settings.outcomes.primaryKpiStage,
-            // The uploads that could show in those signals: the 7 days before they were read.
-            since: new Date(Date.parse(signals.readAt) - TRUST_WINDOW_MS),
+            stage: kpiStage,
+            since: window.from,
           })
         : 0;
       const outcome = trackingActive({
@@ -195,6 +244,20 @@ export async function trustStage(
         uploads,
       });
       add(account, 'tracking_active', { ...outcome, detail: { ...outcome.detail, ...read } });
+      const gap = attributionGap({
+        platformConversions: signals.platformConversions,
+        attributedOutcomes: await countAttributedToAccount(db, {
+          productId: product.id,
+          accountId: account.id,
+          stage: kpiStage,
+          ...window,
+        }),
+        maxGapPct: product.settings.trust.maxAttributionGapPct,
+        minOutcomes: product.settings.trust.minOutcomesForGap,
+        routedByUploads: routed,
+        uploads,
+      });
+      add(account, 'attribution_gap', { ...gap, detail: { ...gap.detail, ...read } });
     }
 
     if (account.platform === 'meta') {
@@ -217,6 +280,14 @@ export async function trustStage(
       maxStalenessHours: current.settings.trust.maxOutcomeStalenessHours,
     }),
   );
+
+  const capture = await countIdCapture(db, {
+    productId: product.id,
+    stage: kpiStage,
+    from: new Date(now.getTime() - TRUST_WINDOW_MS),
+    to: now,
+  });
+  add(null, 'id_capture', idCapture({ ...capture, minPct: product.settings.trust.minIdCapturePct }));
 
   const stored = await replaceTrustChecks(db, { productId: product.id, cycleId: input.cycleId, checks });
   return { result: trustResultOf(checks.map((c) => c.result)), checks: stored };
