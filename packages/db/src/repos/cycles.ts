@@ -145,6 +145,17 @@ export async function finish(db: DbOrTx, id: string, outcome: { error?: string }
 }
 
 /** Cycles that started but never finished, oldest first (worker startup reconciliation, BLUEPRINT §5.5). */
+/** Adds a model call's cost (USD micros, D-078) to the cycle's running total, atomically: calls may run in parallel. */
+export async function addModelCost(db: DbOrTx, cycleId: string, costMicros: bigint): Promise<void> {
+  if (costMicros < 0n) throw new RangeError('a model cost cannot be negative');
+  const rows = await db
+    .update(cycles)
+    .set({ modelCostMicros: sql`${cycles.modelCostMicros} + ${costMicros.toString()}::bigint` })
+    .where(eq(cycles.id, cycleId))
+    .returning({ id: cycles.id });
+  if (rows.length === 0) throw new NotFoundError('cycle', cycleId);
+}
+
 export async function listUnfinishedCycles(db: DbOrTx): Promise<Cycle[]> {
   return db.select().from(cycles).where(isNull(cycles.finishedAt)).orderBy(asc(cycles.startedAt));
 }

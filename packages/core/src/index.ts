@@ -22,3 +22,8 @@ export * from './settings/settings.ts';
 export * from './outcomes/sync.ts';
 export * from './attribution/attribute.ts';
 export * from './packs.ts';
+export * from './model/models.ts';
+export * from './model/prices.ts';
+export * from './model/redact.ts';
+export * from './model/tracing.ts';
+export * from './model/generate.ts';

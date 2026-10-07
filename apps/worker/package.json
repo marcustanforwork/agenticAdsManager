@@ -21,16 +21,21 @@
   },
   "dependencies": {
     "@ads/contracts": "workspace:*",
-    "@ads/db": "workspace:*",
-    "@ads/vault": "workspace:*",
     "@ads/core": "workspace:*",
-    "@ads/pack-sdk": "workspace:*",
-    "@ads/pack-saas-snappool": "workspace:*",
+    "@ads/db": "workspace:*",
     "@ads/pack-property-sg": "workspace:*",
+    "@ads/pack-saas-snappool": "workspace:*",
+    "@ads/pack-sdk": "workspace:*",
+    "@ads/vault": "workspace:*",
     "commander": "15.0.0",
-    "pino": "10.3.1"
+    "pino": "10.3.1",
+    "zod": "4.6.5"
   },
   "bin": {
     "ads": "./dist/cli.js"
+  },
+  "devDependencies": {
+    "@opentelemetry/sdk-trace-base": "2.12.0",
+    "ai": "7.0.130"
   }
 }

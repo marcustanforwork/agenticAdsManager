@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config';
 // Resolve workspace packages to their TypeScript sources (the "@ads/source" export condition),
 // so tests never need a build first.
 const conditions = ['@ads/source', 'module', 'node', 'development|production'];
+// Tests run in Node, which loads the dependencies itself: no 'module' condition, because some packages publish an
+// ESM build under it that only bundlers can load (extensionless imports, e.g. @opentelemetry/api).
+const nodeConditions = conditions.filter((c) => c !== 'module');
 
 /** One Vitest project per workspace package that has a test/ directory, plus the repo scripts. */
 function projectDirs(): string[] {
@@ -20,7 +23,7 @@ function projectDirs(): string[] {
 
 export default defineConfig({
   resolve: { conditions },
-  ssr: { resolve: { conditions, externalConditions: conditions } },
+  ssr: { resolve: { conditions: nodeConditions, externalConditions: nodeConditions } },
   test: {
     projects: projectDirs().map((dir) => ({
       extends: true,

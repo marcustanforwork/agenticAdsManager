@@ -8,6 +8,7 @@ import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { accountsCommand } from './accounts.ts';
 import { docsCommand } from './docs.ts';
+import { type ModelCliDeps, modelCommand } from './model.ts';
 import { outcomesCommand } from './outcomes.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { seedCommand, settingsCommand } from './settings.ts';
@@ -27,6 +28,9 @@ export interface WorkerCliDeps extends CliDeps {
   fetch?: typeof fetch;
   now?: () => Date;
   packs?: PackRegistry;
+  /** `ads model ping` in tests: a mock model and an in-memory trace exporter. */
+  model?: ModelCliDeps['model'];
+  traceExporter?: ModelCliDeps['traceExporter'];
 }
 export type { CliDeps };
 
@@ -56,6 +60,14 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program.addCommand(outcomesCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
   program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
+  program.addCommand(
+    modelCommand(withDb, requireProduct, {
+      env: deps.env,
+      print: deps.print,
+      ...(deps.model === undefined ? {} : { model: deps.model }),
+      ...(deps.traceExporter === undefined ? {} : { traceExporter: deps.traceExporter }),
+    }),
+  );
 
   program
     .command('cycle')

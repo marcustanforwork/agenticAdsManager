@@ -389,7 +389,7 @@ export const cycles = pgTable(
     finishedAt: tstz('finished_at'),
     stageReached: text('stage_reached', { enum: CYCLE_STAGES }).notNull().default('started'),
     trustResult: text('trust_result', { enum: TRUST_RESULTS }),
-    modelCostMicros: micros('model_cost_micros')
+    modelCostMicros: micros('model_cost_micros') // USD micros: the AI providers bill in US dollars (D-078)
       .notNull()
       .default(sql`0`),
     lookups: integer('lookups').notNull().default(0),
