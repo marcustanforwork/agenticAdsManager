@@ -3,13 +3,14 @@
 //   1. platform_ids  ids captured from the landing URL, matched to the product's ad entities: a campaign id, else
 //                    an ad group / ad set id or an ad id, credited to its campaign;
 //   2. gclid_lookup  a Google click id found in google_clicks (clicks up to 90 days before the outcome);
-//   3. utm           utm_campaign exactly equal to one campaign's id or name (a name two campaigns share matches
-//                    nothing);
+//   3. utm           utm_campaign exactly equal to one campaign's id or name, on the platform utm_source names
+//                    (a name two campaigns share matches nothing; a utm_source that isn't an ad platform, such as
+//                    a newsletter, matches nothing);
 //   4. none          unattributed: reported, never dropped.
 // An outcome found `none` is tried again for RETRY_DAYS: its click id arrives with the next day's click sync
 // (clicks are synced up to yesterday), and a new campaign appears with the next entity sync.
 // Ids come from visitors' URLs (untrusted): they're only compared with stored ids, never interpreted.
-import { ClickAndPlatformIds, type Platform } from '@ads/contracts';
+import { ClickAndPlatformIds, type Platform, platformOfUtmSource } from '@ads/contracts';
 import {
   type AdEntity,
   type AttributionMethod,
@@ -29,15 +30,6 @@ export const GCLID_LOOKBACK_DAYS = 90;
 export const ATTRIBUTION_BATCH = 5000;
 
 const DAY_MS = 86_400_000;
-/** utm_source values that mean a platform (the ad URL settings use `google` and `meta`; people write others). */
-const UTM_SOURCES: Record<string, Platform> = {
-  google: 'google',
-  meta: 'meta',
-  facebook: 'meta',
-  instagram: 'meta',
-  fb: 'meta',
-  ig: 'meta',
-};
 
 export interface Attribution {
   method: AttributionMethod;
@@ -51,6 +43,8 @@ export interface AttributionIndex {
   entities: Map<string, AdEntity>;
   /** Entities by id (to walk up to the campaign). */
   byId: Map<string, AdEntity>;
+  /** Campaigns by external id and by name (a utm_campaign value), several when names repeat. */
+  campaignsByUtm: Map<string, AdEntity[]>;
   /** gclid → the click's day and campaign. */
   clicks: Map<string, { date: string; campaignExternalId: string }>;
 }
@@ -105,13 +99,16 @@ export function attributionFor(
   }
 
   if (ids.utmCampaign !== undefined) {
-    const platform = ids.utmSource === undefined ? undefined : UTM_SOURCES[ids.utmSource.toLowerCase()];
-    const matches = new Set<string>();
-    for (const e of index.entities.values()) {
-      if (e.type !== 'campaign' || (platform !== undefined && e.platform !== platform)) continue;
-      if (e.externalId === ids.utmCampaign || e.name === ids.utmCampaign) matches.add(e.id);
+    // Without a utm_source any platform's campaign may match; with one that isn't an ad platform, none may.
+    const platform = platformOfUtmSource(ids.utmSource);
+    if (ids.utmSource === undefined || platform !== undefined) {
+      const matches = new Set(
+        (index.campaignsByUtm.get(ids.utmCampaign) ?? [])
+          .filter((e) => platform === undefined || e.platform === platform)
+          .map((e) => e.id),
+      );
+      if (matches.size === 1) return { method: 'utm', entityId: [...matches][0] ?? null };
     }
-    if (matches.size === 1) return { method: 'utm', entityId: [...matches][0] ?? null };
   }
 
   return { method: 'none', entityId: null };
@@ -125,10 +122,14 @@ export async function attributionIndex(
 ): Promise<AttributionIndex> {
   const entities = new Map<string, AdEntity>();
   const byId = new Map<string, AdEntity>();
-  for (const type of ['campaign', 'ad_group', 'ad'] as const) {
-    for (const e of await listEntities(db, productId, { type })) {
-      entities.set(refKey(e.platform, e.type, e.externalId), e);
-      byId.set(e.id, e);
+  const campaignsByUtm = new Map<string, AdEntity[]>();
+  const addUtm = (key: string, e: AdEntity) => campaignsByUtm.set(key, [...(campaignsByUtm.get(key) ?? []), e]);
+  for (const e of await listEntities(db, productId, { types: ['campaign', 'ad_group', 'ad'] })) {
+    entities.set(refKey(e.platform, e.type, e.externalId), e);
+    byId.set(e.id, e);
+    if (e.type === 'campaign') {
+      addUtm(e.externalId, e);
+      if (e.name !== e.externalId) addUtm(e.name, e);
     }
   }
   const gclids = candidates.map((o) => idsOf(o).gclid).filter((g): g is string => g !== undefined);
@@ -136,7 +137,7 @@ export async function attributionIndex(
   for (const [gclid, row] of await findGoogleClicks(db, productId, gclids)) {
     clicks.set(gclid, { date: row.date, campaignExternalId: row.campaignExternalId });
   }
-  return { entities, byId, clicks };
+  return { entities, byId, campaignsByUtm, clicks };
 }
 
 export interface AttributionRunSummary {

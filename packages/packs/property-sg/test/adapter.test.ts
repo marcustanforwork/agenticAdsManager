@@ -61,8 +61,14 @@ function fakeAirtable(reply?: (url: URL, n: number) => Response | Promise<Respon
   return { fetchFn, calls };
 }
 
+/** Pauses between page requests, recorded instead of waited for. */
+const pauses: number[] = [];
 const adapterWith = (fetchFn: typeof fetch, env: Record<string, string> = ENV, domains?: string[]) =>
-  airtableAdapter(env, settings(domains), { fetch: fetchFn, now: () => NOW });
+  airtableAdapter(env, settings(domains), {
+    fetch: fetchFn,
+    now: () => NOW,
+    pause: (ms) => (pauses.push(ms), Promise.resolve()),
+  });
 
 describe('the Airtable adapter (fixture)', () => {
   it('emits one outcome per stage, oldest first, from the requested time', async () => {
@@ -89,8 +95,10 @@ describe('the Airtable adapter (fixture)', () => {
 
   it('asks Airtable for the mapped fields only, with the token as a bearer header, page by page', async () => {
     const { fetchFn, calls } = fakeAirtable();
+    pauses.length = 0;
     await adapterWith(fetchFn).fetchSince(SINCE);
     expect(calls).toHaveLength(2);
+    expect(pauses).toEqual([250]); // paced under Airtable's 5 requests a second per base
     const [first, second] = calls as [Call, Call];
     expect(`${first.url.origin}${first.url.pathname}`).toBe('https://api.airtable.com/v0/appFIXTUREbase001/Leads');
     expect(first.authorization).toBe(`Bearer ${TOKEN}`);
@@ -189,12 +197,12 @@ describe('the Airtable adapter (fixture)', () => {
     });
     expect(calls[0]?.url.searchParams.getAll('fields[]')).toEqual([LEAD_FIELDS.utmSource]);
     expect(calls[0]?.url.searchParams.get('filterByFormula')).toBe(
-      "IS_AFTER(CREATED_TIME(), DATETIME_PARSE('2026-09-02T04:00:00.000Z'))",
+      "IS_AFTER(CREATED_TIME(), DATETIME_PARSE('2026-09-23T04:00:00.000Z'))",
     );
     const quiet = fakeAirtable(() => Response.json({ records: [] }));
     expect(await adapterWith(quiet.fetchFn).healthcheck()).toEqual({
       ok: true,
-      detail: 'no form fills in the last 35 days',
+      detail: 'no form fills in the last 14 days',
     });
   });
 

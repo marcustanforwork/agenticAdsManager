@@ -29,6 +29,27 @@ export function docsCommand(
   );
 
   docs
+    .command('list')
+    .description('print each document’s latest version, when it was written and its length (JSON)')
+    .action(async () => {
+      const slug = product();
+      const out = await withDb(async (db) => {
+        const id = await productId(db, slug);
+        const rows = [];
+        for (const doc of DOC_KINDS) {
+          const row = await getProductDoc(db, id, doc);
+          rows.push(
+            row === null
+              ? { doc, version: null }
+              : { doc, version: row.version, updatedAt: row.updatedAt.toISOString(), characters: row.markdown.length },
+          );
+        }
+        return { product: slug, docs: rows };
+      });
+      deps.print(JSON.stringify(out, null, 2));
+    });
+
+  docs
     .command('get')
     .description('print the latest version of a document (Markdown), e.g. to edit it and `ads docs set` it back')
     .addOption(new Option('--doc <doc>', 'which document').argParser(docKind).makeOptionMandatory())
@@ -42,12 +63,13 @@ export function docsCommand(
   docs
     .command('set')
     .description(
-      'replace a document with a Markdown file, as a new version. Recorded as a product_doc_put request for ' +
-        'OPERATOR_ACTORS; prints the new version or why it was refused',
+      'replace a document with a Markdown file, as a new version on top of the version you edited ' +
+        '(`ads docs list` shows the latest), so a newer version written meanwhile is never lost. Recorded as a ' +
+        'product_doc_put request for OPERATOR_ACTORS; prints the new version or why it was refused',
     )
     .addOption(new Option('--doc <doc>', 'which document').argParser(docKind).makeOptionMandatory())
     .requiredOption('--file <path>', 'the Markdown file')
-    .option('--base-version <n>', 'refuse unless the document is still at this version (default: the latest)')
+    .option('--base-version <n>', 'the version you edited; required once the document has a version')
     .action(async (opts: { doc: ProductDocKind; file: string; baseVersion?: string }) => {
       const slug = product();
       if (opts.baseVersion !== undefined && !/^\d+$/.test(opts.baseVersion)) {
@@ -56,10 +78,17 @@ export function docsCommand(
       const markdown = await readFile(opts.file, 'utf8');
       const result = await withDb(async (db) => {
         const id = await productId(db, slug);
-        const baseVersion =
-          opts.baseVersion === undefined
-            ? ((await getProductDoc(db, id, opts.doc))?.version ?? 0)
-            : Number(opts.baseVersion);
+        let baseVersion = Number(opts.baseVersion ?? 0);
+        if (opts.baseVersion === undefined) {
+          const latest = await getProductDoc(db, id, opts.doc);
+          if (latest !== null) {
+            throw new InvalidArgumentError(
+              `--base-version is required: the version you edited (the latest ${opts.doc} is version ` +
+                `${latest.version}; \`ads docs list\` shows them all)`,
+            );
+          }
+          baseVersion = 0;
+        }
         const { id: request, outcome } = await submitRequest(
           db,
           {

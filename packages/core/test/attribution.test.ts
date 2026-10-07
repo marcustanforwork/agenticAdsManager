@@ -103,14 +103,16 @@ describe('attribution', () => {
       outcome('utm-id', { utmCampaign: '21987654321' }),
       outcome('utm-wrong-platform', { utmSource: 'google', utmCampaign: 'Signups - Weddings' }),
       outcome('utm-ambiguous-name', { utmCampaign: 'Retargeting' }),
+      // Not an ad platform: a newsletter link that happens to reuse a campaign's name is not an ad click.
+      outcome('utm-newsletter', { utmSource: 'newsletter', utmCampaign: 'Search - Brand' }),
       outcome('organic', {}),
       outcome('test-traffic', { googleCampaignId: '21987654321' }, ago(1), true),
     ]);
 
     expect(await attributeOutcomes(t.db, { productId: w.productId, now: NOW })).toEqual({
-      checked: 15,
+      checked: 16,
       attributed: { platform_ids: 6, gclid_lookup: 2, utm: 2 },
-      none: 5,
+      none: 6,
     });
     expect(await stored(w.productId)).toEqual({
       'google-campaign-id': ['platform_ids', e.googleCampaign.id],
@@ -126,6 +128,7 @@ describe('attribution', () => {
       'utm-id': ['utm', e.googleCampaign.id],
       'utm-wrong-platform': ['none', null],
       'utm-ambiguous-name': ['none', null],
+      'utm-newsletter': ['none', null],
       organic: ['none', null],
       'test-traffic': ['platform_ids', e.googleCampaign.id],
     });

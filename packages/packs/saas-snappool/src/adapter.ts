@@ -16,6 +16,7 @@ import {
   type ProductSettings,
   type WebContext,
   hashEmail,
+  platformOfUtmSource,
 } from '@ads/contracts';
 import pg from 'pg';
 
@@ -65,7 +66,6 @@ interface OutcomeRow {
   page_url: string | null;
 }
 
-const META_SOURCES = new Set(['meta', 'facebook', 'instagram', 'fb', 'ig']);
 const CLICK_ID_MAX = 512; // SnapPool keeps click ids whole up to 512 characters
 const VALUE_MAX = 255; // and truncates other values to 255
 const PLATFORM_ID = /^\d{1,30}$/;
@@ -94,11 +94,11 @@ export function idsFromAttribution(attribution: unknown): ClickAndPlatformIds {
     utmMedium: text('utm_medium', VALUE_MAX),
     utmCampaign: text('utm_campaign', VALUE_MAX),
   };
-  const source = ids['utmSource']?.toLowerCase();
-  if (source === 'google') {
+  const platform = platformOfUtmSource(ids['utmSource']);
+  if (platform === 'google') {
     ids['googleCampaignId'] = id('utm_campaign');
     ids['googleAdGroupId'] = id('sp_agid');
-  } else if (source !== undefined && META_SOURCES.has(source)) {
+  } else if (platform === 'meta') {
     ids['metaCampaignId'] = id('utm_campaign');
     ids['metaAdSetId'] = id('sp_agid');
     ids['metaAdId'] = id('sp_adid');

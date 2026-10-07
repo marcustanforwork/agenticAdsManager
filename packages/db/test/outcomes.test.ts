@@ -1,13 +1,17 @@
 import type { OutcomeEvent } from '@ads/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  countAttributedToAccount,
   countFedBackSince,
+  countIdCapture,
   countOutcomesByStage,
   insertOutcomes,
+  listAttributionCandidates,
   listOutcomes,
   listUnattributed,
   markFedBack,
   setAttribution,
+  setAttributions,
   upsertOutcomes,
 } from '../src/repos/outcomes.ts';
 import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
@@ -124,5 +128,83 @@ describe('upsertOutcomes (M05a)', () => {
       { stage: 'activated', outcomes: 1, test: 0 },
       { stage: 'signup', outcomes: 1, test: 1 },
     ]);
+  });
+});
+
+describe('attribution and trust-check counts (M05b)', () => {
+  it('lists new outcomes before retries, so retries never crowd them out of a batch', async () => {
+    const { product } = await makeCampaign(t.db);
+    await insertOutcomes(t.db, product.id, [
+      event('old-none', { occurredAt: '2026-09-20T01:00:00Z' }),
+      event('new', { occurredAt: '2026-09-21T01:00:00Z' }),
+      event('ancient-none', { occurredAt: '2026-08-01T01:00:00Z' }),
+    ]);
+    const all = await listOutcomes(t.db, { productId: product.id, from: new Date(0), to: new Date('2026-10-01') });
+    await setAttributions(
+      t.db,
+      all
+        .filter((o) => o.sourceId !== 'new')
+        .map((o) => ({ outcomeId: o.id, entityId: null, method: 'none' as const })),
+    );
+    const since = new Date('2026-09-15T00:00:00Z');
+    const one = await listAttributionCandidates(t.db, { productId: product.id, retrySince: since, limit: 1 });
+    expect(one.map((o) => o.sourceId)).toEqual(['new']);
+    const both = await listAttributionCandidates(t.db, { productId: product.id, retrySince: since });
+    expect(both.map((o) => o.sourceId)).toEqual(['new', 'old-none']); // 'ancient-none' is past the retry window
+  });
+
+  it('counts captured click and platform ids; utm values and the fbp cookie alone are not one', async () => {
+    const { product } = await makeCampaign(t.db);
+    await insertOutcomes(t.db, product.id, [
+      event('gclid', { ids: { gclid: 'g' } }),
+      event('meta-campaign', { ids: { metaCampaignId: '1' } }),
+      event('utm-only', { ids: { utmSource: 'google', utmCampaign: 'x' } }),
+      event('fbp-only', { ids: { fbp: 'fb.1.1.1' } }),
+      event('none', { ids: {} }),
+      event('test', { ids: { gclid: 'g2' }, isTest: true }),
+      event('other-stage', { ids: { gclid: 'g3' }, stage: 'activated' }),
+    ]);
+    const window = { from: new Date('2026-09-19T00:00:00Z'), to: new Date('2026-09-21T00:00:00Z') };
+    expect(await countIdCapture(t.db, { productId: product.id, stage: 'signup', ...window })).toEqual({
+      outcomes: 5,
+      withIds: 2,
+    });
+  });
+
+  it("counts outcomes attributed to an account's campaigns on its local days", async () => {
+    const { product, account, campaign } = await makeCampaign(t.db);
+    await insertOutcomes(t.db, product.id, [
+      // 2026-09-19 23:30 in Singapore: the day before the range.
+      event('before', { occurredAt: '2026-09-19T15:30:00Z' }),
+      // 2026-09-20 00:30 in Singapore: the range's first day, although still 2026-09-19 in UTC.
+      event('first-day', { occurredAt: '2026-09-19T16:30:00Z' }),
+      event('last-day', { occurredAt: '2026-09-21T15:59:00Z' }),
+      event('after', { occurredAt: '2026-09-21T16:00:00Z' }),
+      event('test', { occurredAt: '2026-09-20T05:00:00Z', isTest: true }),
+      event('unattributed', { occurredAt: '2026-09-20T05:00:00Z' }),
+    ]);
+    const rows = await listOutcomes(t.db, {
+      productId: product.id,
+      from: new Date(0),
+      to: new Date('2026-10-01'),
+      includeTest: true,
+    });
+    await setAttributions(
+      t.db,
+      rows
+        .filter((o) => o.sourceId !== 'unattributed')
+        .map((o) => ({ outcomeId: o.id, entityId: campaign.id, method: 'platform_ids' as const })),
+    );
+    const count = (timeZone: string) =>
+      countAttributedToAccount(t.db, {
+        productId: product.id,
+        accountId: account.id,
+        stage: 'signup',
+        from: '2026-09-20',
+        to: '2026-09-21',
+        timeZone,
+      });
+    expect(await count('Asia/Singapore')).toBe(2);
+    expect(await count('UTC')).toBe(2); // 'last-day' and 'after' fall on 2026-09-21 in UTC
   });
 });

@@ -100,7 +100,8 @@ export async function listUnattributed(db: DbOrTx, productId: string, limit = 50
 }
 
 /** The outcomes to attribute (M05b): every one not attributed yet, and those found unattributable (`none`) that
- *  occurred since `retrySince` (their click id or campaign may arrive with a later sync). Oldest first. */
+ *  occurred since `retrySince` (their click id or campaign may arrive with a later sync). New ones come first, so
+ *  retries can never crowd them out of a batch; then oldest first. */
 export async function listAttributionCandidates(
   db: DbOrTx,
   input: { productId: string; retrySince: Date; limit?: number },
@@ -117,7 +118,7 @@ export async function listAttributionCandidates(
         ),
       ),
     )
-    .orderBy(asc(outcomes.occurredAt), asc(outcomes.id))
+    .orderBy(sql`(${outcomes.attributionMethod} is null) desc`, asc(outcomes.occurredAt), asc(outcomes.id))
     .limit(input.limit ?? 5000);
 }
 
@@ -240,15 +241,14 @@ export async function countAttribution(
     .orderBy(outcomes.stage, outcomes.attributionMethod);
 }
 
-/** The click and platform ids an outcome may carry (ClickAndPlatformIds without the utm values): what the
- *  `id_capture` trust check looks for. */
+/** The ids that tie an outcome to an ad click (ClickAndPlatformIds without the utm values, and without `fbp`, the
+ *  Meta browser cookie any visitor of a site with the pixel gets): what the `id_capture` trust check looks for. */
 export const CAPTURED_ID_KEYS = [
   'gclid',
   'gbraid',
   'wbraid',
   'fbclid',
   'fbc',
-  'fbp',
   'googleCampaignId',
   'googleAdGroupId',
   'metaCampaignId',
@@ -284,12 +284,14 @@ export async function countIdCapture(
   return { outcomes: row?.outcomes ?? 0, withIds: row?.withIds ?? 0 };
 }
 
-/** Outcomes of `stage` in [from, to), test traffic apart, attributed to a campaign of `accountId` (the
- *  `attribution_gap` trust check compares them with the platform's own conversions, M05b). */
+/** Outcomes of `stage` on the days `from`..`to` (inclusive, `YYYY-MM-DD` in `timeZone`), test traffic apart,
+ *  attributed to a campaign of `accountId`: the `attribution_gap` trust check compares them with the platform's
+ *  own conversions over the same account days (M05b). */
 export async function countAttributedToAccount(
   db: DbOrTx,
-  input: { productId: string; accountId: string; stage: string; from: Date; to: Date },
+  input: { productId: string; accountId: string; stage: string; from: string; to: string; timeZone: string },
 ): Promise<number> {
+  const day = sql`(${outcomes.occurredAt} at time zone ${input.timeZone})::date`;
   const [row] = await db
     .select({ n: count() })
     .from(outcomes)
@@ -300,8 +302,7 @@ export async function countAttributedToAccount(
         eq(outcomes.stage, input.stage),
         eq(outcomes.isTest, false),
         eq(adEntities.accountId, input.accountId),
-        gte(outcomes.occurredAt, input.from),
-        lt(outcomes.occurredAt, input.to),
+        sql`${day} between ${input.from}::date and ${input.to}::date`,
       ),
     );
   return row?.n ?? 0;

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { IsoDateTime } from './hash.ts';
 import { MicrosJson } from './money.ts';
+import type { Platform } from './platform.ts';
 
 export const ClickAndPlatformIds = z.object({
   gclid: z.string().optional(),
@@ -20,6 +21,16 @@ export const ClickAndPlatformIds = z.object({
   utmCampaign: z.string().optional(),
 });
 export type ClickAndPlatformIds = z.infer<typeof ClickAndPlatformIds>;
+
+/** The ad platform a `utm_source` value names: the ad URL settings use `google` and `meta`, and people write the
+ *  others by hand. Anything else (a newsletter, a partner site) is not an ad platform: undefined. Packs use it to
+ *  read platform ids from utm values, and attribution to match `utm_campaign` (one mapping, so they can't drift). */
+export function platformOfUtmSource(source: string | undefined): Platform | undefined {
+  const s = source?.trim().toLowerCase();
+  if (s === 'google') return 'google';
+  if (s === 'meta' || s === 'facebook' || s === 'instagram' || s === 'fb' || s === 'ig') return 'meta';
+  return undefined;
+}
 
 const Sha256Hex = z.string().regex(/^[a-f0-9]{64}$/);
 

@@ -126,7 +126,7 @@ export function outcomeSourceFresh(input: {
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
 /** `attribution_gap` (per account): the platform's own conversions against our outcomes attributed to the account's
- *  campaigns, both at the KPI stage over the trust window. The gap is the difference as a share of the larger
+ *  campaigns, both at the KPI stage over the same account days (the signals' range). The gap is the difference as a share of the larger
  *  count. Fewer than `minOutcomes` on both sides is too little to compare; so is a platform that only learns of
  *  conversions from the agent's uploads before any were made (as in `tracking_active`, D-075). It never fails:
  *  a gap is a warning to look at tracking, not proof that it's broken. */
@@ -225,15 +225,13 @@ export async function trustStage(
       add(account, 'attribution_gap', { result: 'no_signal', detail: { reason: 'no trust signals stored yet' } });
     } else {
       const routed = routedByUploads(product.settings, account.platform);
-      // What could show in those signals: the 7 days before they were read.
-      const readAt = Date.parse(signals.readAt);
-      const window = { from: new Date(readAt - TRUST_WINDOW_MS), to: new Date(readAt) };
       const uploads = routed
         ? await countFedBackSince(db, {
             productId: product.id,
             platform: account.platform,
             stage: kpiStage,
-            since: window.from,
+            // The uploads that could show in those signals: the 7 days before they were read.
+            since: new Date(Date.parse(signals.readAt) - TRUST_WINDOW_MS),
           })
         : 0;
       const outcome = trackingActive({
@@ -246,11 +244,13 @@ export async function trustStage(
       add(account, 'tracking_active', { ...outcome, detail: { ...outcome.detail, ...read } });
       const gap = attributionGap({
         platformConversions: signals.platformConversions,
+        // The days the platform's count covers, in the account's time zone (the product's, `timezone_match`).
         attributedOutcomes: await countAttributedToAccount(db, {
           productId: product.id,
           accountId: account.id,
           stage: kpiStage,
-          ...window,
+          ...signals.range,
+          timeZone: account.timezone ?? product.timezone,
         }),
         maxGapPct: product.settings.trust.maxAttributionGapPct,
         minOutcomes: product.settings.trust.minOutcomesForGap,

@@ -149,17 +149,24 @@ describe('ads docs', () => {
   });
   afterAll(async () => rm(dir, { recursive: true, force: true }));
 
-  it('get prints the latest version: the seeded document first', async () => {
+  it('get prints the latest version: the seeded document first; list shows every version', async () => {
     const strategy = await run(['docs', 'get', '--product', 'snappool', '--doc', 'strategy']).text();
     expect(strategy).toMatch(/^# SnapPool: Strategy/);
+    const list = await run(['docs', 'list', '--product', 'snappool']).json();
+    expect((list['docs'] as Record<string, unknown>[]).map((d) => [d['doc'], d['version']])).toEqual([
+      ['strategy', 1],
+      ['playbook', 1],
+      ['learnings', 1],
+    ]);
   });
 
   it('set records a product_doc_put: a new version, then get prints it; a stale base is refused', async () => {
     const file = join(dir, 'strategy.md');
     await writeFile(file, '# Strategy\n\nSignups at a low cost, beta first.\n');
-    expect(
-      await run(['docs', 'set', '--product', 'snappool', '--doc', 'strategy', '--file', file]).json(),
-    ).toMatchObject({
+    // The version edited must be named, so a version written meanwhile can't be overwritten unseen.
+    const set = ['docs', 'set', '--product', 'snappool', '--doc', 'strategy', '--file', file];
+    await expect(run(set).done).rejects.toThrow('--base-version is required');
+    expect(await run([...set, '--base-version', '1']).json()).toMatchObject({
       product: 'snappool',
       doc: 'strategy',
       status: 'done',
@@ -187,7 +194,7 @@ describe('ads docs', () => {
   it('set refuses an unknown actor; an unknown document name is a usage error', async () => {
     const file = join(dir, 'playbook.md');
     await writeFile(file, '# Playbook\n');
-    const args = ['docs', 'set', '--product', 'snappool', '--doc', 'playbook', '--file', file];
+    const args = ['docs', 'set', '--product', 'snappool', '--doc', 'playbook', '--file', file, '--base-version', '1'];
     expect(await run(args, { ADS_OPERATOR: 'stranger' }).json()).toMatchObject({
       status: 'refused',
       reason: 'unknown actor',

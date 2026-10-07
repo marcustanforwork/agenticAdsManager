@@ -219,7 +219,7 @@ export async function getEntity(db: DbOrTx, id: string): Promise<AdEntity> {
 export async function listEntities(
   db: DbOrTx,
   productId: string,
-  filter: { accountId?: string; type?: EntityType } = {},
+  filter: { accountId?: string; type?: EntityType; types?: readonly EntityType[] } = {},
 ): Promise<AdEntity[]> {
   return db
     .select()
@@ -229,6 +229,7 @@ export async function listEntities(
         eq(adEntities.productId, productId),
         filter.accountId !== undefined ? eq(adEntities.accountId, filter.accountId) : undefined,
         filter.type !== undefined ? eq(adEntities.type, filter.type) : undefined,
+        filter.types !== undefined ? inArray(adEntities.type, [...filter.types]) : undefined,
       ),
     )
     .orderBy(adEntities.type, adEntities.externalId);
