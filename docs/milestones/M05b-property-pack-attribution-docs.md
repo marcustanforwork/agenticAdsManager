@@ -10,7 +10,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-10-07 |
 | **Finished** | 2026-10-07 (cloud part) |
-| **PRs** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) |
+| **PRs** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) (merged 2026-10-07) |
 
 ## Goal
 The second pack is added with zero changes to the core, outcomes are attributed to campaigns, and the product documents live in the database.

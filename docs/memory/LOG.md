@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-07 — PR #10 (M05b) merged
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10)
+- **Did:** CI was green on the PR (`ci`, `secret-scan`, `memory-check`), with no review comments. Marcus said "merge"; squash-merged PR #10 on his instruction after every check passed (D-057). Answered his question on how the memory is kept: it lives in the repo (`docs/memory/`), the `end-session` skill commits and pushes it, and the next session reads it fresh from GitHub.
+- **Decided:** —
+- **Learned:** —
+- **Next:** a clean-context session starts M06a; then M06b and M07, one session each.
+- **Open:** Q13 (at the setup); all live steps, M05b's included (batched, D-074).
+
 ## 2026-10-07 — M05b: property pack (G8), attribution, product docs, facts_put
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10)
 - **Did:** the property pack (`packages/packs/property-sg`: manifest, `detectPhase`, an Airtable adapter tested on a hand-made fixture), committed alone, and the G8 check passed (c1d9798 touches no core, gateway or connector file); `facts_put` and `product_doc_put` in the one processor; product docs seeded by `ads seed`, plus `ads docs list|get|set`; `core/attribution` (§5.12) in the cycle's sync stage and `ads outcomes` (the attribution rate); the `attribution_gap` and `id_capture` trust checks; the `add-product-pack` skill. Code review at high effort: 10 findings, all confirmed and fixed. 741 tests pass.
