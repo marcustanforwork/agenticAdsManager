@@ -273,9 +273,9 @@ async function syncAccount(
         impressions: t.impressions,
         clicks: t.clicks,
         spendMicros: BigInt(t.spendMicros),
-        // The search-terms read has no conversions yet (KPI conversions per term need a query segmented by
-        // conversion action); an upload-only product's are 0 until uploads start anyway. M06a adds them.
-        conversions: '0',
+        // The platform's KPI-stage conversions for the term (M06a); 0 when no KPI action is configured. An
+        // upload-only product's stay 0 until uploads start, so wasteful_search_term waits for tracking_active.
+        conversions: String(t.kpiConversions ?? 0),
       });
     }
     await upsertSearchTerms(db, terms);

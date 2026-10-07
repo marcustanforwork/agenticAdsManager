@@ -186,7 +186,19 @@ describe('getSearchTerms', () => {
       impressions: 40,
       clicks: 3,
       spendMicros: '1500000',
+      kpiConversions: 1.5, // the KPI action's conversions only (action 557's 4 are left out)
     });
+    expect(rows[1]?.kpiConversions).toBe(0); // only a non-KPI action converted
+  });
+
+  it('asks for no conversions when no KPI action is configured', async () => {
+    const [main] = cassette('search-terms').exchanges;
+    const { client, replay } = replayClient([{ source: 'test', exchanges: main === undefined ? [] : [main] }], {
+      conversionActionIds: [],
+    });
+    const rows = await client.getSearchTerms(ACCOUNT, RANGE);
+    expect(replay.remaining()).toBe(0);
+    expect(rows.every((r) => r.kpiConversions === undefined)).toBe(true);
   });
 });
 
