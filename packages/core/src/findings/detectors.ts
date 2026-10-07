@@ -60,8 +60,9 @@ export const NEGATIVE_KEYWORD_MAX_CHARS = 80;
 export const PACING_HIGH_PCT = 100n;
 export const PACING_LOW_PCT = 60n;
 
+/** Money for a summary, rounded to the cent in bigint (invariant 6): S$ for SGD, else the currency code. */
 const money = (micros: bigint, currency: string): string =>
-  currency === 'SGD' ? formatSgd(micros) : `${currency} ${(Number(micros) / 1e6).toFixed(2)}`;
+  currency === 'SGD' ? formatSgd(micros) : formatSgd(micros).replace('S$', `${currency} `);
 
 /** The KPI stage's label in the plural, for summaries: "signups", "form fills". */
 const kpiPlural = (product: Product): string => {
