@@ -74,7 +74,7 @@ describe('prices and cost', () => {
       input: 2_500_000n,
       output: 10_000_000n,
       cacheRead: 2_500_000n,
-      cacheWrite: 2_500_000n,
+      cacheWrite: 3_125_000n, // 1.25 × input, like the built-in table
     });
     expect(priceFor({ provider: 'openai-compatible', modelId: 'llama3' }, {}).output).toBe(0n);
     expect(() => priceFor({ provider: 'openai', modelId: 'gpt-x' }, {})).toThrow(/no known price/);

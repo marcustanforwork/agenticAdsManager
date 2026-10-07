@@ -151,3 +151,35 @@ export async function sumSearchTerms(
     daysWithRows: r.daysWithRows,
   }));
 }
+
+/** The ids that show an outcome came from a platform's ad (click ids or platform ids from the ad URL settings). */
+export const PLATFORM_ID_KEYS = {
+  google: ['gclid', 'gbraid', 'wbraid', 'googleCampaignId', 'googleAdGroupId'],
+  meta: ['fbclid', 'fbc', 'metaCampaignId', 'metaAdSetId', 'metaAdId'],
+} as const;
+
+/** Non-test outcomes of `stage` on the window's days that carry one of the platform's ids: zero means the platform's
+ *  ads can't be credited with outcomes yet (no auto-tagging or URL parameters), whatever they brought. */
+export async function countOutcomesWithPlatformIds(
+  db: DbOrTx,
+  input: { productId: string; platform: 'google' | 'meta'; stage: string; from: string; to: string; timeZone: string },
+): Promise<number> {
+  const keys = sql.join(
+    PLATFORM_ID_KEYS[input.platform].map((k) => sql`${k}`),
+    sql`, `,
+  );
+  const day = sql`(${outcomes.occurredAt} at time zone ${input.timeZone})::date`;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(outcomes)
+    .where(
+      and(
+        eq(outcomes.productId, input.productId),
+        eq(outcomes.stage, input.stage),
+        eq(outcomes.isTest, false),
+        sql`${day} between ${input.from}::date and ${input.to}::date`,
+        sql`${outcomes.ids} ?| array[${keys}]::text[]`,
+      ),
+    );
+  return row?.n ?? 0;
+}

@@ -132,6 +132,7 @@ export async function generateStructured<T>(deps: ModelDeps, call: StructuredCal
     throw new StructuredOutputError(specText(spec), 2, costMicros, { cause: lastError });
   };
 
+  let failed = false;
   try {
     if (deps.tracing == null) return await run();
     return await propagateAttributes(
@@ -152,10 +153,16 @@ export async function generateStructured<T>(deps: ModelDeps, call: StructuredCal
       },
       run,
     );
+  } catch (error) {
+    failed = true;
+    throw error;
   } finally {
-    // Spent is spent: the cost is recorded whether the call succeeded or not.
+    // Spent is spent: the cost is recorded whether the call succeeded or not. If recording fails after a failed
+    // call, the call's own error is the one the caller sees.
     if (deps.db !== undefined && context.cycleId !== null && costMicros > 0n) {
-      await addModelCost(deps.db, context.cycleId, costMicros);
+      await addModelCost(deps.db, context.cycleId, costMicros).catch((error: unknown) => {
+        if (!failed) throw error;
+      });
     }
   }
 }

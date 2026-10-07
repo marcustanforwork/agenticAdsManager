@@ -19,6 +19,7 @@ import {
   type Product,
   listAccounts,
   listEntities,
+  countOutcomesWithPlatformIds,
   listTrustChecks,
   sumSearchTerms,
 } from '@ads/db';
@@ -56,6 +57,7 @@ export interface Detector {
 
 /** Google's limit for a keyword's text: a longer search term can't become a negative keyword as it is. */
 export const NEGATIVE_KEYWORD_MAX_CHARS = 80;
+export const NEGATIVE_KEYWORD_MAX_WORDS = 10;
 /** Pacing: projected month spend above 100% or below 60% of the monthly ceiling (§5.9). */
 export const PACING_HIGH_PCT = 100n;
 export const PACING_LOW_PCT = 60n;
@@ -64,11 +66,9 @@ export const PACING_LOW_PCT = 60n;
 const money = (micros: bigint, currency: string): string =>
   currency === 'SGD' ? formatSgd(micros) : formatSgd(micros).replace('S$', `${currency} `);
 
-/** The KPI stage's label in the plural, for summaries: "signups", "form fills". */
-const kpiPlural = (product: Product): string => {
-  const { stages, primaryKpiStage } = product.settings.outcomes;
-  return `${stages.find((s) => s.id === primaryKpiStage)?.label.toLowerCase() ?? primaryKpiStage}s`;
-};
+/** The KPI stage for summaries, from its id ("signup", "form fill"): pack labels are descriptive phrases that don't
+ *  take a plural. */
+const kpiName = (product: Product): string => product.settings.outcomes.primaryKpiStage.replaceAll('_', ' ');
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -105,8 +105,22 @@ export const zeroOutcomeSpend: Detector = {
     if (threshold === null) return [];
     const window = windowEndingYesterday(ctx.now, ctx.product.timezone, evidenceWindowDays(this.type, threshold));
     const kpi = ctx.product.settings.outcomes.primaryKpiStage;
+    // Zero attributed outcomes mean something only where the platform's outcomes can be attributed at all: some
+    // recent outcome must carry that platform's ids (auto-tagging or URL parameters, T14). Until then, skip.
+    const attributable = new Map<string, boolean>();
+    for (const platform of ['google', 'meta'] as const) {
+      const n = await countOutcomesWithPlatformIds(ctx.db, {
+        productId: ctx.product.id,
+        platform,
+        stage: kpi,
+        ...window,
+        timeZone: ctx.product.timezone,
+      });
+      attributable.set(platform, n > 0);
+    }
     const out: Candidate[] = [];
     for (const entity of await activeEntities(ctx, 'campaign')) {
+      if (attributable.get(entity.platform) !== true) continue;
       const target: FindingTarget = { kind: 'entity', entity };
       const evidence = await evidenceFor(ctx, target, window);
       const spend = BigInt(evidence.spendMicros);
@@ -118,7 +132,7 @@ export const zeroOutcomeSpend: Detector = {
         evidence,
         summary:
           `Spent ${money(spend, ctx.product.currency)} for ${plural(evidence.clicks, 'click')} over ` +
-          `${evidence.windowDays} days, with no ${kpiPlural(ctx.product)}.`,
+          `${evidence.windowDays} days, with no ${kpiName(ctx.product)} outcomes.`,
       });
     }
     return out;
@@ -161,8 +175,8 @@ export const trackingGap: Detector = {
       const platform = account.platform === 'google' ? 'Google' : 'Meta';
       const why =
         found.tracking !== undefined
-          ? `${platform} recorded no conversions in ${TRUST_WINDOW_DAYS} days despite ${plural(evidence.clicks, 'click')}`
-          : `${platform} counts ${detail.platformConversions ?? 0} ${kpiPlural(ctx.product)} and we can credit ` +
+          ? `${platform} recorded no conversions in ${TRUST_WINDOW_DAYS} days despite ${plural(num(found.tracking.clicks) ?? 0, 'click')}`
+          : `${platform} counts ${detail.platformConversions ?? 0} ${kpiName(ctx.product)} conversions and we can credit ` +
             `${detail.attributedOutcomes ?? 0} to its campaigns (${detail.attributionGapPct ?? 0}% apart)`;
       out.push({
         type: this.type,
@@ -196,7 +210,7 @@ export const pacingRisk: Detector = {
     const spent = BigInt(first.spendMicros);
     const projected = (spent * daysInMonth) / elapsed;
     const pct = (projected * 100n) / ceiling;
-    const over = projected > ceiling; // above 100%
+    const over = projected * 100n > ceiling * PACING_HIGH_PCT;
     const under = spent > 0n && pct < PACING_LOW_PCT; // a product that isn't spending isn't pacing
     if (!over && !under) return [];
     const evidence: ComputedEvidence = {
@@ -236,9 +250,14 @@ export const wastefulSearchTerm: Detector = {
         .filter((c) => c.checkId === 'tracking_active' && c.result === 'pass' && c.accountId !== null)
         .map((c) => c.accountId as string),
     );
+    // An ad group counts only under an active campaign: a paused campaign's terms can't cost anything any more.
+    const campaigns = new Set((await activeEntities(ctx, 'campaign')).map((e) => e.id));
     const adGroups = new Map(
       (await activeEntities(ctx, 'ad_group'))
-        .filter((e) => e.platform === 'google' && tracked.has(e.accountId))
+        .filter(
+          (e) =>
+            e.platform === 'google' && tracked.has(e.accountId) && e.parentId !== null && campaigns.has(e.parentId),
+        )
         .map((e) => [e.id, e] as const),
     );
     if (adGroups.size === 0) return [];
@@ -251,7 +270,8 @@ export const wastefulSearchTerm: Detector = {
       const adGroup = adGroups.get(term.adGroupEntityId);
       if (adGroup === undefined || Number(term.conversions) > 0 || term.clicks === 0 || term.spendMicros === 0n)
         continue;
-      if (term.term.length > NEGATIVE_KEYWORD_MAX_CHARS) continue;
+      if (term.term.length > NEGATIVE_KEYWORD_MAX_CHARS) continue; // Google would refuse it as a keyword
+      if (term.term.trim().split(/\s+/).length > NEGATIVE_KEYWORD_MAX_WORDS) continue;
       const target: FindingTarget = { kind: 'entity', entity: adGroup };
       const base = watched.get(adGroup.id) ?? (await evidenceFor(ctx, target, window));
       watched.set(adGroup.id, base);
@@ -271,7 +291,7 @@ export const wastefulSearchTerm: Detector = {
         params: { negativeText: term.term }, // untrusted platform text: data only
         summary:
           `A search term in this ad group cost ${money(term.spendMicros, ctx.product.currency)} for ` +
-          `${plural(term.clicks, 'click')} over ${evidence.windowDays} days, with no ${kpiPlural(ctx.product)}.`,
+          `${plural(term.clicks, 'click')} over ${evidence.windowDays} days, with no ${kpiName(ctx.product)} conversions.`,
       });
     }
     return out;

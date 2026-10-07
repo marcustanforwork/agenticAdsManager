@@ -61,7 +61,7 @@ export function priceFor(spec: ModelSpec, env: Readonly<Record<string, string | 
         input,
         output: usd(o.output),
         cacheRead: o.cacheRead === undefined ? input : usd(o.cacheRead),
-        cacheWrite: o.cacheWrite === undefined ? input : usd(o.cacheWrite),
+        cacheWrite: o.cacheWrite === undefined ? (input * 5n) / 4n : usd(o.cacheWrite), // as the table: 1.25 × input
       };
     }
   }

@@ -4,8 +4,8 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
-## 2026-10-07 — M06a built (AI layer, finding registry, detectors); code review pending
-- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (draft)
+## 2026-10-07 — M06a built (AI layer, finding registry, detectors) and code-reviewed
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)
 - **Did:**
   - Started M06a. Checked the AI SDK and Langfuse facts from their published npm packages (both sites are blocked here). AI SDK 7 is current, and Langfuse's integration needs it (D-078).
   - Build 1: `core/model`. Per-stage `provider:model` settings, `generateStructured` with one schema retry, Langfuse tracing tagged with product, cycle and stage, cost in USD micros per cycle, and personal data redacted and masked. Also `ads model ping`.
@@ -15,7 +15,8 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - The session restarted once after a usage limit. It reached the token checkpoint before the detectors, so `cost_spike` and `no_delivery` moved to M06b and the Phase 3 pair to M14.
 - **Decided:** D-078 (AI SDK 7), D-079 (M06a build choices).
 - **Learned:** OpenTelemetry's ESM build only loads through a bundler, so vitest now resolves Node-side imports without the `module` condition. `InMemorySpanExporter` empties itself on shutdown. Per-term conversions from Google are unverified until the M03 recording (GOTCHAS).
-- **Next:** the next session runs the code review (D-067) on PR #11, fixes what it finds, and marks the PR ready. Then M06b.
+  - Code review at high effort (D-067): 10 findings, 9 fixed with tests (garbled stage labels in summaries, a false `zero_outcome_spend` flood for platforms without ids, paused-campaign and 10-word checks for search terms, cost-recording and price-default fixes); the per-entity query count is left as is (efficiency only).
+- **Next:** Marcus reviews PR #11; then a clean session starts M06b.
 
 ## 2026-10-07 — PR #10 (M05b) merged
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10)
