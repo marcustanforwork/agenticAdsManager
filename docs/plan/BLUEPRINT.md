@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.12 — 2026-10-06 (M04 build choices: the accounts' sync state, drift rules, `tracking_active` for upload-only products, the cycle lock and resume, D-075) |
+| **Version** | v3.13 — 2026-10-06 (M05a build choices: route destinations may be unset, two email hashes, the products' outcome-source state, outcome reads, seeding with `ads seed`, D-076) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -190,7 +190,8 @@ export const OutcomeStage = z.object({
 export const FeedbackRoute = z.object({
   stage: z.string(),
   platform: Platform,
-  destinationId: z.string(),                     // Meta dataset (pixel) id, or Google conversion action id
+  destinationId: z.string().min(1).nullable(),   // Meta dataset (pixel) id, or Google conversion action id;
+                                                 // null = not set up yet (T4/T11): nothing is uploaded on it (D-076)
   eventName: z.string().optional(),              // Meta event name, e.g. 'Lead', 'CompleteRegistration'
 });
 
@@ -301,9 +302,10 @@ export const ClickAndPlatformIds = z.object({
 });
 
 export const HashedContact = z.object({            // SHA-256 of normalised values, computed INSIDE the adapter
-  emailSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  emailSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),        // Meta: trimmed, lower-cased
+  emailSha256Google: z.string().regex(/^[a-f0-9]{64}$/).optional(),  // Google: also no whitespace, no Gmail dots (D-076)
   phoneSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-});
+});   // hashEmail(email) computes both email hashes
 
 /** Captured by the product at the moment of conversion (SnapPool: at /start). No IP address, by design. */
 export const WebContext = z.object({
@@ -324,9 +326,15 @@ export const OutcomeEvent = z.object({
 });
 
 export interface OutcomeAdapter {
-  fetchSince(since: Date, limit?: number): Promise<z.infer<typeof OutcomeEvent>[]>;
+  fetchSince(since: Date, limit?: number): Promise<z.infer<typeof OutcomeEvent>[]>;   // oldest first
   healthcheck(): Promise<{ ok: boolean; latestActivityAt?: Date; detail?: string }>;
 }
+
+/** The last read of a product's outcome source, stored in products.outcome_source for `outcome_source_fresh`. */
+export const OutcomeSourceState = z.object({
+  checkedAt: IsoDateTime, ok: z.boolean(), latestActivityAt: IsoDateTime.nullable(), detail: z.string().max(500).optional(),
+  read: z.object({ since: IsoDateTime, events: z.number(), new: z.number(), skipped: z.number() }).optional(),
+});
 ```
 
 ### 3.6 Platform clients, write actions and undo
@@ -592,6 +600,7 @@ create table products (
       -- dormant: no scheduled cycles (the product isn't advertising)
   settings jsonb not null,                           -- ProductSettings; validated on every write AND every read
   settings_version int not null default 1,
+  outcome_source jsonb,                              -- OutcomeSourceState: the last read of the pack's outcome source (M05a, D-076)
   created_at timestamptz not null default now()
 );
 
@@ -764,6 +773,7 @@ create table outcomes (
   is_test boolean not null default false,
   ids jsonb not null default '{}',                   -- ClickAndPlatformIds
   hashed_contact jsonb,                              -- SHA-256 only, never raw
+  web jsonb,                                         -- WebContext (user agent, page URL) for Meta website events (M05a)
   attributed_entity_id uuid references ad_entities(id),   -- campaign level
   attribution_method text check (attribution_method in ('platform_ids','gclid_lookup','utm','none')),
   fed_back_google_at timestamptz,
@@ -992,7 +1002,7 @@ create index on source_copy (product_id);
 |---|---|---|
 | `agent_worker` | worker | Read and write on everything; `change_log` is read-only. Optional hardening in M16b. |
 | `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066); insert/update `credentials` (`ads-gw credentials put`, rotation; D-068) |
-| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access` and `outcomes`; outcomes through the view `dashboard_outcomes` (no `hashed_contact`); `INSERT` on `operator_requests` only |
+| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access` and `outcomes`; outcomes through the view `dashboard_outcomes` (no `hashed_contact`, no `web`); `INSERT` on `operator_requests` only |
 
 The grants are `packages/db/sql/roles.sql`, applied by `db:migrate` after the migrations.
 
@@ -1083,12 +1093,12 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 | `data_fresh` | last successful sync under 26 h ago | — | 26 h or more | — |
 | `timezone_match` | every account's timezone = the product's | — | any differs | — |
 | `tracking_active` | the platform recorded conversions in the last 7 days | — | clicks ≥ `minClicksToJudgeTracking` and zero conversions | fewer clicks than that; or the KPI stage reaches the platform only through the agent's uploads and none were uploaded in the 7 days (D-075) |
-| `outcome_source_fresh` | adapter healthy, activity within `maxOutcomeStalenessHours` | healthy but quiet | adapter unreachable | — |
+| `outcome_source_fresh` (product) | adapter healthy, activity within `maxOutcomeStalenessHours` | healthy but quiet (or no activity yet) | adapter unreachable, never read, or not read for 26 h | — |
 | `attribution_gap` | the gap between platform conversions and our attributed outcomes is within `maxAttributionGapPct` | above it | — (never fails alone) | fewer outcomes than `minOutcomesForGap` |
 | `id_capture` | the share of recent outcomes carrying click/platform ids ≥ `minIdCapturePct` | below it | — | no recent outcomes |
 | `spend_cap_headroom` (Meta) | account spending limit is set and less than 80% of it is used | not set, or 80% or more used (it's a lifetime total that Marcus resets by hand, D-063), or not read yet | — | — |
 
-The checks run per active account (`trust_checks.account_id`), from what the sync stored: they read only the database, so a resumed cycle runs them without calling the platforms, and a re-run replaces the cycle's checks. No active account at all is a product-level `data_fresh` fail. `outcome_source_fresh` is switched on in M05a, `attribution_gap` and `id_capture` in M05b.
+The checks run per active account (`trust_checks.account_id`), from what the sync stored: they read only the database, so a resumed cycle runs them without calling the platforms, and a re-run replaces the cycle's checks. No active account at all is a product-level `data_fresh` fail. `outcome_source_fresh` is switched on in M05a, `attribution_gap` and `id_capture` in M05b. `outcome_source_fresh` is product level: the sync stage reads the product's outcomes through its pack (35 days back each time, so a source that deletes unconfirmed records after 30 days is seen whole; outcomes are kept, only `is_test` follows the source) and stores how the read went in `products.outcome_source`, which the check reads (D-076).
 
 The cycle result is `fail` if any check fails, which means a diagnostic brief only. It is `degraded` if any check warns: the brief shows the warnings, and proposals are still allowed. Otherwise it is `ok`.
 
@@ -1555,6 +1565,8 @@ Methods are tried in this order, and the first match wins:
 
 **Leave behind:** the SnapPool SQL used.
 
+**As built (D-076):** `ads settings set` records a `settings_patch`; seeding is `ads seed` (a product without settings in `products/seed.json` gets its pack's defaults); `facts_put` moved to M05b.
+
 ---
 
 ### M05b — Property pack (the G8 test), attribution, product docs
@@ -1579,9 +1591,11 @@ Methods are tried in this order, and the first match wins:
    - handle `product_doc_put` requests, plus `ads docs set --product X --doc strategy --file <path>`;
    - the analyst reads the latest version (M06b).
 4. The trust checks `attribution_gap` and `id_capture` are switched on.
+5. `facts_put` (moved from M05a): validate an offering's facts against its pack's fact schema in the request processor (`HandlerContext.packs`), then `putOfferingFacts`.
 
 **Tests:**
 - The property pack passes `definePack`, and its fixture adapter passes its tests and `healthcheck`.
+- `facts_put`: facts the pack's schema rejects are refused; unknown keys are refused by name.
 - Attribution: platform ids, gclid lookup, utm, none.
 - Product docs: versions increase; a stale `baseVersion` is refused.
 - The new trust checks, table-driven, including low volume.

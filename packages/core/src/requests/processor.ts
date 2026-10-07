@@ -4,6 +4,7 @@
 // NOTIFY request_done. A refusal is recorded with its reason and changes nothing else.
 import { GuardLoosenedError, OperatorRequest } from '@ads/contracts';
 import {
+  InvalidSettingsError,
   NotFoundError,
   RefusedError,
   StaleVersionError,
@@ -15,7 +16,7 @@ import {
   type Tx,
 } from '@ads/db';
 import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
-import { HANDLERS, NOT_AVAILABLE_UNTIL, type RequestHandler } from './handlers.ts';
+import { HANDLERS, NOT_AVAILABLE_UNTIL, type HandlerContext, type RequestHandler } from './handlers.ts';
 import { SettingsPatchError } from './settingsPatch.ts';
 
 const { operatorRequests } = schema;
@@ -23,7 +24,7 @@ const { operatorRequests } = schema;
 /** The channel request results are announced on; the payload is the request id. */
 export const REQUEST_DONE_CHANNEL = 'request_done';
 
-export interface RequestContext {
+export interface RequestContext extends HandlerContext {
   /** Who may make requests: Marcus's ids from config, e.g. `telegram:<user id>`, `web:<email>`, `cli:<name>`. */
   actors: ReadonlySet<string>;
 }
@@ -48,6 +49,7 @@ export function actorsFromEnv(text: string | undefined): ReadonlySet<string> {
  *  back, the request stays queued, and it is retried on the next pass. */
 const isRefusal = (e: unknown): e is Error =>
   e instanceof RefusedError ||
+  e instanceof InvalidSettingsError ||
   e instanceof StaleVersionError ||
   e instanceof NotFoundError ||
   e instanceof GuardLoosenedError ||
@@ -75,7 +77,7 @@ async function decide(tx: Tx, row: OperatorRequestRow, ctx: RequestContext): Pro
   }
   try {
     // A savepoint, so a refusal part-way through leaves nothing behind.
-    const result = await tx.transaction((sp) => handler(sp, request, row));
+    const result = await tx.transaction((sp) => handler(sp, request, row, ctx));
     return { status: 'done', result };
   } catch (error) {
     if (isRefusal(error)) return refused(error.message);

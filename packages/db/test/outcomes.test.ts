@@ -2,11 +2,13 @@ import type { OutcomeEvent } from '@ads/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   countFedBackSince,
+  countOutcomesByStage,
   insertOutcomes,
   listOutcomes,
   listUnattributed,
   markFedBack,
   setAttribution,
+  upsertOutcomes,
 } from '../src/repos/outcomes.ts';
 import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
 import { makeCampaign } from './helpers.ts';
@@ -78,5 +80,49 @@ describe('outcomes', () => {
     expect(await count('meta')).toBe(1);
     expect(await count('google', 'activated')).toBe(0);
     expect(await count('google', 'signup', new Date(Date.now() + 60_000))).toBe(0);
+  });
+});
+
+describe('upsertOutcomes (M05a)', () => {
+  it('inserts new outcomes with their web context, and on a re-read refreshes only is_test', async () => {
+    const { product } = await makeCampaign(t.db);
+    const web = { userAgent: 'Mozilla/5.0', pageUrl: 'https://example.com/start' };
+    expect(await upsertOutcomes(t.db, product.id, [event('u1', { web }), event('u2'), event('u2')])).toEqual({
+      inserted: 2,
+      testFlagChanged: 0,
+    });
+    // Re-read: u1 is now test traffic (a domain was added) and its ids changed at the source; u3 is new.
+    const again = [event('u1', { isTest: true, ids: { fbclid: 'other' }, web: undefined }), event('u2'), event('u3')];
+    expect(await upsertOutcomes(t.db, product.id, again)).toEqual({ inserted: 1, testFlagChanged: 1 });
+    const rows = await listOutcomes(t.db, {
+      productId: product.id,
+      from: new Date('2026-09-01'),
+      to: new Date('2026-10-01'),
+      includeTest: true,
+    });
+    const u1 = rows.find((r) => r.sourceId === 'u1');
+    expect(u1).toMatchObject({ isTest: true, ids: { gclid: 'g-1', utmSource: 'google' }, web });
+    expect(rows.map((r) => r.sourceId).sort()).toEqual(['u1', 'u2', 'u3']);
+    expect(await upsertOutcomes(t.db, product.id, [])).toEqual({ inserted: 0, testFlagChanged: 0 });
+  });
+
+  it('counts outcomes by stage in a window, test traffic apart', async () => {
+    const { product } = await makeCampaign(t.db);
+    await upsertOutcomes(t.db, product.id, [
+      event('c1'),
+      event('c2', { isTest: true }),
+      event('c1', { stage: 'activated' }),
+      event('c3', { occurredAt: '2026-08-01T00:00:00Z' }),
+    ]);
+    expect(
+      await countOutcomesByStage(t.db, {
+        productId: product.id,
+        from: new Date('2026-09-01'),
+        to: new Date('2026-10-01'),
+      }),
+    ).toEqual([
+      { stage: 'activated', outcomes: 1, test: 0 },
+      { stage: 'signup', outcomes: 1, test: 1 },
+    ]);
   });
 });

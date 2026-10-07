@@ -17,7 +17,7 @@ import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey } from '@ads/vault';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type CycleDeps, STAGES, resumeUnfinishedCycles, runCycle } from '../src/index.ts';
-import { NOW, type World, googleCassettes, makeWorld, metaCassettes, tokenFetch } from './support/world.ts';
+import { NOW, TEST_PACKS, type World, googleCassettes, makeWorld, metaCassettes, tokenFetch } from './support/world.ts';
 
 let t: TestDatabase;
 let world: World;
@@ -37,6 +37,8 @@ const deps = (replay: ReplayFetch, extra: Partial<CycleDeps> = {}): CycleDeps =>
   fetch: replay.fetch,
   tokenFetch,
   now: () => NOW,
+  packs: TEST_PACKS,
+  env: {},
   ...extra,
 });
 const count = async (table: string): Promise<number> =>
@@ -72,7 +74,7 @@ describe('runCycle', () => {
     });
     const cycle = await getCycle(t.db, summary.cycleId ?? '');
     expect(cycle.finishedAt).not.toBeNull();
-    expect(await listTrustChecks(t.db, cycle.id)).toHaveLength(7);
+    expect(await listTrustChecks(t.db, cycle.id)).toHaveLength(8);
   });
 
   it('scheduled cycles are unique per product, kind and day, even when two runs race', async () => {
@@ -86,7 +88,7 @@ describe('runCycle', () => {
     expect(outcomes[1]).toBe('finished');
     expect(new Set(results.map((r) => r.cycleId)).size).toBe(1);
     expect(await listCycles(t.db, world.productId)).toHaveLength(1);
-    expect(await count('trust_checks')).toBe(7);
+    expect(await count('trust_checks')).toBe(8);
 
     // Run again later the same day: nothing to do, and no API call.
     const quiet = replayFetch([]);
@@ -231,7 +233,7 @@ describe('crash-resume', () => {
     });
     expect(quiet.calls).toHaveLength(0);
     expect(await count('ad_entity_snapshots')).toBe(snapshots);
-    expect(await listTrustChecks(t.db, cycle?.id ?? '')).toHaveLength(7);
+    expect(await listTrustChecks(t.db, cycle?.id ?? '')).toHaveLength(8);
     expect(await listCycles(t.db, world.productId)).toHaveLength(1);
   }, 60_000);
 });

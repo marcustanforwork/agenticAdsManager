@@ -1,8 +1,8 @@
 // Products, settings (optimistic concurrency + full history), product documents, offerings, pack manifests.
-import { ProductSettings } from '@ads/contracts';
+import { OutcomeSourceState, ProductSettings } from '@ads/contracts';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
-import { NotFoundError, StaleVersionError } from '../errors.ts';
+import { InvalidSettingsError, NotFoundError, StaleVersionError } from '../errors.ts';
 import { offerings, packManifests, productDocs, products, settingsHistory, type PRODUCT_STATUSES } from '../schema.ts';
 
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
@@ -10,7 +10,31 @@ export type ProductRow = typeof products.$inferSelect;
 /** A product with its settings validated: settings are checked on every write AND every read. */
 export type Product = Omit<ProductRow, 'settings'> & { settings: ProductSettings };
 
-const toProduct = (row: ProductRow): Product => ({ ...row, settings: ProductSettings.parse(row.settings) });
+/** Validates the stored settings. A bad stored value throws InvalidSettingsError and is never used. */
+function toProduct(row: ProductRow): Product {
+  const parsed = ProductSettings.safeParse(row.settings);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`);
+    throw new InvalidSettingsError(row.id, row.slug, issues);
+  }
+  return { ...row, settings: parsed.data };
+}
+
+/** What the last read of the product's outcome source found, or null (never read, or unreadable). */
+export function outcomeSourceOf(product: Pick<ProductRow, 'outcomeSource'>): OutcomeSourceState | null {
+  const parsed = OutcomeSourceState.safeParse(product.outcomeSource);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Records the latest read of the product's outcome source (validated). */
+export async function setOutcomeSource(db: DbOrTx, productId: string, state: OutcomeSourceState): Promise<void> {
+  const updated = await db
+    .update(products)
+    .set({ outcomeSource: OutcomeSourceState.parse(state) })
+    .where(eq(products.id, productId))
+    .returning({ id: products.id });
+  if (updated.length === 0) throw new NotFoundError('product', productId);
+}
 
 export interface NewProduct {
   slug: string;
@@ -45,6 +69,26 @@ export async function getProduct(db: DbOrTx, id: string): Promise<Product> {
   const [row] = await db.select().from(products).where(eq(products.id, id));
   if (!row) throw new NotFoundError('product', id);
   return toProduct(row);
+}
+
+/** The stored settings document as it is, NOT validated, with its version. Only for repairing a document that
+ *  fails validation: a settings_patch merges onto it, and the result is validated before it's saved. */
+export async function getStoredSettings(
+  db: DbOrTx,
+  id: string,
+): Promise<{ slug: string; packId: string; status: ProductStatus; settings: unknown; version: number }> {
+  const [row] = await db
+    .select({
+      slug: products.slug,
+      packId: products.packId,
+      status: products.status,
+      settings: products.settings,
+      version: products.settingsVersion,
+    })
+    .from(products)
+    .where(eq(products.id, id));
+  if (!row) throw new NotFoundError('product', id);
+  return row;
 }
 
 export async function listProducts(db: DbOrTx): Promise<Product[]> {

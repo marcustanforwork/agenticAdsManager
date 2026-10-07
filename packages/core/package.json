@@ -29,6 +29,7 @@
   "devDependencies": {
     "@ads/connector-testing": "workspace:*",
     "@types/pg": "8.23.1",
-    "pg": "8.23.0"
+    "pg": "8.23.0",
+    "zod": "4.6.5"
   }
 }

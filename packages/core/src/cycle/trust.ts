@@ -1,15 +1,17 @@
 // The trust checks (BLUEPRINT §5.8, M04): named checks that pass, warn, fail, or have too little data to judge
 // (`no_signal`). They read only the database (what the sync stored), never the platforms, so a resumed cycle can
-// run them again for free. `outcome_source_fresh` is switched on in M05a, `attribution_gap` and `id_capture`
+// run them again for free. `outcome_source_fresh` is on from M05a; `attribution_gap` and `id_capture` arrive
 // in M05b. A cycle whose checks fail produces a diagnostic report only.
-import type { Platform, ProductSettings } from '@ads/contracts';
+import type { OutcomeSourceState, Platform, ProductSettings } from '@ads/contracts';
 import {
   type Account,
   type DbOrTx,
   type Product,
   type TrustCheck,
   countFedBackSince,
+  getProduct,
   listAccounts,
+  outcomeSourceOf,
   replaceTrustChecks,
   trustSignalsOf,
 } from '@ads/db';
@@ -88,6 +90,35 @@ export function spendCapHeadroom(input: {
   const usedPct = cap > 0n ? Number((spent * 1000n) / cap) / 10 : 100;
   const detail = { spendCapMicros: cap.toString(), amountSpentMicros: spent.toString(), usedPct };
   return { result: spent * 100n >= cap * BigInt(SPEND_CAP_WARN_PCT) ? 'warn' : 'pass', detail };
+}
+
+/** `outcome_source_fresh` (product level): the last read of the product's outcome source (stored by the sync).
+ *  Unread, unreadable or not read for DATA_FRESH_MAX_HOURS fails; healthy but with no activity within
+ *  `maxOutcomeStalenessHours` warns (quiet, not broken). */
+export function outcomeSourceFresh(input: {
+  state: OutcomeSourceState | null;
+  now: Date;
+  maxStalenessHours: number;
+}): CheckOutcome {
+  const { state, now } = input;
+  if (state === null) return { result: 'fail', detail: { reason: 'the outcome source has not been read yet' } };
+  const hoursSince = (iso: string): number => Math.round(((now.getTime() - Date.parse(iso)) / HOUR_MS) * 10) / 10;
+  const read = { checkedAt: state.checkedAt, readAgeHours: hoursSince(state.checkedAt) };
+  if (!state.ok) {
+    return { result: 'fail', detail: { ...read, reason: 'the outcome source could not be read', error: state.detail } };
+  }
+  if (read.readAgeHours >= DATA_FRESH_MAX_HOURS) {
+    return { result: 'fail', detail: { ...read, reason: 'the outcome source was not read recently' } };
+  }
+  const limits = { maxOutcomeStalenessHours: input.maxStalenessHours };
+  if (state.latestActivityAt === null) {
+    return { result: 'warn', detail: { ...read, ...limits, latestActivityAt: null, reason: 'no activity yet' } };
+  }
+  const activityAgeHours = hoursSince(state.latestActivityAt);
+  const detail = { ...read, ...limits, latestActivityAt: state.latestActivityAt, activityAgeHours };
+  return activityAgeHours <= input.maxStalenessHours
+    ? { result: 'pass', detail }
+    : { result: 'warn', detail: { ...detail, reason: 'healthy but quiet' } };
 }
 
 /** The cycle's trust result: `fail` if any check fails, `degraded` if any warns, else `ok`. */
@@ -174,6 +205,18 @@ export async function trustStage(
       add(account, 'spend_cap_headroom', { ...outcome, detail: { ...outcome.detail, ...read } });
     }
   }
+
+  // Read again: the sync stage of this cycle stored the outcome source's state after `product` was loaded.
+  const current = await getProduct(db, product.id);
+  add(
+    null,
+    'outcome_source_fresh',
+    outcomeSourceFresh({
+      state: outcomeSourceOf(current),
+      now,
+      maxStalenessHours: current.settings.trust.maxOutcomeStalenessHours,
+    }),
+  );
 
   const stored = await replaceTrustChecks(db, { productId: product.id, cycleId: input.cycleId, checks });
   return { result: trustResultOf(checks.map((c) => c.result)), checks: stored };

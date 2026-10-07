@@ -41,9 +41,12 @@ export function metaReadConfig(settings: ProductSettings): {
     warnings.push(`${(e as Error).message}: platform conversions read as 0`);
   }
   // The trust check watches the KPI stage's dataset, or else any Meta dataset in the settings: a configured
-  // dataset is never left unwatched just because the KPI stage isn't routed to Meta.
-  const anyMeta = feedback.filter((r) => r.platform === 'meta');
-  const datasetIds = [...new Set((routes.length > 0 ? routes : anyMeta).map((r) => r.destinationId))];
+  // dataset is never left unwatched just because the KPI stage isn't routed to Meta, or its route isn't set up yet
+  // (a null destination still counts its event, D-076).
+  const datasetsOf = (rs: typeof feedback): string[] =>
+    rs.flatMap((r) => (r.platform !== 'meta' || r.destinationId === null ? [] : [r.destinationId]));
+  const kpiDatasets = datasetsOf(routes);
+  const datasetIds = [...new Set(kpiDatasets.length > 0 ? kpiDatasets : datasetsOf(feedback))];
   if (datasetIds.length > 1)
     warnings.push(`several Meta datasets in the settings; the trust signals use ${datasetIds[0]}`);
   const [datasetId] = datasetIds;
@@ -63,7 +66,11 @@ export function googleReadConfig(settings: ProductSettings): { conversionActionI
   }
   const conversionActionIds: string[] = [];
   for (const r of routes) {
-    if (/^\d{1,19}$/.test(r.destinationId)) conversionActionIds.push(r.destinationId);
+    if (r.destinationId === null) {
+      warnings.push(
+        `the Google route for "${r.stage}" has no conversion action id yet: platform conversions read as 0`,
+      );
+    } else if (/^\d{1,19}$/.test(r.destinationId)) conversionActionIds.push(r.destinationId);
     else warnings.push(`the Google route for "${r.stage}" has a destinationId that is not a conversion action id`);
   }
   return { conversionActionIds: [...new Set(conversionActionIds)], warnings };

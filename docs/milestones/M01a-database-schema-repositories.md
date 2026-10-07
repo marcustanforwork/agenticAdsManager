@@ -72,10 +72,10 @@ Needs T2 (Neon project with `prod` and `dev` branches) and T3 (Doppler). Run on 
 2. In Doppler's `dev` config, add `DATABASE_URL` = the Neon **dev** branch's owner connection string.
 3. `doppler run --config dev -- pnpm --filter @ads/db db:migrate`, then run it a second time.
    - expect: `migrations and roles.sql applied`, both times.
-4. `doppler run --config dev -- pnpm --filter @ads/db db:seed`
+4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads seed` (was `db:seed`; moved to the worker in M05a, D-076)
    - expect: `{"productsCreated":["snappool","property-sg"],"offeringsEnsured":2,"flagsCreated":["writes_enabled"]}`
 5. **Prod** (the owner string isn't kept in Doppler's service configs): `read -rs DATABASE_URL && export DATABASE_URL`, paste the Neon **prod** branch's owner connection string, press Enter. Then:
-   `pnpm --filter @ads/db db:migrate && pnpm --filter @ads/db db:seed && unset DATABASE_URL`
+   `pnpm --filter @ads/db db:migrate && pnpm --silent --filter @ads/app-worker ads seed && unset DATABASE_URL`
    - expect: the same two lines as steps 3 and 4.
 6. Check in the Neon SQL editor, on **prod**: `select slug, status, settings_version from products order by slug; select key, value from system_flags;`
    - expect: `property-sg | dormant | 1`, `snappool | active | 1`, and `writes_enabled | false`.

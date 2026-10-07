@@ -61,3 +61,17 @@ function findPgError(error: unknown): { code?: string; constraint?: string } | n
   }
   return null;
 }
+
+/** A product's stored settings fail validation. They are never used: the cycle stops and alerts (M05a). */
+export class InvalidSettingsError extends Error {
+  readonly productId: string;
+  readonly slug: string;
+  readonly issues: string[];
+  constructor(productId: string, slug: string, issues: string[]) {
+    super(`the stored settings of ${slug} are invalid: ${issues.join('; ')}`);
+    this.name = 'InvalidSettingsError';
+    this.productId = productId;
+    this.slug = slug;
+    this.issues = issues;
+  }
+}

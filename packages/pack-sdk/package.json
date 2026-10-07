@@ -18,6 +18,10 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@ads/contracts": "workspace:*"
+    "@ads/contracts": "workspace:*",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0"
   }
 }

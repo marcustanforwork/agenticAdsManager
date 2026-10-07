@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Version** | v1.2 — 2026-09-25 (approved by Marcus; fixes from reading SnapPool's code, D-064; the prompt for the SnapPool session, §7) |
-| **Status** | **Approved** by Marcus on 2026-09-25 (D-060, Q11). Not built yet: setup task T6b. |
+| **Status** | **Approved** by Marcus on 2026-09-25 (D-060, Q11). **Built and live on production since 2026-09-25 17:01 UTC** (setup task T6b; SnapPool Session 41). |
 | **Built in** | The **SnapPool repo** (`marcustanforwork/snappool`), by a SnapPool session following SnapPool's own process. This repo only uses what it produces. |
 | **Used by** | M05a (outcomes), M05b (attribution), M12 (Meta uploads) and M13 (Google uploads) in this repo |
 | **Based on** | The SnapPool repo at commit `a6c190a` (still its `main` on 2026-09-25) and its `memory/MEMORY.md`, `CLAUDE.md` and blueprint, read on 2026-09-25. |
@@ -177,7 +177,7 @@ Then update the page's `updated` date. A starting point for the words: *"To lear
 - **Q11:** approved by Marcus on 2026-09-25 (D-060). He approves the privacy-page words in the SnapPool PR (§3.4).
 - **The Meta event names:** the defaults are `Lead` and `CompleteRegistration`.
 - **Setup task T14:** the ad URL settings in §3.1, applied when the ads are created.
-- **When it's live on production, record the date** in this repo's `docs/memory/NOW.md`. Attribution data starts from that day.
+- **Live on production since 2026-09-25 17:01 UTC** (SnapPool Session 41, its PR #108; recorded in NOW.md on 2026-10-06). Attribution data starts then. SnapPool still owes one real `/start` on production that shows the three columns filled.
 - **For the agent (M05a):** SnapPool deletes pending requests after 30 days, so the adapter reads at least daily and keeps what it has read. A pending row that disappears is not a deleted outcome.
 
 ---

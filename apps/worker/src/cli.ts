@@ -1,10 +1,15 @@
 #!/usr/bin/env node
-// The `ads` CLI. Like every surface, it will only create operator requests (invariant 9). The `credentials`
-// commands are setup: they store tokens in the vault and never touch an ad account.
+// The `ads` CLI. Like every surface, it only creates operator requests (invariant 9): `ads settings set` records a
+// settings_patch for the one processor. The `credentials`, `accounts` and `seed` commands are setup, and the
+// reads (`sync --dry`, `cycle`, `outcomes`) never touch an ad account.
 import { readFileSync } from 'node:fs';
 import { dryRunSync, runCycle } from '@ads/core';
-import { type DbOrTx, NotFoundError, findProductBySlug } from '@ads/db';
+import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
+import type { PackRegistry } from '@ads/pack-sdk';
 import { accountsCommand } from './accounts.ts';
+import { outcomesCommand } from './outcomes.ts';
+import { INSTALLED_PACKS } from './packs.ts';
+import { seedCommand, settingsCommand } from './settings.ts';
 import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, withDatabase, type CliDeps } from '@ads/vault';
 import { Command, InvalidArgumentError, Option } from 'commander';
 
@@ -15,10 +20,12 @@ const productSlug = (value: string): string => {
   return value;
 };
 
-/** What the commands touch. `fetch` and `now` replace the network and the clock in tests. */
+/** What the commands touch. `fetch` and `now` replace the network and the clock in tests; `packs` the installed
+ *  packs (default INSTALLED_PACKS). */
 export interface WorkerCliDeps extends CliDeps {
   fetch?: typeof fetch;
   now?: () => Date;
+  packs?: PackRegistry;
 }
 export type { CliDeps };
 
@@ -39,9 +46,14 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
     if (product === undefined) throw new InvalidArgumentError('--product <slug> is required');
     return product;
   };
-  const withDb = <T>(run: (db: DbOrTx) => Promise<T>): Promise<T> => withDatabase(deps, run);
+  const withDb = <T>(run: (db: Db) => Promise<T>): Promise<T> => withDatabase(deps, run);
+  const packs = deps.packs ?? INSTALLED_PACKS;
+  const now = deps.now ?? (() => new Date());
 
   program.addCommand(accountsCommand(withDb, requireProduct, deps.print));
+  program.addCommand(settingsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
+  program.addCommand(outcomesCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
+  program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
 
   program
     .command('cycle')
@@ -74,12 +86,18 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
             masterKey,
             process: 'cli',
             ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
-            now: deps.now ?? (() => new Date()),
+            now,
+            packs,
+            env: deps.env,
           },
           { productId: product.id, kind: opts.kind, ...(opts.until === undefined ? {} : { until: opts.until }) },
         );
         deps.print(JSON.stringify(summary, null, 2));
-        if (summary.sync?.accounts.some((a) => a.outcome === 'error') || summary.trustResult === 'fail') {
+        if (
+          summary.outcome === 'blocked' ||
+          summary.sync?.accounts.some((a) => a.outcome === 'error') ||
+          summary.trustResult === 'fail'
+        ) {
           process.exitCode = 1;
         }
       });

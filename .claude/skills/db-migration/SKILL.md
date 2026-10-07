@@ -58,7 +58,8 @@ means: contracts `ProposalStatus`, the schema check list, the table, the exhaust
 - Locally/CI: tests apply everything automatically.
 - A real database (Marcus runs it; never in a cloud session):
   `doppler run --config <dev|prd> -- pnpm --filter @ads/db db:migrate` (migrations + roles.sql), then
-  `db:seed` only when the milestone says so. The seed never overwrites existing rows.
+  the seed (`pnpm --silent --filter @ads/app-worker ads seed`, which takes missing settings from the packs, D-076)
+  only when the milestone says so. The seed never overwrites existing rows.
 
 ## 6. Before pushing
 

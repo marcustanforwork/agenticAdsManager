@@ -60,6 +60,7 @@ export const products = pgTable(
     status: text('status', { enum: PRODUCT_STATUSES }).notNull().default('active'),
     settings: jsonb('settings').notNull(), // ProductSettings; validated on every write AND every read
     settingsVersion: integer('settings_version').notNull().default(1),
+    outcomeSource: jsonb('outcome_source'), // OutcomeSourceState: the last read of the pack's outcome source (M05a)
     createdAt: tstz('created_at').notNull().defaultNow(),
   },
   (t) => [
@@ -347,6 +348,7 @@ export const outcomes = pgTable(
     isTest: boolean('is_test').notNull().default(false),
     ids: jsonb('ids').notNull().default({}), // ClickAndPlatformIds
     hashedContact: jsonb('hashed_contact'), // SHA-256 only, never raw
+    web: jsonb('web'), // WebContext (user agent, page URL) for Meta website events; not in dashboard_outcomes
     attributedEntityId: uuid('attributed_entity_id').references(() => adEntities.id), // campaign level
     attributionMethod: text('attribution_method', { enum: ATTRIBUTION_METHODS }),
     fedBackGoogleAt: tstz('fed_back_google_at'),

@@ -120,7 +120,14 @@ const samples: Record<string, unknown[]> = {
   EvidenceThreshold: [{ minImpressions: 1000, minClicks: 30, minSpendMicros: '20000000', minDays: 7 }],
   NamedQueryId: ['spend_by_campaign'],
   ClickAndPlatformIds: [{}, conversion.ids],
-  HashedContact: [{ emailSha256: sha, phoneSha256: sha }],
+  HashedContact: [
+    { emailSha256: sha, phoneSha256: sha },
+    { emailSha256: sha, emailSha256Google: sha },
+  ],
+  OutcomeSourceState: [
+    { checkedAt: at, ok: false, latestActivityAt: null, detail: 'cannot read the source' },
+    { checkedAt: at, ok: true, latestActivityAt: at, read: { since: at, events: 4, new: 1, skipped: 0 } },
+  ],
   WebContext: [conversion.web],
   OutcomeEvent: [
     {

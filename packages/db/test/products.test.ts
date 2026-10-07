@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { StaleVersionError } from '../src/errors.ts';
+import { InvalidSettingsError, StaleVersionError } from '../src/errors.ts';
 import {
   createProduct,
   ensureOffering,
@@ -10,9 +10,11 @@ import {
   getProductDoc,
   getSettingsHistory,
   listOfferings,
+  outcomeSourceOf,
   publishPackManifest,
   putOfferingFacts,
   putProductDoc,
+  setOutcomeSource,
   setProductStatus,
   updateSettings,
 } from '../src/repos/products.ts';
@@ -49,10 +51,28 @@ describe('products and settings', () => {
     );
   });
 
-  it('validates settings on read: a corrupted document throws', async () => {
+  it('validates settings on read: a corrupted document throws InvalidSettingsError, naming the problems', async () => {
     const p = await makeProduct(t.db);
     await t.pool.query(`update products set settings = '{"spend": 1}' where id = $1`, [p.id]);
-    await expect(getProduct(t.db, p.id)).rejects.toThrow();
+    const error = await getProduct(t.db, p.id).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(InvalidSettingsError);
+    expect(error).toMatchObject({ productId: p.id, slug: p.slug });
+    expect((error as InvalidSettingsError).issues).toContain('spend: Invalid input: expected object, received number');
+    await expect(findProductBySlug(t.db, p.slug)).rejects.toThrow(InvalidSettingsError);
+  });
+
+  it('stores the outcome source state, validated, and reads it back', async () => {
+    const p = await makeProduct(t.db);
+    expect(outcomeSourceOf(p)).toBeNull();
+    const state = {
+      checkedAt: '2026-10-06T01:00:00.000Z',
+      ok: true,
+      latestActivityAt: '2026-10-05T23:00:00.000Z',
+      read: { since: '2026-09-01T00:00:00.000Z', events: 3, new: 2, skipped: 0 },
+    };
+    await setOutcomeSource(t.db, p.id, state);
+    expect(outcomeSourceOf(await getProduct(t.db, p.id))).toEqual(state);
+    await expect(setOutcomeSource(t.db, p.id, { ...state, ok: 'yes' } as never)).rejects.toThrow();
   });
 
   it('updates settings with optimistic concurrency and keeps every version', async () => {

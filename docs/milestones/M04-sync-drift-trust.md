@@ -69,7 +69,7 @@ The first two cycle steps, end to end, for both platforms and both products.
   - result: —
 
 ### Live steps for Marcus
-_After the M01a, M02 and M03 live steps (D-074: at the end of Phase 0). Doppler `dev`, Neon dev branch, read credentials only._
+_After the M01a, M02 and M03 live steps (D-074: at the end of Phase 0). Doppler `dev`, Neon dev branch, read credentials only. **Since M05a** the cycle also reads SnapPool's outcomes and runs `outcome_source_fresh`: Doppler `dev` needs `SNAPPOOL_DATABASE_URL` (the read-only string, T6a), or that check fails and so does the cycle (D-076)._
 1. `git pull` on `main`, `pnpm install`, then `doppler run --config dev -- pnpm --filter @ads/db db:migrate`
    - expect: `migrations and roles.sql applied` (adds the accounts' sync columns, migration 0002).
 2. Day 1: `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads cycle --product snappool --kind daily --until trust_checked`
