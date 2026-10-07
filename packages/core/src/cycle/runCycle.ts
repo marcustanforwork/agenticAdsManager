@@ -26,6 +26,7 @@ import {
   tryAdvisoryLock,
 } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
+import { type AttributionRunSummary, attributeOutcomes } from '../attribution/attribute.ts';
 import { type OutcomeReadSummary, syncOutcomes } from '../outcomes/sync.ts';
 import { alertInvalidSettings, assertSettingsUsable } from '../settings/settings.ts';
 import { type SyncDeps, type SyncStageResult, syncStage } from '../sync/stage.ts';
@@ -62,6 +63,8 @@ export interface CycleSummary {
   sync?: SyncStageResult;
   /** The read of the product's outcomes, in the sync stage (M05a). */
   outcomes?: OutcomeReadSummary;
+  /** Outcomes credited to campaigns after the sync (M05b). */
+  attribution?: AttributionRunSummary;
   trust?: {
     result: TrustResult;
     checks: { account: string | null; check: string; result: CheckResult; detail: unknown }[];
@@ -99,6 +102,8 @@ export const STAGES: readonly StageStep[] = [
           { readSince: cycle.startedAt },
         );
       }
+      // After both reads: the entities and click ids just synced are what outcomes are matched against.
+      summary.attribution = await attributeOutcomes(deps.db, { productId: product.id, now: deps.now() });
       return {};
     },
   },

@@ -68,6 +68,12 @@ describe('runCycle', () => {
     });
     expect(summary.resumedFrom).toBeUndefined();
     expect(summary.sync?.accounts.map((a) => a.outcome)).toEqual(['synced', 'synced']);
+    // After the sync, the outcomes read are matched to campaigns (M05b): the pack's two carry no campaign.
+    expect(summary.attribution).toEqual({
+      checked: 2,
+      attributed: { platform_ids: 0, gclid_lookup: 0, utm: 0 },
+      none: 2,
+    });
     expect(summary.trust?.checks.find((c) => c.check === 'spend_cap_headroom')).toMatchObject({
       account: 'meta:act_1234567890',
       result: 'warn',

@@ -1,9 +1,9 @@
 // Outcomes (conversions pulled from each product by its pack's adapter) and their attribution and uploads.
 import { microsFromJson, OutcomeEvent, type Platform } from '@ads/contracts';
-import { and, asc, count, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { inBatches } from './batch.ts';
-import { outcomes, type ATTRIBUTION_METHODS } from '../schema.ts';
+import { adEntities, outcomes, type ATTRIBUTION_METHODS } from '../schema.ts';
 
 export type Outcome = typeof outcomes.$inferSelect;
 export type AttributionMethod = (typeof ATTRIBUTION_METHODS)[number];
@@ -99,6 +99,50 @@ export async function listUnattributed(db: DbOrTx, productId: string, limit = 50
     .limit(limit);
 }
 
+/** The outcomes to attribute (M05b): every one not attributed yet, and those found unattributable (`none`) that
+ *  occurred since `retrySince` (their click id or campaign may arrive with a later sync). Oldest first. */
+export async function listAttributionCandidates(
+  db: DbOrTx,
+  input: { productId: string; retrySince: Date; limit?: number },
+): Promise<Outcome[]> {
+  return db
+    .select()
+    .from(outcomes)
+    .where(
+      and(
+        eq(outcomes.productId, input.productId),
+        or(
+          isNull(outcomes.attributionMethod),
+          and(eq(outcomes.attributionMethod, 'none'), gte(outcomes.occurredAt, input.retrySince)),
+        ),
+      ),
+    )
+    .orderBy(asc(outcomes.occurredAt), asc(outcomes.id))
+    .limit(input.limit ?? 5000);
+}
+
+/** Records many attributions, one update per (method, entity). */
+export async function setAttributions(
+  db: DbOrTx,
+  rows: { outcomeId: string; entityId: string | null; method: AttributionMethod }[],
+): Promise<void> {
+  const groups = new Map<string, { entityId: string | null; method: AttributionMethod; ids: string[] }>();
+  for (const r of rows) {
+    const key = `${r.method}\u0000${r.entityId ?? ''}`;
+    const group = groups.get(key) ?? { entityId: r.entityId, method: r.method, ids: [] };
+    group.ids.push(r.outcomeId);
+    groups.set(key, group);
+  }
+  for (const g of groups.values()) {
+    await inBatches(db, g.ids, (tx, ids) =>
+      tx
+        .update(outcomes)
+        .set({ attributedEntityId: g.entityId, attributionMethod: g.method })
+        .where(inArray(outcomes.id, ids)),
+    );
+  }
+}
+
 export async function setAttribution(
   db: DbOrTx,
   input: { outcomeId: string; entityId: string | null; method: AttributionMethod },
@@ -167,4 +211,98 @@ export async function countOutcomesByStage(
     .groupBy(outcomes.stage)
     .orderBy(outcomes.stage);
   return rows;
+}
+
+export interface AttributionCount {
+  stage: string;
+  /** The attribution method, or null while not attributed yet. */
+  method: AttributionMethod | null;
+  outcomes: number;
+}
+
+/** Outcomes (test traffic apart) in [from, to) per stage and attribution method: the attribution rate (M05b). */
+export async function countAttribution(
+  db: DbOrTx,
+  input: { productId: string; from: Date; to: Date },
+): Promise<AttributionCount[]> {
+  return db
+    .select({ stage: outcomes.stage, method: outcomes.attributionMethod, outcomes: sql<number>`count(*)::int` })
+    .from(outcomes)
+    .where(
+      and(
+        eq(outcomes.productId, input.productId),
+        eq(outcomes.isTest, false),
+        gte(outcomes.occurredAt, input.from),
+        lt(outcomes.occurredAt, input.to),
+      ),
+    )
+    .groupBy(outcomes.stage, outcomes.attributionMethod)
+    .orderBy(outcomes.stage, outcomes.attributionMethod);
+}
+
+/** The click and platform ids an outcome may carry (ClickAndPlatformIds without the utm values): what the
+ *  `id_capture` trust check looks for. */
+export const CAPTURED_ID_KEYS = [
+  'gclid',
+  'gbraid',
+  'wbraid',
+  'fbclid',
+  'fbc',
+  'fbp',
+  'googleCampaignId',
+  'googleAdGroupId',
+  'metaCampaignId',
+  'metaAdSetId',
+  'metaAdId',
+] as const;
+
+/** Outcomes of `stage` in [from, to), test traffic apart: how many, and how many carry a click or platform id
+ *  (the `id_capture` trust check, M05b). */
+export async function countIdCapture(
+  db: DbOrTx,
+  input: { productId: string; stage: string; from: Date; to: Date },
+): Promise<{ outcomes: number; withIds: number }> {
+  const keys = sql.join(
+    CAPTURED_ID_KEYS.map((k) => sql`${k}`),
+    sql`, `,
+  );
+  const [row] = await db
+    .select({
+      outcomes: sql<number>`count(*)::int`,
+      withIds: sql<number>`(count(*) filter (where ${outcomes.ids} ?| array[${keys}]::text[]))::int`,
+    })
+    .from(outcomes)
+    .where(
+      and(
+        eq(outcomes.productId, input.productId),
+        eq(outcomes.stage, input.stage),
+        eq(outcomes.isTest, false),
+        gte(outcomes.occurredAt, input.from),
+        lt(outcomes.occurredAt, input.to),
+      ),
+    );
+  return { outcomes: row?.outcomes ?? 0, withIds: row?.withIds ?? 0 };
+}
+
+/** Outcomes of `stage` in [from, to), test traffic apart, attributed to a campaign of `accountId` (the
+ *  `attribution_gap` trust check compares them with the platform's own conversions, M05b). */
+export async function countAttributedToAccount(
+  db: DbOrTx,
+  input: { productId: string; accountId: string; stage: string; from: Date; to: Date },
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(outcomes)
+    .innerJoin(adEntities, eq(adEntities.id, outcomes.attributedEntityId))
+    .where(
+      and(
+        eq(outcomes.productId, input.productId),
+        eq(outcomes.stage, input.stage),
+        eq(outcomes.isTest, false),
+        eq(adEntities.accountId, input.accountId),
+        gte(outcomes.occurredAt, input.from),
+        lt(outcomes.occurredAt, input.to),
+      ),
+    );
+  return row?.n ?? 0;
 }

@@ -20,4 +20,5 @@ export * from './cycle/trust.ts';
 export * from './cycle/runCycle.ts';
 export * from './settings/settings.ts';
 export * from './outcomes/sync.ts';
+export * from './attribution/attribute.ts';
 export * from './packs.ts';

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { OutcomeEvent } from '@ads/contracts';
 import { settingsFromPack } from '@ads/core';
-import { connect, findProductBySlug, getPackManifest } from '@ads/db';
+import { connect, createProduct, findProductBySlug, getPackManifest, upsertAccount, upsertAdEntity } from '@ads/db';
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import propertySg from '@ads/pack-property-sg';
 import snappool from '@ads/pack-saas-snappool';
@@ -224,6 +224,67 @@ describe('ads outcomes', () => {
     expect((out['stages'] as Record<string, unknown>[]).filter((s) => s['kpi']).map((s) => s['stage'])).toEqual([
       'paid',
     ]);
+  });
+
+  it("credits outcomes to campaigns and prints the KPI stage's attribution rate", async () => {
+    const product = await createProduct(t.db, {
+      slug: 'attr-rate',
+      name: 'Attribution',
+      packId: 'saas-snappool',
+      settings: settingsFromPack(snappool.manifest),
+    });
+    const account = await upsertAccount(t.db, { productId: product.id, platform: 'meta', externalId: 'act_5550001' });
+    await upsertAdEntity(t.db, {
+      productId: product.id,
+      accountId: account.id,
+      platform: 'meta',
+      type: 'campaign',
+      externalId: '120210000000000001',
+      name: 'Signups',
+      status: 'active',
+      rawStatus: 'ACTIVE',
+    });
+    const signup = (sourceId: string, ids: OutcomeEvent['ids'], isTest = false): OutcomeEvent => ({
+      sourceId,
+      stage: 'signup',
+      occurredAt: '2026-10-03T02:00:00Z',
+      isTest,
+      ids,
+    });
+    const source: OutcomeEvent[] = [
+      signup('a1', { metaCampaignId: '120210000000000001', fbclid: 'f1' }),
+      signup('a2', { utmSource: 'meta', utmCampaign: 'Signups' }),
+      signup('a3', { fbclid: 'f3' }), // Meta can't say which campaign an fbclid came from
+      signup('o1', {}),
+      signup('t1', { metaCampaignId: '120210000000000001' }, true),
+    ];
+    const packs = createRegistry([
+      {
+        manifest: snappool.manifest,
+        runtime: {
+          ...snappool.runtime,
+          outcomeAdapter: () => ({
+            fetchSince: () => Promise.resolve(source),
+            healthcheck: () => Promise.resolve({ ok: true, latestActivityAt: new Date('2026-10-03T02:00:00Z') }),
+          }),
+        },
+      },
+    ]);
+    const out = await run(['outcomes', '--product', 'attr-rate'], {}, packs).json();
+    expect(out['attribution']).toEqual({
+      stage: 'signup',
+      outcomes: 4,
+      attributed: 2,
+      ratePct: 50,
+      byMethod: { platform_ids: 1, gclid_lookup: 0, utm: 1, none: 2, pending: 0 },
+      run: { checked: 5, attributed: { platform_ids: 2, gclid_lookup: 0, utm: 1 }, none: 2 },
+    });
+    const signups = (out['stages'] as Record<string, unknown>[]).find((s) => s['stage'] === 'signup');
+    expect(signups).toMatchObject({ outcomes: 4, test: 1, attributed: 2 });
+    // Without reading, nothing is attributed again and the stored rate is shown.
+    const stored = await run(['outcomes', '--product', 'attr-rate', '--no-read'], {}, packs).json();
+    expect(stored['attribution']).toMatchObject({ outcomes: 4, attributed: 2, ratePct: 50 });
+    expect(stored['attribution']).not.toHaveProperty('run');
   });
 
   it('fails (exit 1) when the source cannot be read, and says why', async () => {
