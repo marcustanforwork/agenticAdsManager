@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-07 — M05b: property pack (G8), attribution, product docs, facts_put
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10)
+- **Did:** the property pack (`packages/packs/property-sg`: manifest, `detectPhase`, an Airtable adapter tested on a hand-made fixture), committed alone, and the G8 check passed (c1d9798 touches no core, gateway or connector file); `facts_put` and `product_doc_put` in the one processor; product docs seeded by `ads seed`, plus `ads docs list|get|set`; `core/attribution` (§5.12) in the cycle's sync stage and `ads outcomes` (the attribution rate); the `attribution_gap` and `id_capture` trust checks; the `add-product-pack` skill. Code review at high effort: 10 findings, all confirmed and fixed. 741 tests pass.
+- **Decided:** D-077 (M05b build choices); BLUEPRINT v3.14.
+- **Learned:** `airtable.com`, `support.airtable.com` and `tally.so` are blocked in cloud sessions; Airtable's list-records shape, paging, 5 requests a second per base and 1,000 calls a month on the Free plan (GOTCHAS).
+- **Next:** Marcus reviews PR #10; a clean-context session starts M06a.
+- **Open:** Q13 (at the setup); all live steps, M05b's included (batched, D-074); the Airtable field mapping waits until property resumes.
+
 ## 2026-10-07 — PR #9 (M05a) merged
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9)
 - **Did:** CI was green on the PR (`ci`, `secret-scan`, `memory-check`), with no review comments. Marcus asked to close the PR; asked to choose, he picked "merge". Squash-merged PR #9 on his instruction after every check passed (D-057).
