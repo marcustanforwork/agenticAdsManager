@@ -12,6 +12,7 @@ import {
   type Db,
 } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
+import { withDocFiles } from './seedDocs.ts';
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -130,13 +131,17 @@ export function settingsCommand(
 }
 
 /** `ads seed [file]`: the idempotent seed (M01a), with each product's missing settings taken from its pack's
- *  defaults (M05a). Existing rows are never overwritten. */
+ *  defaults (M05a) and its first documents from `products/<slug>/*.md` (M05b). Existing rows are never
+ *  overwritten. */
 export function seedCommand(withDb: <T>(run: (db: Db) => Promise<T>) => Promise<T>, deps: SettingsCliDeps): Command {
   return new Command('seed')
-    .description('create the products (settings from their packs), their offerings and the system flags, if missing')
+    .description(
+      'create the products (settings from their packs), their offerings, their documents and the system flags, ' +
+        'if missing',
+    )
     .argument('[file]', 'the seed file', DEFAULT_SEED_FILE)
     .action(async (file: string) => {
-      const spec = seedSpecFromPacks(JSON.parse(await readFile(file, 'utf8')), deps.packs);
+      const spec = await withDocFiles(seedSpecFromPacks(JSON.parse(await readFile(file, 'utf8')), deps.packs), file);
       deps.print(JSON.stringify(await withDb((db) => seed(db, spec))));
     });
 }

@@ -17,6 +17,7 @@ import {
 } from '@ads/db';
 import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
 import { HANDLERS, NOT_AVAILABLE_UNTIL, type HandlerContext, type RequestHandler } from './handlers.ts';
+import { FactsError } from './facts.ts';
 import { SettingsPatchError } from './settingsPatch.ts';
 
 const { operatorRequests } = schema;
@@ -53,7 +54,8 @@ const isRefusal = (e: unknown): e is Error =>
   e instanceof StaleVersionError ||
   e instanceof NotFoundError ||
   e instanceof GuardLoosenedError ||
-  e instanceof SettingsPatchError;
+  e instanceof SettingsPatchError ||
+  e instanceof FactsError;
 
 const refused = (reason: string, extra: RequestResult = {}): RequestOutcome => ({
   status: 'refused',

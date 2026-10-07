@@ -7,6 +7,7 @@ import { dryRunSync, runCycle } from '@ads/core';
 import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { accountsCommand } from './accounts.ts';
+import { docsCommand } from './docs.ts';
 import { outcomesCommand } from './outcomes.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { seedCommand, settingsCommand } from './settings.ts';
@@ -53,6 +54,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program.addCommand(accountsCommand(withDb, requireProduct, deps.print));
   program.addCommand(settingsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(outcomesCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
+  program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
 
   program

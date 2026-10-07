@@ -1,6 +1,6 @@
 // What's in the ad accounts: accounts, ad entities, snapshots, daily metrics, search terms, Google clicks.
 import { AccountTrustSignals, hashOf, type EntityRef, type Platform } from '@ads/contracts';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError } from '../errors.ts';
 import { addDecimals, inBatches } from './batch.ts';
@@ -219,7 +219,7 @@ export async function getEntity(db: DbOrTx, id: string): Promise<AdEntity> {
 export async function listEntities(
   db: DbOrTx,
   productId: string,
-  filter: { accountId?: string; type?: EntityType } = {},
+  filter: { accountId?: string; type?: EntityType; types?: readonly EntityType[] } = {},
 ): Promise<AdEntity[]> {
   return db
     .select()
@@ -229,6 +229,7 @@ export async function listEntities(
         eq(adEntities.productId, productId),
         filter.accountId !== undefined ? eq(adEntities.accountId, filter.accountId) : undefined,
         filter.type !== undefined ? eq(adEntities.type, filter.type) : undefined,
+        filter.types !== undefined ? inArray(adEntities.type, [...filter.types]) : undefined,
       ),
     )
     .orderBy(adEntities.type, adEntities.externalId);
@@ -405,6 +406,24 @@ export async function upsertGoogleClicks(db: DbOrTx, rows: (typeof googleClicks.
   await inBatches(db, rows, (tx, batch) =>
     tx.insert(googleClicks).values(batch).onConflictDoNothing({ target: googleClicks.gclid }),
   );
+}
+
+/** The stored clicks for these gclids (one query), by gclid. */
+export async function findGoogleClicks(
+  db: DbOrTx,
+  productId: string,
+  gclids: readonly string[],
+): Promise<Map<string, typeof googleClicks.$inferSelect>> {
+  const found = new Map<string, typeof googleClicks.$inferSelect>();
+  const unique = [...new Set(gclids)];
+  for (let i = 0; i < unique.length; i += 1000) {
+    const rows = await db
+      .select()
+      .from(googleClicks)
+      .where(and(eq(googleClicks.productId, productId), inArray(googleClicks.gclid, unique.slice(i, i + 1000))));
+    for (const r of rows) found.set(r.gclid, r);
+  }
+  return found;
 }
 
 export async function findGoogleClick(db: DbOrTx, productId: string, gclid: string) {

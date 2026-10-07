@@ -7,6 +7,7 @@ import {
   hashEmail,
   normaliseEmailForGoogle,
   normaliseEmailForMeta,
+  platformOfUtmSource,
 } from '../src/index.ts';
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -42,5 +43,13 @@ describe('email hashing', () => {
     expect(HashedContact.parse(hashed)).toEqual(hashed);
     expect(JSON.stringify(hashed)).not.toContain('someone');
     expect(hashEmail('   ')).toEqual({});
+  });
+});
+
+describe('platformOfUtmSource', () => {
+  it('names the ad platform a utm_source means, and nothing for other sources', () => {
+    expect(platformOfUtmSource('google')).toBe('google');
+    for (const s of ['meta', 'Facebook', ' instagram ', 'fb', 'IG']) expect(platformOfUtmSource(s)).toBe('meta');
+    for (const s of ['newsletter', 'linkedin', '', undefined]) expect(platformOfUtmSource(s)).toBeUndefined();
   });
 });

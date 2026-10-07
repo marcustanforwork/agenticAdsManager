@@ -289,6 +289,13 @@ importers:
       '@ads/pack-sdk':
         specifier: workspace:*
         version: link:../../pack-sdk
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
 
   packages/packs/saas-snappool:
     dependencies:

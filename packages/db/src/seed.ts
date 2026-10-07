@@ -1,11 +1,12 @@
-// The idempotent seed: products with their settings, offerings, and system flags.
-// The data is a file outside shared code (products/seed.json), so no product names live in this package.
+// The idempotent seed: products with their settings, offerings, first product documents, and system flags.
+// The data is a file outside shared code (products/seed.json, and the documents beside it), so no product names
+// live in this package.
 // Existing rows are never overwritten: re-running the seed can't undo a change Marcus made later.
 import { ProductSettings } from '@ads/contracts';
 import { z } from 'zod';
 import type { DbOrTx } from './client.ts';
 import { systemFlags } from './schema.ts';
-import { createProduct, ensureOffering, findProductBySlug } from './repos/products.ts';
+import { createProduct, ensureOffering, findProductBySlug, getProductDoc, putProductDoc } from './repos/products.ts';
 
 export const SeedSpec = z.object({
   products: z.array(
@@ -16,6 +17,11 @@ export const SeedSpec = z.object({
       status: z.enum(['active', 'halted', 'dormant']),
       settings: ProductSettings,
       offerings: z.array(z.object({ kind: z.string(), key: z.string(), name: z.string() })).default([]),
+      /** The first version of each product document (the worker reads them from `products/<slug>/*.md`). */
+      docs: z
+        .object({ strategy: z.string().optional(), playbook: z.string().optional(), learnings: z.string().optional() })
+        .strict()
+        .default({}),
     }),
   ),
   flags: z.record(z.string(), z.unknown()).default({}),
@@ -25,13 +31,15 @@ export type SeedSpec = z.infer<typeof SeedSpec>;
 export interface SeedReport {
   productsCreated: string[];
   offeringsEnsured: number;
+  /** Product documents created (version 1); a document that already has a version is left alone. */
+  docsCreated: number;
   flagsCreated: string[];
 }
 
 export async function seed(db: DbOrTx, spec: unknown): Promise<SeedReport> {
   const parsed = SeedSpec.parse(spec);
   return db.transaction(async (tx) => {
-    const report: SeedReport = { productsCreated: [], offeringsEnsured: 0, flagsCreated: [] };
+    const report: SeedReport = { productsCreated: [], offeringsEnsured: 0, docsCreated: 0, flagsCreated: [] };
     for (const p of parsed.products) {
       let product = await findProductBySlug(tx, p.slug);
       if (!product) {
@@ -41,6 +49,12 @@ export async function seed(db: DbOrTx, spec: unknown): Promise<SeedReport> {
       for (const o of p.offerings) {
         await ensureOffering(tx, { productId: product.id, ...o });
         report.offeringsEnsured++;
+      }
+      for (const doc of ['strategy', 'playbook', 'learnings'] as const) {
+        const markdown = p.docs[doc];
+        if (markdown === undefined || (await getProductDoc(tx, product.id, doc)) !== null) continue;
+        await putProductDoc(tx, { productId: product.id, doc, baseVersion: 0, markdown });
+        report.docsCreated++;
       }
     }
     for (const [key, value] of Object.entries(parsed.flags)) {

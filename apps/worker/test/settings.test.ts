@@ -1,8 +1,12 @@
-// `ads seed`, `ads settings get|set|history` and `ads outcomes` (M05a).
+// `ads seed`, `ads settings get|set|history` and `ads outcomes` (M05a); `ads docs get|set` (M05b).
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { OutcomeEvent } from '@ads/contracts';
 import { settingsFromPack } from '@ads/core';
-import { connect, findProductBySlug, getPackManifest } from '@ads/db';
+import { connect, createProduct, findProductBySlug, getPackManifest, upsertAccount, upsertAdEntity } from '@ads/db';
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
+import propertySg from '@ads/pack-property-sg';
 import snappool from '@ads/pack-saas-snappool';
 import { createRegistry } from '@ads/pack-sdk';
 import type { Command } from 'commander';
@@ -43,6 +47,7 @@ const stubPacks = createRegistry([
       }),
     },
   },
+  propertySg,
 ]);
 
 function run(args: string[], env: NodeJS.ProcessEnv = {}, packs = stubPacks) {
@@ -56,20 +61,28 @@ function run(args: string[], env: NodeJS.ProcessEnv = {}, packs = stubPacks) {
     packs,
   };
   const done = quiet(buildProgram(deps)).parseAsync(['node', 'ads', ...args]);
-  return { done, json: async () => (await done, JSON.parse(printed.join('\n')) as Record<string, unknown>) };
+  return {
+    done,
+    json: async () => (await done, JSON.parse(printed.join('\n')) as Record<string, unknown>),
+    text: async () => (await done, printed.join('\n')),
+  };
 }
 
 describe('ads seed', () => {
-  it("creates the products from products/seed.json, SnapPool's settings from its pack; a rerun creates nothing", async () => {
+  it("creates the products from products/seed.json, each one's settings from its pack; a rerun creates nothing", async () => {
     expect(await run(['seed']).json()).toEqual({
       productsCreated: ['snappool', 'property-sg'],
       offeringsEnsured: 2,
+      docsCreated: 6, // products/<slug>/STRATEGY.md, PLAYBOOK.md and LEARNINGS.md, as version 1
       flagsCreated: ['writes_enabled'],
     });
     const product = await findProductBySlug(t.db, 'snappool');
     expect(product?.settings).toEqual(settingsFromPack(snappool.manifest));
     expect(product?.settings.outcomes.primaryKpiStage).toBe('signup');
-    expect(await run(['seed']).json()).toMatchObject({ productsCreated: [], flagsCreated: [] });
+    const property = await findProductBySlug(t.db, 'property-sg');
+    expect(property?.settings).toEqual(settingsFromPack(propertySg.manifest));
+    expect(property?.status).toBe('dormant');
+    expect(await run(['seed']).json()).toMatchObject({ productsCreated: [], docsCreated: 0, flagsCreated: [] });
   });
 });
 
@@ -129,6 +142,67 @@ describe('ads settings', () => {
   });
 });
 
+describe('ads docs', () => {
+  let dir: string;
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'ads-docs-'));
+  });
+  afterAll(async () => rm(dir, { recursive: true, force: true }));
+
+  it('get prints the latest version: the seeded document first; list shows every version', async () => {
+    const strategy = await run(['docs', 'get', '--product', 'snappool', '--doc', 'strategy']).text();
+    expect(strategy).toMatch(/^# SnapPool: Strategy/);
+    const list = await run(['docs', 'list', '--product', 'snappool']).json();
+    expect((list['docs'] as Record<string, unknown>[]).map((d) => [d['doc'], d['version']])).toEqual([
+      ['strategy', 1],
+      ['playbook', 1],
+      ['learnings', 1],
+    ]);
+  });
+
+  it('set records a product_doc_put: a new version, then get prints it; a stale base is refused', async () => {
+    const file = join(dir, 'strategy.md');
+    await writeFile(file, '# Strategy\n\nSignups at a low cost, beta first.\n');
+    // The version edited must be named, so a version written meanwhile can't be overwritten unseen.
+    const set = ['docs', 'set', '--product', 'snappool', '--doc', 'strategy', '--file', file];
+    await expect(run(set).done).rejects.toThrow('--base-version is required');
+    expect(await run([...set, '--base-version', '1']).json()).toMatchObject({
+      product: 'snappool',
+      doc: 'strategy',
+      status: 'done',
+      version: 2,
+    });
+    expect(await run(['docs', 'get', '--product', 'snappool', '--doc', 'strategy']).text()).toBe(
+      '# Strategy\n\nSignups at a low cost, beta first.\n',
+    );
+    const stale = await run([
+      'docs',
+      'set',
+      '--product',
+      'snappool',
+      '--doc',
+      'strategy',
+      '--file',
+      file,
+      '--base-version',
+      '1',
+    ]).json();
+    expect(stale).toMatchObject({ status: 'refused', reason: 'product doc strategy: stale version 1, current is 2' });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('set refuses an unknown actor; an unknown document name is a usage error', async () => {
+    const file = join(dir, 'playbook.md');
+    await writeFile(file, '# Playbook\n');
+    const args = ['docs', 'set', '--product', 'snappool', '--doc', 'playbook', '--file', file, '--base-version', '1'];
+    expect(await run(args, { ADS_OPERATOR: 'stranger' }).json()).toMatchObject({
+      status: 'refused',
+      reason: 'unknown actor',
+    });
+    await expect(run(['docs', 'get', '--product', 'snappool', '--doc', 'roadmap']).done).rejects.toThrow();
+  });
+});
+
 describe('ads outcomes', () => {
   it('reads the source and prints 30 days by stage, test traffic apart; no ids or hashes', async () => {
     const r = run(['outcomes', '--product', 'snappool']);
@@ -159,6 +233,67 @@ describe('ads outcomes', () => {
     ]);
   });
 
+  it("credits outcomes to campaigns and prints the KPI stage's attribution rate", async () => {
+    const product = await createProduct(t.db, {
+      slug: 'attr-rate',
+      name: 'Attribution',
+      packId: 'saas-snappool',
+      settings: settingsFromPack(snappool.manifest),
+    });
+    const account = await upsertAccount(t.db, { productId: product.id, platform: 'meta', externalId: 'act_5550001' });
+    await upsertAdEntity(t.db, {
+      productId: product.id,
+      accountId: account.id,
+      platform: 'meta',
+      type: 'campaign',
+      externalId: '120210000000000001',
+      name: 'Signups',
+      status: 'active',
+      rawStatus: 'ACTIVE',
+    });
+    const signup = (sourceId: string, ids: OutcomeEvent['ids'], isTest = false): OutcomeEvent => ({
+      sourceId,
+      stage: 'signup',
+      occurredAt: '2026-10-03T02:00:00Z',
+      isTest,
+      ids,
+    });
+    const source: OutcomeEvent[] = [
+      signup('a1', { metaCampaignId: '120210000000000001', fbclid: 'f1' }),
+      signup('a2', { utmSource: 'meta', utmCampaign: 'Signups' }),
+      signup('a3', { fbclid: 'f3' }), // Meta can't say which campaign an fbclid came from
+      signup('o1', {}),
+      signup('t1', { metaCampaignId: '120210000000000001' }, true),
+    ];
+    const packs = createRegistry([
+      {
+        manifest: snappool.manifest,
+        runtime: {
+          ...snappool.runtime,
+          outcomeAdapter: () => ({
+            fetchSince: () => Promise.resolve(source),
+            healthcheck: () => Promise.resolve({ ok: true, latestActivityAt: new Date('2026-10-03T02:00:00Z') }),
+          }),
+        },
+      },
+    ]);
+    const out = await run(['outcomes', '--product', 'attr-rate'], {}, packs).json();
+    expect(out['attribution']).toEqual({
+      stage: 'signup',
+      outcomes: 4,
+      attributed: 2,
+      ratePct: 50,
+      byMethod: { platform_ids: 1, gclid_lookup: 0, utm: 1, none: 2, pending: 0 },
+      run: { checked: 5, attributed: { platform_ids: 2, gclid_lookup: 0, utm: 1 }, none: 2 },
+    });
+    const signups = (out['stages'] as Record<string, unknown>[]).find((s) => s['stage'] === 'signup');
+    expect(signups).toMatchObject({ outcomes: 4, test: 1, attributed: 2 });
+    // Without reading, nothing is attributed again and the stored rate is shown.
+    const stored = await run(['outcomes', '--product', 'attr-rate', '--no-read'], {}, packs).json();
+    expect(stored['attribution']).toMatchObject({ outcomes: 4, attributed: 2, ratePct: 50 });
+    expect(stored['attribution']).not.toHaveProperty('run');
+  });
+
   it('fails (exit 1) when the source cannot be read, and says why', async () => {
     const out = await run(['outcomes', '--product', 'snappool'], {}, createRegistry([snappool])).json();
     expect(out['read']).toMatchObject({ outcome: 'error' });
@@ -172,8 +307,15 @@ describe('publishing manifests at startup', () => {
     const logged: string[] = [];
     const logger = { info: (_: object, msg: string) => void logged.push(msg) };
     expect(await publishManifestsAtStartup({}, logger)).toBeNull();
-    expect(await publishManifestsAtStartup({ DATABASE_URL: t.url }, logger)).toEqual(['saas-snappool@0.1.0']);
+    expect(await publishManifestsAtStartup({ DATABASE_URL: t.url }, logger)).toEqual([
+      'property-sg@0.1.0',
+      'saas-snappool@0.1.0',
+    ]);
     expect(logged).toEqual(['no DATABASE_URL: pack manifests are not published', 'pack manifests published']);
     expect((await getPackManifest(t.db, 'saas-snappool', '0.1.0'))?.manifest).toMatchObject({ id: 'saas-snappool' });
+    expect((await getPackManifest(t.db, 'property-sg', '0.1.0'))?.manifest).toMatchObject({
+      id: 'property-sg',
+      platformPolicy: { meta: { specialAdCategories: ['HOUSING'] } },
+    });
   });
 });
