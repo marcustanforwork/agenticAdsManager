@@ -35,7 +35,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
 - Cut first, if behind at ~300k: the utm fallback; live Airtable wiring (keep the fixture and the interface).
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented (~230k with the session's fixed context and the code M05b changes)
-  - [ ] ~300k built, typecheck green
+  - [ ] ~300k built, typecheck green (at Build 4: Builds 1, 2, 3 and 5 done at ~375k with the fixed context)
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
@@ -49,8 +49,8 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - copy tier `fragments`, with placeholder required strings;
   - runtime: an Airtable adapter built against a recorded fixture of the existing base.
   - notes: commit c1d9798. `src/manifest.ts` (pure), `src/runtime.ts` (`detectPhase`: the last phase whose `launchDates` day has started, 00:00 Singapore time; teaser before any), `src/airtable.ts` (list records over `fetch`, read only; `LEAD_FIELDS` is the field mapping; env `PROPERTY_AIRTABLE_TOKEN`, `PROPERTY_AIRTABLE_BASE_ID`, `PROPERTY_AIRTABLE_TABLE`). The fixture is **hand-made** in Airtable's documented shape (the base isn't reachable; `test/fixtures/README.md`). Default feedback routes `form_fill → Meta Lead` and `form_fill → Google`, destinations unset (like SnapPool's, D-076). Installed in `INSTALLED_PACKS`; `products/seed.json` lost the stub settings.
-- [ ] 2. `core/attribution` (§5.12). `ads outcomes` gains the attribution rate.
-  - notes: —
+- [x] 2. `core/attribution` (§5.12). `ads outcomes` gains the attribution rate.
+  - notes: commit 659c1d7. `core/src/attribution/attribute.ts`: `attributionFor` (pure; the four methods in order; platform ids try the campaign id first, then an ad group / ad set or ad id walked up to its campaign; the gclid window is 90 days with a day of slack; utm restricted to the `utm_source`'s platform when it names one; a name two campaigns share matches nothing) and `attributeOutcomes` (new outcomes plus `none` ones from the last `ATTRIBUTION_RETRY_DAYS` = 7, since a same-day click arrives with the next day's click sync; one update per method and campaign). It runs in the cycle's `synced` stage after both reads (`CycleSummary.attribution`) and in `ads outcomes` (not with `--no-read`). The report gains `attribution` (the KPI stage: outcomes, attributed, `ratePct`, `byMethod` incl. `pending`, and this run's counts) and `stages[].attributed`. Test outcomes are attributed too but never counted. The utm fallback was built (not cut).
 - [x] 3. Product docs:
   - seed `product_docs` from `products/<slug>/*.md`;
   - handle `product_doc_put` requests, plus `ads docs set --product X --doc strategy --file <path>`;
@@ -64,7 +64,7 @@ The second pack is added with zero changes to the core, outcomes are attributed 
 ## Tests
 - [x] The property pack passes `definePack`, and its fixture adapter passes its tests and `healthcheck`. (`packs/property-sg/test/pack.test.ts`, `adapter.test.ts`: 27 tests)
 - [x] `facts_put`: facts the pack's schema rejects are refused; unknown keys are refused by name. (`core/test/requests.test.ts > facts_put`)
-- [ ] Attribution: platform ids, gclid lookup, utm, none.
+- [x] Attribution: platform ids, gclid lookup, utm, none. (`core/test/attribution.test.ts`: every method, the order, the 90-day window, retries, other products; `apps/worker/test/settings.test.ts > credits outcomes to campaigns and prints the KPI stage's attribution rate`)
 - [x] Product docs: versions increase; a stale `baseVersion` is refused. (`core/test/requests.test.ts > product_doc_put`; `db/test/seed.test.ts`; `apps/worker/test/settings.test.ts > ads docs`)
 - [ ] The new trust checks, table-driven, including low volume.
 
