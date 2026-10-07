@@ -595,3 +595,14 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M05b needed these choices; the code review (D-067) shaped the utm, retry, window, `fbp`, docs and Airtable ones.
 - **Instead of:** matching `utm_campaign` whatever the source, marking unmatched outcomes `none` for good, comparing over a rolling UTC window, `set` defaulting to the latest version, and per-pack copies of the utm mapping.
 - **See:** `docs/milestones/M05b-property-pack-attribution-docs.md` · BLUEPRINT §5.8, §5.12, M05b · GOTCHAS (Airtable)
+
+### D-078 — AI SDK 7, with Langfuse's AI SDK 7 integration
+- **When / who / status:** 2026-10-07 · Claude (fix) · adopted
+- **Decision:**
+  - `core/model` uses **AI SDK 7** (`ai` 7.0.130, pinned) instead of AI SDK 6. The call the plan names stays: `generateText` with `output: Output.object({ schema })`, read from `result.output`. What changes: the instructions go in `instructions` (was `system`), telemetry options in `telemetry` (was `experimental_telemetry`), and tracing is a telemetry **integration** registered once.
+  - **Tracing:** `@langfuse/vercel-ai-sdk` (`LangfuseVercelAiSdkIntegration`) creates the spans, and `@langfuse/otel`'s `LangfuseSpanProcessor` on an OpenTelemetry `NodeTracerProvider` exports them; product, cycle and stage are set as trace attributes with `propagateAttributes` (`@langfuse/tracing`). Keys from Doppler: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`. No keys = no tracing (the calls still run).
+  - **Providers:** `@ai-sdk/anthropic`, `@ai-sdk/openai` and `@ai-sdk/openai-compatible` (local endpoints), chosen per stage by `MODEL_<STAGE>=provider:model`.
+  - **T9** also covers the AI provider key: `ANTHROPIC_API_KEY` in Doppler `dev` (and `worker` from M07).
+- **Why:** AI SDK 7 is the current major version (6.x moved to the `ai-v6` tag), and Langfuse's maintained integration requires it (GOTCHAS, checked 2026-10-07). The plan's API survives unchanged, so this is a version fix, not a design change.
+- **Instead of:** AI SDK 6 with `experimental_telemetry: { isEnabled: true }` on every call, which would start the agent on a superseded major version.
+- **See:** PROPOSAL §10 · BLUEPRINT §5.17, M06a · GOTCHAS (AI SDK, Langfuse) · `docs/milestones/M06a-ai-layer-findings-detectors.md`

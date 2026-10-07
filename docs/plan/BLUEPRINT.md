@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.14 — 2026-10-07 (M05b build choices: the property pack and its Airtable adapter, attribution details, the `attribution_gap` and `id_capture` rules, product docs, D-077) |
+| **Version** | v3.15 — 2026-10-07 (AI SDK 7 and Langfuse's AI SDK 7 integration, D-078) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1205,7 +1205,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 - **Per-stage model settings.** `MODEL_ANALYST`, `MODEL_DRAFTER`, `MODEL_BRIEF` and `MODEL_COPY`, each in the form `provider:model`.
 - **Defaults.** ANALYST and COPY use the strongest available model. DRAFTER and BRIEF may move to a cheaper model after replay evals show no loss.
 - **Local models.** An `openai-compatible` provider allows local endpoints.
-- **Tracing.** Every call goes through `core/model`, traced to Langfuse with product, cycle and stage. Its cost is added to `cycles.model_cost_micros`.
+- **Tracing.** Every call goes through `core/model`, traced to Langfuse with product, cycle and stage (AI SDK 7's telemetry integration from `@langfuse/vercel-ai-sdk`, exported by `@langfuse/otel`, D-078). Its cost is added to `cycles.model_cost_micros`.
 
 ### 5.18 Personal data
 
@@ -1623,7 +1623,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 
 **Goal:** a traced, model-swappable AI layer, and fixed rules that find candidate problems, with evidence computed from the database.
 
-**Read first:** this file §3.7, §5.9 and §5.17; PROPOSAL §6.5. Check the AI SDK 6 structured-output API with the `verify-external-facts` skill.
+**Read first:** this file §3.7, §5.9 and §5.17; PROPOSAL §6.5. Check the AI SDK structured-output API with the `verify-external-facts` skill (done: AI SDK 7, D-078).
 
 **Builds:**
 1. `core/model`:
