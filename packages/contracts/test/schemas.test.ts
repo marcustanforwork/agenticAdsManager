@@ -173,8 +173,19 @@ const samples: Record<string, unknown[]> = {
     },
   ],
   AnalystOutput: [{ findings: [], dismissed: [{ candidateId: 'cand-2', reason: 'too early' }] }],
+  EvidenceDetailValue: ['512000000', 102.4, true, null],
   ComputedEvidence: [
-    { windowDays: 14, impressions: 1000, clicks: 20, spendMicros: '30000000', outcomesByStage: { signup: 0 } },
+    {
+      windowDays: 14,
+      impressions: 1000,
+      clicks: 20,
+      spendMicros: '30000000',
+      outcomesByStage: { signup: 0 },
+      from: '2026-09-24',
+      to: '2026-10-07',
+      dataDays: 14,
+      detail: { projectedMicros: '512000000', pct: 102.4, ceilingSet: true, note: null },
+    },
   ],
   ProposalStatus: [...contracts.ProposalStatus.options],
   Proposal: [

@@ -438,9 +438,10 @@ export const findings = pgTable(
       .references(() => cycles.id),
     type: text('type').notNull(),
     source: text('source', { enum: FINDING_SOURCES }).notNull(),
-    targetEntityId: uuid('target_entity_id')
-      .notNull()
-      .references(() => adEntities.id),
+    // What the finding is about (D-079): an ad entity; else an ad account (e.g. a tracking gap); else, both null,
+    // the whole product (e.g. pacing against the monthly ceiling).
+    targetEntityId: uuid('target_entity_id').references(() => adEntities.id),
+    targetAccountId: uuid('target_account_id').references(() => accounts.id),
     analystVerdict: text('analyst_verdict', { enum: ANALYST_VERDICTS }),
     dismissedReason: text('dismissed_reason'),
     summary: text('summary').notNull(),
@@ -457,6 +458,7 @@ export const findings = pgTable(
     index().on(t.productId, t.cycleId),
     check('findings_source_check', oneOf('source', FINDING_SOURCES)),
     check('findings_analyst_verdict_check', oneOf('analyst_verdict', ANALYST_VERDICTS)),
+    check('findings_one_target_check', sql`${t.targetEntityId} is null or ${t.targetAccountId} is null`),
   ],
 );
 

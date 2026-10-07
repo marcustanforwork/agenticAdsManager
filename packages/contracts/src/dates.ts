@@ -15,3 +15,11 @@ export function minusDays(day: string, n: number): string {
   d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().slice(0, 10);
 }
+
+/** Calendar days from `from` to `to` (`to` − `from`; negative when `to` is earlier). Both are YYYY-MM-DD. */
+export function daysFrom(from: string, to: string): number {
+  // minusDays(…, 0) validates both days the same way.
+  const a = Date.parse(`${minusDays(from, 0)}T00:00:00Z`);
+  const b = Date.parse(`${minusDays(to, 0)}T00:00:00Z`);
+  return Math.round((b - a) / 86_400_000);
+}

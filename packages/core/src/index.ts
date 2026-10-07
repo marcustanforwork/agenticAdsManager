@@ -27,3 +27,5 @@ export * from './model/prices.ts';
 export * from './model/redact.ts';
 export * from './model/tracing.ts';
 export * from './model/generate.ts';
+export * from './findings/registry.ts';
+export * from './findings/evidence.ts';

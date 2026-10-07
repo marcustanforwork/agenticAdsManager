@@ -42,13 +42,15 @@ A traced, model-swappable AI layer, and fixed rules that find candidate problems
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
-- [ ] 1. `core/model`:
+- [x] 1. `core/model`:
   - a provider factory that reads `provider:model` env strings;
   - structured output via `generateText` + `Output.object`, retried once if the schema fails;
   - Langfuse tracing tagged with product, cycle and stage;
   - cost recorded per cycle;
   - no personal data in prompts or traces.
-- [ ] 2. The finding-type registry (§3.7), and evidence computation: `ComputedEvidence` from the DB for any target and window.
+  - notes: `packages/core/src/model/` (`models.ts` specs and providers, `prices.ts` USD price table and `MODEL_PRICES`, `redact.ts`, `tracing.ts`, `generate.ts`); `addModelCost` in `db`; `ads model ping` (`apps/worker/src/model.ts`). Tests: `core/test/model.test.ts` (19), `worker/test/model.test.ts` (2). Commit c55147e. The vitest config no longer resolves Node-side imports with the `module` condition (OpenTelemetry's ESM build needs a bundler).
+- [x] 2. The finding-type registry (§3.7), and evidence computation: `ComputedEvidence` from the DB for any target and window.
+  - notes: migration `0004` (findings may target an ad account, or the product with both targets null; `findings_one_target_check`); `ComputedEvidence` gains `from`, `to`, `dataDays`, `detail`; `db/src/repos/evidence.ts` (`sumMetrics`, `countOutcomesByScope`, `sumSearchTerms`), `replaceDetectorFindings`; `core/src/findings/registry.ts`, `evidence.ts`. Tests: `core/test/evidence.test.ts` (8, hand-computed sums), `db/test/cycles.test.ts` (+3).
 - [ ] 3. Detectors (§5.9) produce candidate findings with `source = 'detector'`.
 - [ ] 4. `ads cycle --until detected` prints the candidates.
 

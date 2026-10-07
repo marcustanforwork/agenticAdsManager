@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IsoDate } from './hash.ts';
 import { MicrosJson } from './money.ts';
 import { EntityRef } from './platform.ts';
 
@@ -42,6 +43,9 @@ export const AnalystOutput = z.object({
 });
 export type AnalystOutput = z.infer<typeof AnalystOutput>;
 
+/** A figure a detector rule computed (money as a decimal string of micros), shown with the finding. */
+export const EvidenceDetailValue = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
 /** Stored with each finding. Computed by core from the DB for the target and window — never taken from the AI. */
 export const ComputedEvidence = z.object({
   windowDays: z.number().int(),
@@ -49,5 +53,13 @@ export const ComputedEvidence = z.object({
   clicks: z.number().int(),
   spendMicros: MicrosJson,
   outcomesByStage: z.record(z.string(), z.number().int()),
+  // M06a (D-079):
+  from: IsoDate, // the window's first and last day, the product's local days, inclusive
+  to: IsoDate,
+  /** Days of the window the target was watched: from its first day of data (or first sighting) on. The threshold
+   *  engine's `minDays` is checked against this. */
+  dataDays: z.number().int().min(0),
+  /** The rule's own figures (e.g. projected month spend, the median cost per KPI), computed by core. */
+  detail: z.record(z.string(), EvidenceDetailValue).optional(),
 });
 export type ComputedEvidence = z.infer<typeof ComputedEvidence>;
