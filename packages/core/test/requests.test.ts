@@ -2,7 +2,10 @@ import type { OperatorRequest } from '@ads/contracts';
 import {
   claimJob,
   createProduct,
+  ensureOffering,
   enqueueJob,
+  findOffering,
+  getProductDoc,
   getJob,
   getOperatorRequest,
   getProduct,
@@ -26,6 +29,9 @@ import {
   type RequestContext,
 } from '../src/requests/processor.ts';
 import { recoverWorker } from '../src/recovery.ts';
+import { createRegistry } from '@ads/pack-sdk';
+import { z } from 'zod';
+import { PRODUCT_DOC_MAX_CHARS } from '../src/requests/handlers.ts';
 import { TEST_PACKS } from './support/world.ts';
 
 let t: TestDatabase;
@@ -110,7 +116,6 @@ describe('actor and schema checks', () => {
         },
         'M14',
       ],
-      [{ kind: 'facts_put', productId: p.id, offeringKey: 'x', facts: {} }, 'M05b'],
       [{ kind: 'resolve_attention', proposalId: randomUUID(), resolution: 'applied', note: 'checked' }, 'M11b'],
     ];
     for (const [request, milestone] of cases) {
@@ -221,6 +226,139 @@ describe('settings_patch', () => {
       applySettingsPatch(TEST_SETTINGS, JSON.parse('{"spend": {"__proto__": {"x": 1}}}') as Record<string, unknown>),
     ).toThrow('not a setting: spend.__proto__');
     expect((await getProduct(t.db, p.id)).settingsVersion).toBe(1);
+  });
+});
+
+describe('facts_put', () => {
+  /** A pack with a fact schema of its own (the shared test pack has none). */
+  const base = TEST_PACKS.get('test-pack');
+  const factsPacks = createRegistry([
+    {
+      runtime: base.runtime,
+      manifest: {
+        ...base.manifest,
+        id: 'facts-pack',
+        facts: {
+          schema: z.object({
+            district: z.string().regex(/^D\d{2}$/),
+            unitMix: z.array(z.object({ type: z.string(), units: z.number().int().min(0).optional() })).optional(),
+            launchDates: z.object({ teaser: z.string().optional() }),
+          }),
+          requiredForCopy: [],
+        },
+      },
+    },
+  ]);
+  const factsCtx: RequestContext = { ...ctx, packs: factsPacks };
+  const withOffering = async (packId = 'facts-pack') => {
+    const p = await createProduct(t.db, {
+      slug: `f-${randomBytes(4).toString('hex')}`,
+      name: 'Facts',
+      packId,
+      settings: TEST_SETTINGS,
+    });
+    await ensureOffering(t.db, { productId: p.id, kind: 'project', key: 'tower-one', name: 'Tower One' });
+    return p;
+  };
+  const put = (productId: string, facts: Record<string, unknown>, offeringKey = 'tower-one') =>
+    submitRequest(
+      t.db,
+      { request: { kind: 'facts_put', productId, offeringKey, facts }, actor: MARCUS, channel: 'telegram' },
+      factsCtx,
+    );
+
+  it("stores facts the pack's schema accepts, as a new facts version", async () => {
+    const p = await withOffering();
+    const facts = {
+      district: 'D19',
+      unitMix: [{ type: '2-bedroom', units: 40 }],
+      launchDates: { teaser: '2026-10-01' },
+    };
+    expect((await put(p.id, facts)).outcome).toEqual({
+      status: 'done',
+      result: { offering: 'tower-one', factsVersion: 2 },
+    });
+    const offering = await findOffering(t.db, p.id, 'tower-one');
+    expect(offering?.facts).toEqual(facts);
+    expect((await put(p.id, { district: 'D05', launchDates: {} })).outcome.result).toEqual({
+      offering: 'tower-one',
+      factsVersion: 3,
+    });
+  });
+
+  it("refuses facts the pack's schema rejects, naming them, and changes nothing", async () => {
+    const p = await withOffering();
+    const { outcome } = await put(p.id, { district: 'nineteen', launchDates: {} });
+    expect(outcome.status).toBe('refused');
+    expect(outcome.result['reason']).toMatch(/^invalid facts: district: /);
+    expect((await findOffering(t.db, p.id, 'tower-one'))?.factsVersion).toBe(1);
+  });
+
+  it('refuses unknown keys by name, inside lists too', async () => {
+    const p = await withOffering();
+    const { outcome } = await put(p.id, {
+      district: 'D19',
+      launchDates: { teaser: '2026-10-01', soft_launch: '2026-09-01' },
+      unitMix: [{ type: '2-bedroom', size: 700 }],
+      developr: 'typo',
+    });
+    expect(outcome).toEqual({
+      status: 'refused',
+      // In the order of the stored request (jsonb orders keys by length, then by name).
+      result: { reason: 'not a fact: unitMix.0.size; developr; launchDates.soft_launch' },
+    });
+    expect((await findOffering(t.db, p.id, 'tower-one'))?.factsVersion).toBe(1);
+  });
+
+  it('refuses an unknown offering, and a product whose pack is not installed', async () => {
+    const p = await withOffering();
+    expect((await put(p.id, { district: 'D19', launchDates: {} }, 'tower-two')).outcome).toEqual({
+      status: 'refused',
+      result: { reason: 'offering not found: tower-two' },
+    });
+    const orphan = await withOffering('no-such-pack');
+    expect((await put(orphan.id, { district: 'D19', launchDates: {} })).outcome).toEqual({
+      status: 'refused',
+      result: { reason: "the no-such-pack pack is not installed, so its facts can't be checked" },
+    });
+  });
+});
+
+describe('product_doc_put', () => {
+  const putDoc = (productId: string, baseVersion: number, markdown: string) =>
+    submit({ kind: 'product_doc_put', productId, doc: 'strategy', baseVersion, markdown });
+
+  it('writes versions that increase, each recorded with its request', async () => {
+    const p = await makeProduct();
+    const first = await putDoc(p.id, 0, '# Strategy\n\nFirst.');
+    expect(first.outcome).toEqual({ status: 'done', result: { doc: 'strategy', version: 1 } });
+    const second = await putDoc(p.id, 1, '# Strategy\n\nSecond.');
+    expect(second.outcome).toEqual({ status: 'done', result: { doc: 'strategy', version: 2 } });
+    const latest = await getProductDoc(t.db, p.id, 'strategy');
+    expect(latest).toMatchObject({ version: 2, markdown: '# Strategy\n\nSecond.', requestId: second.id });
+    expect(await getProductDoc(t.db, p.id, 'playbook')).toBeNull();
+  });
+
+  it('refuses a stale baseVersion and keeps the current version', async () => {
+    const p = await makeProduct();
+    await putDoc(p.id, 0, 'v1');
+    await putDoc(p.id, 1, 'v2');
+    expect((await putDoc(p.id, 1, 'based on v1')).outcome).toEqual({
+      status: 'refused',
+      result: { reason: 'product doc strategy: stale version 1, current is 2' },
+    });
+    expect((await putDoc(p.id, 5, 'from the future')).outcome.status).toBe('refused');
+    expect((await getProductDoc(t.db, p.id, 'strategy'))?.markdown).toBe('v2');
+  });
+
+  it('refuses a document longer than the cap', async () => {
+    const p = await makeProduct();
+    const { outcome } = await putDoc(p.id, 0, 'x'.repeat(PRODUCT_DOC_MAX_CHARS + 1));
+    expect(outcome).toEqual({
+      status: 'refused',
+      result: { reason: `the strategy document has ${PRODUCT_DOC_MAX_CHARS + 1} characters; at most 20000` },
+    });
+    expect((await putDoc(p.id, 0, 'x'.repeat(PRODUCT_DOC_MAX_CHARS))).outcome.status).toBe('done');
   });
 });
 

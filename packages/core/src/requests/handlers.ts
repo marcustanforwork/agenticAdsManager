@@ -1,11 +1,14 @@
 // One handler per operator-request kind. Each runs inside the processor's transaction (a savepoint), and
-// throws RefusedError / StaleVersionError / NotFoundError / a settings error to refuse.
+// throws RefusedError / StaleVersionError / NotFoundError / a settings or facts error to refuse.
 // To add a kind: write its handler here, add it to HANDLERS, remove it from NOT_AVAILABLE_UNTIL, and test it
 // in test/requests.test.ts (the milestone file's "Leave behind" has the checklist).
 import type { OperatorRequest } from '@ads/contracts';
 import {
+  RefusedError,
   StaleVersionError,
   getStoredSettings,
+  putOfferingFacts,
+  putProductDoc,
   schema,
   setBriefFeedback,
   updateSettings,
@@ -16,6 +19,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { manifestOf, packGuardLayer } from '../settings/settings.ts';
+import { validateFacts } from './facts.ts';
 import { applySettingsPatch } from './settingsPatch.ts';
 
 const { products } = schema;
@@ -46,8 +50,6 @@ export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
   pause_all: 'M09b',
   undo: 'M09b',
   budget: 'M14',
-  facts_put: 'M05b', // moved from M05a (cut first, M05a session plan)
-  product_doc_put: 'M05b',
   resolve_attention: 'M11b',
 };
 
@@ -96,6 +98,42 @@ const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, re
   return { version };
 };
 
+/** facts_put (M05b): the offering's facts, replaced whole after the pack's fact schema accepts them. A product
+ *  whose pack isn't installed can't have its facts checked, so they're refused. */
+const factsPut: RequestHandler<RequestOf<'facts_put'>> = async (tx, request, _row, ctx) => {
+  const stored = await getStoredSettings(tx, request.productId);
+  const manifest = manifestOf(ctx.packs, stored.packId);
+  if (manifest === null) {
+    throw new RefusedError(`the ${stored.packId} pack is not installed, so its facts can't be checked`);
+  }
+  const facts = validateFacts(manifest, request.facts);
+  const factsVersion = await putOfferingFacts(tx, { productId: request.productId, key: request.offeringKey, facts });
+  return { offering: request.offeringKey, factsVersion };
+};
+
+/** The longest product document accepted. The analyst reads every document in full as trusted context (M06b),
+ *  so they're kept short: about 5,000 tokens each. */
+export const PRODUCT_DOC_MAX_CHARS = 20_000;
+
+/** product_doc_put (M05b): a new version of STRATEGY, PLAYBOOK or LEARNINGS on top of `baseVersion` (0 for the
+ *  first); a stale base is refused. */
+const productDocPut: RequestHandler<RequestOf<'product_doc_put'>> = async (tx, request, row) => {
+  await getStoredSettings(tx, request.productId); // an unknown product is refused, not a fault
+  if (request.markdown.length > PRODUCT_DOC_MAX_CHARS) {
+    throw new RefusedError(
+      `the ${request.doc} document has ${request.markdown.length} characters; at most ${PRODUCT_DOC_MAX_CHARS}`,
+    );
+  }
+  const version = await putProductDoc(tx, {
+    productId: request.productId,
+    doc: request.doc,
+    baseVersion: request.baseVersion,
+    markdown: request.markdown,
+    requestId: row.id,
+  });
+  return { doc: request.doc, version };
+};
+
 const briefFeedback: RequestHandler<RequestOf<'brief_feedback'>> = async (tx, request) => {
   await setBriefFeedback(tx, request);
   return { briefId: request.briefId, useful: request.useful, newInfo: request.newInfo };
@@ -105,5 +143,7 @@ export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
   halt,
   resume_agent: resumeAgent,
   settings_patch: settingsPatch,
+  facts_put: factsPut,
+  product_doc_put: productDocPut,
   brief_feedback: briefFeedback,
 };

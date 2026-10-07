@@ -1,4 +1,7 @@
-// `ads seed`, `ads settings get|set|history` and `ads outcomes` (M05a).
+// `ads seed`, `ads settings get|set|history` and `ads outcomes` (M05a); `ads docs get|set` (M05b).
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { OutcomeEvent } from '@ads/contracts';
 import { settingsFromPack } from '@ads/core';
 import { connect, findProductBySlug, getPackManifest } from '@ads/db';
@@ -58,7 +61,11 @@ function run(args: string[], env: NodeJS.ProcessEnv = {}, packs = stubPacks) {
     packs,
   };
   const done = quiet(buildProgram(deps)).parseAsync(['node', 'ads', ...args]);
-  return { done, json: async () => (await done, JSON.parse(printed.join('\n')) as Record<string, unknown>) };
+  return {
+    done,
+    json: async () => (await done, JSON.parse(printed.join('\n')) as Record<string, unknown>),
+    text: async () => (await done, printed.join('\n')),
+  };
 }
 
 describe('ads seed', () => {
@@ -66,6 +73,7 @@ describe('ads seed', () => {
     expect(await run(['seed']).json()).toEqual({
       productsCreated: ['snappool', 'property-sg'],
       offeringsEnsured: 2,
+      docsCreated: 6, // products/<slug>/STRATEGY.md, PLAYBOOK.md and LEARNINGS.md, as version 1
       flagsCreated: ['writes_enabled'],
     });
     const product = await findProductBySlug(t.db, 'snappool');
@@ -74,7 +82,7 @@ describe('ads seed', () => {
     const property = await findProductBySlug(t.db, 'property-sg');
     expect(property?.settings).toEqual(settingsFromPack(propertySg.manifest));
     expect(property?.status).toBe('dormant');
-    expect(await run(['seed']).json()).toMatchObject({ productsCreated: [], flagsCreated: [] });
+    expect(await run(['seed']).json()).toMatchObject({ productsCreated: [], docsCreated: 0, flagsCreated: [] });
   });
 });
 
@@ -131,6 +139,60 @@ describe('ads settings', () => {
       [1, []],
       [2, ['spend.dailyCeilingMicros', 'spend.monthlyCeilingMicros', 'testTraffic.emailDomains']],
     ]);
+  });
+});
+
+describe('ads docs', () => {
+  let dir: string;
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'ads-docs-'));
+  });
+  afterAll(async () => rm(dir, { recursive: true, force: true }));
+
+  it('get prints the latest version: the seeded document first', async () => {
+    const strategy = await run(['docs', 'get', '--product', 'snappool', '--doc', 'strategy']).text();
+    expect(strategy).toMatch(/^# SnapPool: Strategy/);
+  });
+
+  it('set records a product_doc_put: a new version, then get prints it; a stale base is refused', async () => {
+    const file = join(dir, 'strategy.md');
+    await writeFile(file, '# Strategy\n\nSignups at a low cost, beta first.\n');
+    expect(
+      await run(['docs', 'set', '--product', 'snappool', '--doc', 'strategy', '--file', file]).json(),
+    ).toMatchObject({
+      product: 'snappool',
+      doc: 'strategy',
+      status: 'done',
+      version: 2,
+    });
+    expect(await run(['docs', 'get', '--product', 'snappool', '--doc', 'strategy']).text()).toBe(
+      '# Strategy\n\nSignups at a low cost, beta first.\n',
+    );
+    const stale = await run([
+      'docs',
+      'set',
+      '--product',
+      'snappool',
+      '--doc',
+      'strategy',
+      '--file',
+      file,
+      '--base-version',
+      '1',
+    ]).json();
+    expect(stale).toMatchObject({ status: 'refused', reason: 'product doc strategy: stale version 1, current is 2' });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('set refuses an unknown actor; an unknown document name is a usage error', async () => {
+    const file = join(dir, 'playbook.md');
+    await writeFile(file, '# Playbook\n');
+    const args = ['docs', 'set', '--product', 'snappool', '--doc', 'playbook', '--file', file];
+    expect(await run(args, { ADS_OPERATOR: 'stranger' }).json()).toMatchObject({
+      status: 'refused',
+      reason: 'unknown actor',
+    });
+    await expect(run(['docs', 'get', '--product', 'snappool', '--doc', 'roadmap']).done).rejects.toThrow();
   });
 });
 

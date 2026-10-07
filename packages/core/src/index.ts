@@ -2,7 +2,14 @@
 // skeleton; the job queue itself lives in @ads/db, because the gateway uses it too (D-068).
 export * from './requests/processor.ts';
 export * from './requests/settingsPatch.ts';
-export { HANDLERS, NOT_AVAILABLE_UNTIL, type HandlerContext, type RequestHandler } from './requests/handlers.ts';
+export * from './requests/facts.ts';
+export {
+  HANDLERS,
+  NOT_AVAILABLE_UNTIL,
+  PRODUCT_DOC_MAX_CHARS,
+  type HandlerContext,
+  type RequestHandler,
+} from './requests/handlers.ts';
 export * from './recovery.ts';
 export * from './sync/clients.ts';
 export * from './sync/dryRun.ts';

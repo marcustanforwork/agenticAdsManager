@@ -37,8 +37,12 @@ function merge(base: unknown, patch: unknown, path: string[]): unknown {
   return out;
 }
 
-/** Keys present in `input` that validation dropped: they aren't settings (usually a typo). */
-function unknownPaths(input: unknown, parsed: unknown, path: string[] = []): string[] {
+/** Keys present in `input` that validation dropped (zod strips unknown keys silently): they aren't settings or
+ *  facts, usually a typo. Objects inside lists are compared item by item (`unitMix.0.size`). */
+export function unknownPaths(input: unknown, parsed: unknown, path: string[] = []): string[] {
+  if (Array.isArray(input) && Array.isArray(parsed)) {
+    return input.flatMap((item, i) => unknownPaths(item, parsed[i], [...path, String(i)]));
+  }
   if (!isPlainObject(input) || !isPlainObject(parsed)) return [];
   return Object.keys(input).flatMap((key) =>
     key in parsed ? unknownPaths(input[key], parsed[key], [...path, key]) : [[...path, key].join('.')],

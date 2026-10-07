@@ -4,7 +4,13 @@
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getFlag } from '../src/repos/plumbing.ts';
-import { findProductBySlug, listOfferings, updateSettings } from '../src/repos/products.ts';
+import {
+  findProductBySlug,
+  getProductDoc,
+  listOfferings,
+  putProductDoc,
+  updateSettings,
+} from '../src/repos/products.ts';
 import { SeedSpec, seed } from '../src/seed.ts';
 import { TEST_SETTINGS, createTestDatabase, type TestDatabase } from '../src/testing.ts';
 
@@ -40,6 +46,7 @@ describe('the seed (products/seed.json)', () => {
       expect(offerings.map((o) => [o.key, o.facts])).toEqual(p.offerings.map((o) => [o.key, {}]));
     }
     expect(await getFlag(t.db, 'writes_enabled')).toBe(false);
+    expect(report.docsCreated).toBe(0); // the seed file itself carries no documents
   });
 
   it('is idempotent and never overwrites later changes', async () => {
@@ -58,6 +65,22 @@ describe('the seed (products/seed.json)', () => {
     expect(after?.settings.agent.analystLookupBudget).toBe(7);
     const { rows } = await t.pool.query<{ n: number }>('select count(*)::int as n from offerings');
     expect(rows[0]?.n).toBe(spec.products.flatMap((p) => p.offerings).length);
+  });
+
+  it('creates the first version of each document it is given, and never replaces a later one', async () => {
+    const product = { slug: 'docs-seed', name: 'Docs', packId: 'x', status: 'dormant', settings: TEST_SETTINGS };
+    const withDocs = { products: [{ ...product, docs: { strategy: '# Strategy v1', learnings: '# Learnings' } }] };
+    expect((await seed(t.db, withDocs)).docsCreated).toBe(2);
+    const stored = await findProductBySlug(t.db, 'docs-seed');
+    const id = stored?.id ?? '';
+    expect(await getProductDoc(t.db, id, 'strategy')).toMatchObject({ version: 1, markdown: '# Strategy v1' });
+    expect(await getProductDoc(t.db, id, 'playbook')).toBeNull();
+    await putProductDoc(t.db, { productId: id, doc: 'strategy', baseVersion: 1, markdown: '# Strategy v2' });
+    const again = { products: [{ ...product, docs: { strategy: '# Strategy v1', playbook: '# Playbook' } }] };
+    expect((await seed(t.db, again)).docsCreated).toBe(1);
+    expect(await getProductDoc(t.db, id, 'strategy')).toMatchObject({ version: 2, markdown: '# Strategy v2' });
+    expect(await getProductDoc(t.db, id, 'playbook')).toMatchObject({ version: 1 });
+    await expect(seed(t.db, { products: [{ ...product, docs: { roadmap: 'x' } }] })).rejects.toThrow();
   });
 
   it('rejects a seed file with invalid settings', async () => {
