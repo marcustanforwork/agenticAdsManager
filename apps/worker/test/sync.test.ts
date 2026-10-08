@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { connect, createProduct, upsertAccount } from '@ads/db';
+import { connect, createProduct, insertFinding, startManual, upsertAccount, upsertAdEntity } from '@ads/db';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey, put } from '@ads/vault';
 import type { Command } from 'commander';
@@ -95,10 +95,11 @@ describe('ads cycle', () => {
     // The expired token is an account error: recorded, and the exit code says so.
     expect(first['sync']).toMatchObject({ accounts: [{ account: 'meta:act_42', outcome: 'error' }] });
     expect(process.exitCode).toBe(1);
-    // --until detected (M06a) is accepted; the failed trust check stops the cycle before the detectors anyway.
-    const second = await cycle(['--kind', 'manual', '--until', 'detected']).summary();
+    // --until analysed (M06b) is accepted; the failed trust check stops the cycle before the detectors anyway.
+    const second = await cycle(['--kind', 'manual', '--until', 'analysed']).summary();
     expect(second).toMatchObject({ cycleId: first['cycleId'], outcome: 'finished', resumedFrom: 'synced' });
     expect(second['detected']).toBeUndefined();
+    expect(second['analysed']).toBeUndefined();
   });
 
   it('runs a daily cycle to the end: the sync error leaves the data stale, so the trust check fails (exit 1)', async () => {
@@ -117,9 +118,84 @@ describe('ads cycle', () => {
 
   it('needs --kind, a known stage and a known product', async () => {
     await expect(run(['--product', 'sync-cli', 'cycle']).done).rejects.toThrow(/--kind/);
-    await expect(
-      run(['--product', 'sync-cli', 'cycle', '--kind', 'daily', '--until', 'analysed']).done,
-    ).rejects.toThrow(/Allowed choices/);
+    await expect(run(['--product', 'sync-cli', 'cycle', '--kind', 'daily', '--until', 'drafted']).done).rejects.toThrow(
+      /Allowed choices/,
+    );
     await expect(run(['--product', 'nope', 'cycle', '--kind', 'manual']).done).rejects.toThrow(/nope/);
+  });
+});
+
+describe('ads findings', () => {
+  it("prints a cycle's findings with refs, verdicts and evidence; the latest cycle by default", async () => {
+    const product = await createProduct(t.db, {
+      slug: 'findings-cli',
+      name: 'Findings',
+      packId: 'test-pack',
+      settings: TEST_SETTINGS,
+    });
+    const account = await upsertAccount(t.db, { productId: product.id, platform: 'google', externalId: '5550001' });
+    const campaign = await upsertAdEntity(t.db, {
+      productId: product.id,
+      accountId: account.id,
+      platform: 'google',
+      type: 'campaign',
+      externalId: '77',
+      parentId: null,
+      name: 'Brand campaign',
+      status: 'active',
+      rawStatus: 'ENABLED',
+      dailyBudgetMicros: null,
+    });
+    const cycle = await startManual(t.db, { productId: product.id, cycleDate: '2026-10-08' });
+    const evidence = {
+      windowDays: 14,
+      impressions: 1200,
+      clicks: 30,
+      spendMicros: '40000000',
+      outcomesByStage: {},
+      from: '2026-09-24',
+      to: '2026-10-07',
+      dataDays: 14,
+    };
+    await insertFinding(t.db, {
+      productId: product.id,
+      cycleId: cycle.id,
+      type: 'zero_outcome_spend',
+      source: 'detector',
+      targetEntityId: campaign.id,
+      analystVerdict: 'confirmed',
+      summary: 'Spent S$40.00 for 30 clicks over 14 days, with no signup outcomes.',
+      whyNow: 'Beta spend should bring signups.',
+      evidence,
+      confidence: 'medium',
+      passedThreshold: true,
+    });
+    await insertFinding(t.db, {
+      productId: product.id,
+      cycleId: cycle.id,
+      type: 'tracking_gap',
+      source: 'analyst',
+      targetEntityId: null,
+      targetAccountId: account.id,
+      analystVerdict: 'added',
+      summary: 'Conversions stopped.',
+      evidence,
+      passedThreshold: false,
+    });
+    for (const args of [[], ['--cycle', cycle.id]]) {
+      const r = run(['--product', 'findings-cli', 'findings', ...args]);
+      await r.done;
+      const report = JSON.parse(r.printed.join('\n')) as { cycleId: string; findings: Record<string, unknown>[] };
+      expect(report.cycleId).toBe(cycle.id);
+      expect(report.findings).toMatchObject([
+        { type: 'zero_outcome_spend', source: 'detector', verdict: 'confirmed', target: 'google:5550001:campaign:77' },
+        { type: 'tracking_gap', source: 'analyst', verdict: 'added', target: 'google:5550001', passedThreshold: false },
+      ]);
+      expect(r.printed.join('\n')).not.toContain('Brand campaign'); // refs, never names
+    }
+    await expect(run(['--product', 'findings-cli', 'findings', '--cycle', 'abc']).done).rejects.toThrow(/UUID/);
+    await expect(run(['--product', 'sync-cli', 'findings', '--cycle', cycle.id]).done).rejects.toThrow(
+      /findings-cli|sync-cli/,
+    );
   });
 });

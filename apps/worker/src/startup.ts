@@ -1,7 +1,7 @@
 // Worker startup (BLUEPRINT §5.5, M04): resume unfinished cycles from `stage_reached`, so a container restarted in
 // the middle of a sync carries on. Skipped without DATABASE_URL and VAULT_READ_KEY (the M00 smoke test runs with no
 // secrets). M07 folds this into the full startup reconciliation (`recoverWorker`) with the job runner.
-import { publishPackManifests, type ResumeSummary, resumeUnfinishedCycles } from '@ads/core';
+import { createModelTracing, publishPackManifests, type ResumeSummary, resumeUnfinishedCycles } from '@ads/core';
 import { connect } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { masterKeyFromEnv } from '@ads/vault';
@@ -24,6 +24,8 @@ export async function resumeCyclesAtStartup(
   }
   const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', env);
   const database = connect(url, { max: 2, applicationName: 'ads-worker' });
+  // A resumed cycle may reach the analyst: its calls are traced like any other (no Langfuse keys = untraced).
+  const tracing = createModelTracing(env);
   try {
     const out = await resumeUnfinishedCycles({
       db: database.db,
@@ -33,6 +35,7 @@ export async function resumeCyclesAtStartup(
       now,
       packs,
       env,
+      tracing,
     });
     logger.info(
       {
@@ -44,6 +47,7 @@ export async function resumeCyclesAtStartup(
     );
     return out;
   } finally {
+    await tracing?.shutdown();
     await database.close();
   }
 }
