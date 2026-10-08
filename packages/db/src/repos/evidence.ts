@@ -21,6 +21,8 @@ export interface MetricTotals {
   firstDataDay: string | null;
   /** When the scope was first synced, as a local day (null: no entity). */
   firstSeenDay: string | null;
+  /** The scope's last day with impressions, any time (null: never delivered). */
+  lastImpressionDay: string | null;
 }
 
 function scopeWhere(productId: string, scope: EvidenceScope) {
@@ -44,6 +46,9 @@ export async function sumMetrics(
       spend: sql<string>`coalesce(sum(${metricsDaily.spendMicros}) filter (where ${inWindow}), 0)::text`,
       daysWithRows: sql<number>`count(distinct ${metricsDaily.date}) filter (where ${inWindow})::int`,
       firstDataDay: sql<string | null>`min(${metricsDaily.date})::text`,
+      lastImpressionDay: sql<
+        string | null
+      >`(max(${metricsDaily.date}) filter (where ${metricsDaily.impressions} > 0))::text`,
     })
     .from(metricsDaily)
     .innerJoin(adEntities, eq(adEntities.id, metricsDaily.adEntityId))
@@ -61,6 +66,7 @@ export async function sumMetrics(
     daysWithRows: row?.daysWithRows ?? 0,
     firstDataDay: row?.firstDataDay ?? null,
     firstSeenDay: seen?.firstSeenDay ?? null,
+    lastImpressionDay: row?.lastImpressionDay ?? null,
   };
 }
 

@@ -1,13 +1,16 @@
 // The detectors and the detect stage (M06a Builds 3–4): a fires / doesn't-fire pair per detector, low volume
 // included, and the thresholds applied to evidence computed from the database (never to anything the AI returns).
 import type { PackManifest, ProductSettings } from '@ads/contracts';
-import { listFindings, replaceTrustChecks, startManual } from '@ads/db';
+import { listFindings, markAccountSynced, replaceTrustChecks, startManual } from '@ads/db';
 import { TEST_SETTINGS, createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   computeEvidence,
+  costSpike,
   detectStage,
+  medianMicros,
+  noDelivery,
   pacingRisk,
   trackingGap,
   wastefulSearchTerm,
@@ -26,6 +29,15 @@ const MANIFEST = {
     wasteful_search_term: { minImpressions: 50, minClicks: 8, minSpendMicros: money(8), minDays: 14 },
     tracking_gap: { minImpressions: 500, minClicks: 30, minSpendMicros: '0', minDays: 7 },
     pacing_risk: { minImpressions: 0, minClicks: 0, minSpendMicros: '0', minDays: 3 },
+  },
+} as unknown as PackManifest;
+/** The same, with the two detectors M06b adds (kept out of MANIFEST so the detect-stage tests stay focused). */
+const MANIFEST_M06B = {
+  ...MANIFEST,
+  thresholds: {
+    ...MANIFEST.thresholds,
+    no_delivery: { minImpressions: 0, minClicks: 0, minSpendMicros: '0', minDays: 3 },
+    cost_spike: { minImpressions: 1000, minClicks: 20, minSpendMicros: money(20), minDays: 14 },
   },
 } as unknown as PackManifest;
 
@@ -268,5 +280,127 @@ describe('the detect stage', () => {
     const out = await detectStage({ db: t.db, now: () => NOW }, ctx().product, cycle.id);
     expect(out.candidates).toEqual([]);
     expect(out.skipped).toContain('not installed');
+  });
+});
+
+describe('no_delivery', () => {
+  async function silent() {
+    const x = await world();
+    await markAccountSynced(t.db, x.w.accounts.google, { at: NOW });
+    await markAccountSynced(t.db, x.w.accounts.meta, { at: NOW });
+    const ctx = () => ({ ...x.ctx(), manifest: MANIFEST_M06B });
+    return { ...x, ctx };
+  }
+
+  it('fires on an active campaign with no impressions for 3 days, and on a silent ad group of a delivering one', async () => {
+    const { w, ctx } = await silent();
+    const stopped = await w.entity('google', 'campaign', '101');
+    await w.metrics(stopped, '2026-10-03', 500, 10, S(5)); // last delivered on the 3rd; the window is 5–7 October
+    await w.metrics(stopped, '2026-10-06', 0, 0, 0n);
+    const live = await w.entity('google', 'campaign', '102');
+    await w.metrics(live, '2026-10-06', 800, 12, S(6));
+    const quietGroup = await w.entity('google', 'ad_group', '103', { parent: live });
+    await w.entity('google', 'ad_group', '104', { parent: stopped }); // under a silent campaign: its echo, not reported
+    const found = await noDelivery.detect(ctx());
+    expect(found.map((c) => (c.target.kind === 'entity' ? c.target.entity.externalId : ''))).toEqual(['101', '103']);
+    expect(found[0]?.summary).toBe('This active campaign had no impressions in the last 3 days (last on 2026-10-03).');
+    expect(found[0]?.evidence).toMatchObject({ from: '2026-10-05', to: '2026-10-07', impressions: 0, dataDays: 3 });
+    expect(found[1]?.summary).toBe(
+      'This active ad group had no impressions in the last 3 days and has never delivered.',
+    );
+    expect(quietGroup.parentId).toBe(live.id);
+  });
+
+  it("doesn't fire on a delivering, new or paused entity, or on an account not synced today", async () => {
+    const { w, ctx } = await silent();
+    const live = await w.entity('meta', 'campaign', '111');
+    await w.metrics(live, '2026-10-07', 1, 0, 0n); // one impression is delivery
+    await w.entity('meta', 'campaign', '112', { firstSeen: '2026-10-06' }); // watched 2 days < minDays 3
+    await w.entity('meta', 'campaign', '113', { status: 'paused' });
+    expect(await noDelivery.detect(ctx())).toEqual([]);
+
+    const stale = await world(); // accounts never synced: no rows could mean a missed sync
+    await stale.w.entity('meta', 'campaign', '114');
+    expect(await noDelivery.detect({ ...stale.ctx(), manifest: MANIFEST_M06B })).toEqual([]);
+  });
+});
+
+describe('cost_spike', () => {
+  /** A campaign with S$`spend` and `signups` KPI outcomes in each of the five weeks ending 2026-10-07 (week 0 first). */
+  async function weeks(perWeek: [number, number][], clicksPerWeek = 10) {
+    const x = await world();
+    const campaign = await x.w.entity('meta', 'campaign', `12${n}`);
+    let k = 0;
+    for (const [i, [spend, signups]] of perWeek.entries()) {
+      const day = ['2026-10-05', '2026-09-28', '2026-09-21', '2026-09-14', '2026-09-07'][i] as string;
+      await x.w.metrics(campaign, day, 400, clicksPerWeek, S(spend));
+      for (let j = 0; j < signups; j += 1) {
+        k += 1;
+        await x.w.outcome(`cs${n}-${k}`, 'signup', `${day}T04:00:00Z`, campaign, { ids: { fbclid: `fb.cs${k}` } });
+      }
+    }
+    return { ...x, ctx: () => ({ ...x.ctx(), manifest: MANIFEST_M06B }) };
+  }
+
+  it('takes the median of bigints', () => {
+    expect(medianMicros([5n, 1n, 3n])).toBe(3n);
+    expect(medianMicros([4n, 1n, 3n, 2n])).toBe(2n); // (2 + 3) / 2, rounded down
+  });
+
+  it('fires when cost per KPI this week is over 1.5 × the median of the 4 weeks before', async () => {
+    // This week S$60 / 2 = S$30; before: S$10, S$12, S$8, S$10 → median S$10.
+    const { ctx } = await weeks([
+      [60, 2],
+      [20, 2],
+      [24, 2],
+      [16, 2],
+      [30, 3],
+    ]);
+    const [found] = await costSpike.detect(ctx());
+    expect(found?.summary).toBe(
+      'Cost per signup in the last 7 days was S$30.00, 300% of the S$10.00 median over the 4 weeks before.',
+    );
+    expect(found?.evidence).toMatchObject({ windowDays: 35, clicks: 50, spendMicros: S(150).toString() });
+    expect(found?.evidence.detail).toEqual({
+      costPerKpiMicros: S(30).toString(),
+      medianCostPerKpiMicros: S(10).toString(),
+      weeksCompared: 4,
+      ratioPct: 300,
+      weekSpendMicros: S(60).toString(),
+      weekKpiOutcomes: 2,
+    });
+  });
+
+  it("doesn't fire at 1.5 × or below, at low volume, without KPI outcomes this week, or with one week to compare", async () => {
+    const steady = await weeks([
+      [30, 2],
+      [20, 2],
+      [20, 2],
+      [20, 2],
+      [20, 2],
+    ]); // S$15 vs S$10: exactly 150%
+    expect(await costSpike.detect(steady.ctx())).toEqual([]);
+    const thin = await weeks(
+      [
+        [60, 2],
+        [20, 2],
+        [20, 2],
+      ],
+      3,
+    ); // 9 clicks < 20
+    expect(await costSpike.detect(thin.ctx())).toEqual([]);
+    const none = await weeks([
+      [60, 0],
+      [20, 2],
+      [20, 2],
+    ]);
+    expect(await costSpike.detect(none.ctx())).toEqual([]);
+    const fresh = await weeks([
+      [60, 2],
+      [20, 2],
+      [20, 0],
+      [20, 0],
+    ]);
+    expect(await costSpike.detect(fresh.ctx())).toEqual([]);
   });
 });
