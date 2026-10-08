@@ -155,7 +155,8 @@ export const STAGES: readonly StageStep[] = [
     stage: 'analysed',
     kinds: ALL_KINDS,
     async run({ deps, product, cycle, summary }) {
-      summary.analysed = await analyseStage(
+      // The model's raw answer stays out of the summary: its text may quote entity names (the findings hold it).
+      const { output: _answer, ...analysed } = await analyseStage(
         {
           db: deps.db,
           env: deps.env ?? {},
@@ -167,6 +168,7 @@ export const STAGES: readonly StageStep[] = [
         product,
         cycle.id,
       );
+      summary.analysed = analysed;
       return {};
     },
   },

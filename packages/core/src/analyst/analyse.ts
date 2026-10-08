@@ -332,6 +332,8 @@ export interface AnalyseSummary {
     dropped: AnalystInput['data']['dropped'];
   };
   lookups?: { budget: number; used: number; refused: number };
+  /** The model's answer as it came (schema-checked, not yet validated): kept for replay cases. */
+  output?: AnalystOutput;
   result?: AnalysisResult;
 }
 
@@ -401,6 +403,7 @@ export async function analyseStage(deps: AnalyseDeps, product: Product, cycleId:
       costMicros: answer.costMicros.toString(),
       input: inputSummary,
       lookups: lookupSummary(),
+      output: answer.output,
       result,
     };
   } catch (error) {

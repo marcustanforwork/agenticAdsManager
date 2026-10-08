@@ -295,6 +295,25 @@ export async function buildAnalystInput(db: DbOrTx, opts: BuildAnalystInputOptio
   const context = trustedContext(pack.manifest, phases, docs);
   const instructions = analystInstructions({ lookups: opts.lookups });
 
+  // In a fixed order (type, target, term), whatever order the rows were stored in.
+  const sortedCandidates: AnalystData['candidates'] = candidates
+    .map((c) => {
+      const negativeText = (c.params as { negativeText?: unknown } | null)?.negativeText;
+      return {
+        id: c.id,
+        type: c.type,
+        target: refOfFinding(c),
+        summary: c.summary,
+        evidence: evidenceForAnalyst(c.evidence as Parameters<typeof evidenceForAnalyst>[0]),
+        ...(typeof negativeText === 'string' ? { negativeText } : {}),
+      };
+    })
+    .sort((a, b) => {
+      const ka = `${a.type}\u0000${a.target}\u0000${a.negativeText ?? ''}`;
+      const kb = `${b.type}\u0000${b.target}\u0000${b.negativeText ?? ''}`;
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+
   /** The DATA block with the first `keep` ranked entities. */
   const assemble = (keep: number): AnalystData => {
     const kept = ranked.slice(0, keep);
@@ -354,17 +373,7 @@ export async function buildAnalystInput(db: DbOrTx, opts: BuildAnalystInputOptio
         ],
         rows: metricsRows,
       },
-      candidates: candidates.map((c) => {
-        const negativeText = (c.params as { negativeText?: unknown } | null)?.negativeText;
-        return {
-          id: c.id,
-          type: c.type,
-          target: refOfFinding(c),
-          summary: c.summary,
-          evidence: evidenceForAnalyst(c.evidence as Parameters<typeof evidenceForAnalyst>[0]),
-          ...(typeof negativeText === 'string' ? { negativeText } : {}),
-        };
-      }),
+      candidates: sortedCandidates,
       outcomesByCampaign: { columns: ['campaign', ...stages], rows: campaignRows, unattributed },
       trustChecks: trust.map((c) => {
         const account = c.accountId === null ? undefined : accountsById.get(c.accountId);

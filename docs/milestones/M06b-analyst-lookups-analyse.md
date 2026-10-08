@@ -66,8 +66,8 @@ The analyst AI reviews, ranks and explains the candidates, and the core validate
 - [x] Deterministic truncation.
 
 ## Done when (cloud)
-- [ ] Tests are green, and an analyst run on the property fixture is saved as the **first replay case**.
-  - evidence:
+- [x] Tests are green, and an analyst run on the property fixture is saved as the **first replay case**.
+  - evidence: `packages/evals/cases/property-sg-0001.json` (fixture "Sora at Lakeside", `packages/evals/src/property/fixture.ts`; 6 candidates, one of each detector type, two search terms; the answer is **recorded**: no model key in the cloud). `packages/evals/test/property-case.test.ts` replays it and must reproduce the file exactly. Full `pnpm test` at close: see Evidence.
 
 ## Done when (live, run by Marcus)
 - [ ] The SnapPool run produces findings whose evidence resolves to real rows. At low volume these will mostly be `tracking_gap` and `pacing_risk`, which is fine.
