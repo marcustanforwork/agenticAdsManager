@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.16 — 2026-10-07 (M06a build choices: finding targets, evidence fields, detector rules; two detectors to M06b, two to M14, D-079) |
+| **Version** | v3.17 — 2026-10-08 (M06b: the analyst names account- and product-level targets, D-080) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -429,10 +429,18 @@ export const FindingTypeId = z.enum([
 // The registry in core/findings maps each type to: allowed target types, the action it maps to (or none),
 // required params, and the phase from which it may produce proposals.
 
+/** What a finding is about (D-080): an ad entity (all four fields), an ad account (platform + accountId) or the
+ *  product (all null). Nullable, not optional, so every provider's structured output accepts it; core checks the fit. */
+export const FindingTargetRef = z.object({
+  level: z.enum(['entity', 'account', 'product']),
+  platform: Platform.nullable(), accountId: z.string().nullable(),
+  type: EntityType.nullable(), externalId: z.string().nullable(),
+});
+
 /** What the AI returns. Nothing in here decides a number. */
 export const AnalystFinding = z.object({
   type: FindingTypeId,
-  target: EntityRef,                         // must exist in our DB and belong to this product (checked)
+  target: FindingTargetRef,                  // must exist in our DB and belong to this product (checked)
   fromCandidateId: z.string().nullable(),    // the detector candidate it confirms; null = a new finding
   summary: z.string().max(400),
   whyNow: z.string().max(400),

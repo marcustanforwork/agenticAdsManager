@@ -620,3 +620,11 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M06a needed these choices; the plan's schema couldn't store account- or product-level findings, and per-term conversions from an upload-only product mean nothing before its uploads (D-075).
 - **Instead of:** pinning product-level findings on an arbitrary campaign, judging search terms on conversions that can't arrive yet, and guessing prices for unknown models.
 - **See:** `docs/milestones/M06a-ai-layer-findings-detectors.md` · BLUEPRINT §3.7, §4 (`findings`), §5.9, M06b, M14 · GOTCHAS (AI SDK, Langfuse, Claude prices, per-term conversions)
+
+### D-080 — M06b build choices: analyst targets, the analyst input, look-ups and the analyse stage
+- **When / who / status:** 2026-10-08 · Claude (fix) · adopted
+- **Decision:**
+  - **Targets.** `AnalystFinding.target` is a `FindingTargetRef`: `level` is `entity` (platform, account id, entity type and external id, as in `EntityRef`), `account` (platform and account id) or `product` (all null). The fields are nullable, not optional, so the schema suits every provider's structured output; core checks that they fit the level. D-079 let findings target an account or the product, but the analyst could only name an ad entity.
+- **Why:** building M06b needed these choices; `tracking_gap` (an account) and `pacing_risk` (the product) couldn't be confirmed or added by the analyst otherwise.
+- **Instead of:** an optional entity target that leaves account-level findings unnameable, or a union schema some providers' structured output rejects.
+- **See:** `docs/milestones/M06b-analyst-lookups-analyse.md` · BLUEPRINT §3.7
