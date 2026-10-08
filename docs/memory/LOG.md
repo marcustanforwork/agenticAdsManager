@@ -4,6 +4,13 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-08 — PR #11 (M06a) merged
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge"; squash-merged PR #11 on his instruction (D-057).
+- **Decided:** —
+- **Learned:** —
+- **Next:** a clean-context session starts M06b (with `cost_spike` and `no_delivery` moved from M06a); then M07.
+
 ## 2026-10-07 — M06a built (AI layer, finding registry, detectors) and code-reviewed
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)
 - **Did:**
