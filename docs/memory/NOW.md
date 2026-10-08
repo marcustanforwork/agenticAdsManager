@@ -6,20 +6,20 @@
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M06b (analyst input, look-ups, analyse stage): next.** M06a is merged and awaiting live acceptance (`docs/milestones/M06a-ai-layer-findings-detectors.md`). Then M06b (now also `cost_spike` and `no_delivery`, moved from M06a) and M07, one clean-context session each (D-056).
+- **Active milestone:** **M06b (analyst input, look-ups, analyse stage): in progress** (`docs/milestones/M06b-analyst-lookups-analyse.md`). M06a is merged and awaiting live acceptance (`docs/milestones/M06a-ai-layer-findings-detectors.md`). Then M06b (now also `cost_spike` and `no_delivery`, moved from M06a) and M07, one clean-context session each (D-056).
 - **M02, M01a** and **M00** are merged and awaiting live acceptance too (below). Under D-074 that doesn't block the builds.
 - **Status:** BLUEPRINT v3.16, PROPOSAL v3.8. **D-078:** AI SDK 7 and Langfuse's AI SDK 7 integration. **D-079:** M06a build choices (finding targets: entity, account or product; evidence fields; detector rules; costs in USD micros). **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). **D-069:** M02 build choices. **D-070:** Google API access comes from the Cloud project; no developer token. **D-071 (proposed):** two Google service accounts instead of two logins. **D-072:** the Google connector calls the REST API with its own `fetch` client. **D-073:** M03 build choices (API v25; `accounts.login_customer_id`; KPI-stage conversions by action id; soft cap 2,000 operations a day). **D-074:** build first, set up accounts at the end of Phase 0. **D-075:** M04 build choices (accounts' sync state, drift rules, `tracking_active` = `no_signal` for upload-only products before uploads, the cycle lock and resume). **D-076:** M05a build choices (unset route destinations, two email hashes, outcome reads and `products.outcome_source`, `ads seed`; `facts_put` moved to M05b). **D-077:** M05b build choices (the property pack and its Airtable adapter, attribution details, the two new trust checks, product docs, `facts_put`).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Claude (next session: clean context, Opus 5.5, medium effort):** `start-milestone` for **M06b** (analyst input, look-ups, analyse stage, plus the `cost_spike` and `no_delivery` detectors moved from M06a). Read M06a's "Leave behind" first. Cloud: reset the assigned branch to `origin/main` first (`start-session` §2).
-2. **Marcus:** start a new session for M06b; at its end, review its PR and say "merge" (D-057). Then M07.
+1. **Claude (this session):** M06b, in the order of its milestone file's session plan: D-080 plan fix, the two moved detectors, the input builder, look-ups, the analyse stage, the CLI, the property replay case, close.
+2. **Marcus:** at the end of this session, review the M06b PR and say "merge" (D-057). Then M07.
 3. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
 4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- Nothing. PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (M06a) was squash-merged into `main` on 2026-10-08.
+- M06b on `claude/gifted-franklin-hk0fku` (PR opened at close).
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -101,7 +101,7 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 | M05a | Pack SDK, SnapPool pack, settings | 0 | **awaiting live acceptance** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged) | Live: outcomes, starting settings, KPI switch (to do; needs T6a) |
 | M05b | Property pack (G8), attribution, product docs | 0 | **awaiting live acceptance** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) (merged) | G8 passed; live: docs seeded, attribution rate (needs T6a; real ids need T14) |
 | M06a | AI layer, finding registry, detectors | 0 | **awaiting live acceptance** | [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (merged) | Live: model ping + trace, detect on real data (needs T9, `ANTHROPIC_API_KEY`) |
-| M06b | Analyst input, look-ups, analyse stage | 0 | **next** | — | + `cost_spike`, `no_delivery` (from M06a) |
+| M06b | Analyst input, look-ups, analyse stage | 0 | **in progress** | — | + `cost_spike`, `no_delivery` (from M06a) |
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | not started | — | T7, T8 |
 | M08 | Draft stage, proposals, replay v0 | 1 | not started | — | Phase 0 gate |
 | M09a | Telegram bot core and proposal cards | 1 | not started | — | |
