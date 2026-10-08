@@ -4,7 +4,15 @@
 // meaning (targets exist, types fit) and compute every number themselves (invariant 4).
 import { type DbOrTx, addModelCost } from '@ads/db';
 import { propagateAttributes } from '@langfuse/tracing';
-import { type LanguageModel, type LanguageModelUsage, NoObjectGeneratedError, Output, generateText } from 'ai';
+import {
+  type LanguageModel,
+  type LanguageModelUsage,
+  NoObjectGeneratedError,
+  Output,
+  type ToolSet,
+  generateText,
+  isStepCount,
+} from 'ai';
 import type { z } from 'zod';
 import { type ModelSpec, type ModelStage, createLanguageModel, modelSpecFor, specText } from './models.ts';
 import { type ModelPrice, costOfUsage, priceFor } from './prices.ts';
@@ -37,6 +45,16 @@ export interface StructuredCall<T> {
   /** Names the call in traces (default: the stage). */
   name?: string;
   maxOutputTokens?: number;
+  /** Read-only tools the model may call before it answers (the analyst's look-ups, M06b). */
+  tools?: CallTools;
+}
+
+export interface CallTools {
+  set: ToolSet;
+  /** Model calls allowed per attempt, the structured answer included. */
+  maxSteps: number;
+  /** True once no more tool calls should be offered (a budget is used up): the next step must answer. */
+  exhausted?: () => boolean;
 }
 
 export interface CallUsage {
@@ -103,6 +121,20 @@ export async function generateStructured<T>(deps: ModelDeps, call: StructuredCal
       prompt: text,
       output: Output.object({ schema: call.schema }),
       maxOutputTokens: call.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      ...(call.tools === undefined
+        ? {}
+        : {
+            tools: call.tools.set,
+            stopWhen: isStepCount(call.tools.maxSteps),
+            // Once the budget is used up, or one step is left, the model must answer. The tools stay defined
+            // (a request with tool calls in its history must carry them); `toolChoice: 'none'` stops new calls.
+            prepareStep: ({ stepNumber }: { stepNumber: number }) =>
+              call.tools?.exhausted?.() === true || stepNumber >= (call.tools?.maxSteps ?? 1) - 1
+                ? { toolChoice: 'none' as const }
+                : undefined,
+          }),
+      // Every step is paid for as it ends, so a failure after some steps still records what they cost.
+      onStepEnd: (step: { usage: LanguageModelUsage }) => spend(step.usage, price),
       telemetry:
         deps.tracing == null
           ? { isEnabled: false }
@@ -114,7 +146,6 @@ export async function generateStructured<T>(deps: ModelDeps, call: StructuredCal
     for (let n = 1; n <= 2; n += 1) {
       try {
         const result = await attempt(n === 1 ? prompt.text : `${prompt.text}\n\n${SCHEMA_RETRY_NOTE}`);
-        spend(result.usage, price);
         return {
           output: result.output,
           model: specText(spec),
@@ -124,8 +155,7 @@ export async function generateStructured<T>(deps: ModelDeps, call: StructuredCal
           redactions: instructions.redactions + prompt.redactions,
         };
       } catch (error) {
-        if (!NoObjectGeneratedError.isInstance(error)) throw error;
-        spend(error.usage, price);
+        if (!NoObjectGeneratedError.isInstance(error)) throw error; // its steps are already paid for
         lastError = error;
       }
     }

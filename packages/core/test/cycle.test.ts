@@ -49,7 +49,7 @@ const count = async (table: string): Promise<number> =>
   ).rows[0]?.n ?? -1;
 
 describe('runCycle', () => {
-  it('runs a daily cycle: sync, trust check, detect, then finishes; stages are recorded in order', async () => {
+  it('runs a daily cycle: sync, trust check, detect, analyse, then finishes; stages are recorded in order', async () => {
     const stages: string[] = [];
     const replay = fixtures();
     const summary = await runCycle(deps(replay, { onStage: (s) => void stages.push(s) }), {
@@ -57,10 +57,13 @@ describe('runCycle', () => {
       kind: 'daily',
     });
     expect(replay.remaining()).toBe(0);
-    expect(stages).toEqual(['synced', 'trust_checked', 'detected']);
+    expect(stages).toEqual(['synced', 'trust_checked', 'detected', 'analysed']);
     // The detectors ran on the synced fixture data with the pack's thresholds (M06a).
     expect(summary.detected?.skipped).toBeUndefined();
     expect(Array.isArray(summary.detected?.candidates)).toBe(true);
+    // Without a model key the analysis fails, and the cycle still finishes (M06b): the brief reports the candidates.
+    expect(summary.analysed?.status).toBe('failed');
+    expect(summary.analysed?.detail).toContain('ANTHROPIC_API_KEY');
     expect(summary).toMatchObject({
       product: 'cycle',
       kind: 'daily',

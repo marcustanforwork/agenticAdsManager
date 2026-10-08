@@ -15,6 +15,7 @@ import {
   type DbOrTx,
   type EvidenceScope,
   type OutcomeScope,
+  type SearchTermTotals,
   countOutcomesByScope,
   sumMetrics,
 } from '@ads/db';
@@ -113,3 +114,20 @@ export const judgeEvidence = (evidence: ComputedEvidence, threshold: EvidenceThr
     },
     threshold,
   );
+
+/** A search term's evidence: its ad group's window and days watched, with the term's own sums in place of the ad
+ *  group's metrics, and the platform's KPI conversions for the term as its outcomes. */
+export const searchTermEvidence = (
+  adGroup: ComputedEvidence,
+  term: SearchTermTotals,
+  kpiStage: string,
+): ComputedEvidence => ({
+  ...adGroup,
+  impressions: term.impressions,
+  clicks: term.clicks,
+  spendMicros: term.spendMicros.toString(),
+  // Whole conversions, rounded up: any share of a conversion counts (Google reports fractions); the exact figure
+  // goes in the detail.
+  outcomesByStage: { [kpiStage]: Math.ceil(Number(term.conversions)) },
+  detail: { level: 'search_term', daysWithTerm: term.daysWithRows, platformConversions: term.conversions },
+});

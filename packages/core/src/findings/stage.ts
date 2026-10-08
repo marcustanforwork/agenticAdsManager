@@ -2,15 +2,15 @@
 // `source = 'detector'`, replacing any from an interrupted run of the stage. The analyse stage (M06b) confirms or
 // dismisses them.
 import type { ComputedEvidence, FindingTypeId } from '@ads/contracts';
-import { type DbOrTx, type Product, replaceDetectorFindings } from '@ads/db';
+import { type DbOrTx, type Product, listAccounts, replaceDetectorFindings } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { type Candidate, type Detector, runDetectors } from './detectors.ts';
-import type { FindingTarget } from './evidence.ts';
+import { targetRefText } from '../analyst/refs.ts';
 
 export interface DetectedCandidate {
   findingId: string;
   type: FindingTypeId;
-  /** Platform ids only, never names: `google:campaign:123`, `meta:act_456`, or `product`. */
+  /** A ref, platform ids only, never names: `google:1234567890:campaign:123`, `meta:act_456`, or `product`. */
   target: string;
   summary: string;
   evidence: ComputedEvidence;
@@ -21,13 +21,6 @@ export interface DetectSummary {
   /** Why no detector ran (no pack installed for the product). */
   skipped?: string;
 }
-
-export const targetLabel = (target: FindingTarget): string =>
-  target.kind === 'entity'
-    ? `${target.entity.platform}:${target.entity.type}:${target.entity.externalId}`
-    : target.kind === 'account'
-      ? `${target.account.platform}:${target.account.externalId}`
-      : 'product';
 
 export async function detectStage(
   deps: { db: DbOrTx; packs?: PackRegistry; now: () => Date; detectors?: readonly Detector[] },
@@ -56,11 +49,12 @@ export async function detectStage(
       passedThreshold: true, // detectors keep only candidates whose evidence meets the pack's threshold
     })),
   });
+  const accounts = new Map((await listAccounts(deps.db, product.id)).map((a) => [a.id, a] as const));
   return {
     candidates: found.map((c, i) => ({
       findingId: stored[i]?.id ?? '',
       type: c.type,
-      target: targetLabel(c.target),
+      target: targetRefText(c.target, accounts),
       summary: c.summary,
       evidence: c.evidence,
     })),

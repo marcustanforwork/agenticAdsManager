@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // The `ads` CLI. Like every surface, it only creates operator requests (invariant 9): `ads settings set` records a
 // settings_patch for the one processor. The `credentials`, `accounts` and `seed` commands are setup, and the
-// reads (`sync --dry`, `cycle`, `outcomes`) never touch an ad account.
+// reads (`sync --dry`, `cycle`, `outcomes`, `findings`) never touch an ad account.
 import { readFileSync } from 'node:fs';
-import { dryRunSync, runCycle } from '@ads/core';
+import { createModelTracing, dryRunSync, runCycle } from '@ads/core';
 import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { accountsCommand } from './accounts.ts';
 import { docsCommand } from './docs.ts';
+import { findingsCommand } from './findings.ts';
 import { type ModelCliDeps, modelCommand } from './model.ts';
 import { outcomesCommand } from './outcomes.ts';
 import { INSTALLED_PACKS } from './packs.ts';
@@ -60,6 +61,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program.addCommand(outcomesCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
   program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
+  program.addCommand(findingsCommand(withDb, requireProduct, { print: deps.print }));
   program.addCommand(
     modelCommand(withDb, requireProduct, {
       env: deps.env,
@@ -72,9 +74,11 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program
     .command('cycle')
     .description(
-      "run today's cycle for the product (sync, the trust check, then the detectors), or continue it if it was " +
-        'interrupted; prints a JSON summary (counts, ids and the candidate findings, never names). Needs DATABASE_URL (the direct connection, not the pooler) ' +
-        'and VAULT_READ_KEY. Exits 1 if an account failed to sync or the trust check failed.',
+      "run today's cycle for the product (sync, the trust check, the detectors, then the analyst), or continue it " +
+        'if it was interrupted; prints a JSON summary (counts, ids, the candidate findings and the analysis, never ' +
+        'names). Needs DATABASE_URL (the direct connection, not the pooler), VAULT_READ_KEY and, for the analyst, ' +
+        "the model's key (e.g. ANTHROPIC_API_KEY); traced to Langfuse when its keys are set. Exits 1 if an account " +
+        'failed to sync, the trust check failed or the analysis failed.',
     )
     .addOption(
       new Option('--kind <kind>', 'daily and weekly run once a day; manual any time')
@@ -86,37 +90,55 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
         'synced',
         'trust_checked',
         'detected',
+        'analysed',
       ]),
     )
-    .action(async (opts: { kind: 'daily' | 'weekly' | 'manual'; until?: 'synced' | 'trust_checked' | 'detected' }) => {
-      const slug = requireProduct();
-      const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', deps.env);
-      await withDb(async (db) => {
-        const product = await findProductBySlug(db, slug);
-        if (!product) throw new NotFoundError('product', slug);
-        const summary = await runCycle(
-          {
-            db,
-            lockUrl: deps.env['DATABASE_URL'] ?? '',
-            masterKey,
-            process: 'cli',
-            ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
-            now,
-            packs,
-            env: deps.env,
-          },
-          { productId: product.id, kind: opts.kind, ...(opts.until === undefined ? {} : { until: opts.until }) },
+    .action(
+      async (opts: {
+        kind: 'daily' | 'weekly' | 'manual';
+        until?: 'synced' | 'trust_checked' | 'detected' | 'analysed';
+      }) => {
+        const slug = requireProduct();
+        const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', deps.env);
+        const tracing = createModelTracing(
+          deps.env,
+          deps.traceExporter === undefined ? {} : { exporter: deps.traceExporter },
         );
-        deps.print(JSON.stringify(summary, null, 2));
-        if (
-          summary.outcome === 'blocked' ||
-          summary.sync?.accounts.some((a) => a.outcome === 'error') ||
-          summary.trustResult === 'fail'
-        ) {
-          process.exitCode = 1;
+        try {
+          await withDb(async (db) => {
+            const product = await findProductBySlug(db, slug);
+            if (!product) throw new NotFoundError('product', slug);
+            const summary = await runCycle(
+              {
+                db,
+                lockUrl: deps.env['DATABASE_URL'] ?? '',
+                masterKey,
+                process: 'cli',
+                ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
+                now,
+                packs,
+                env: deps.env,
+                tracing,
+                ...(deps.model === undefined ? {} : { model: deps.model }),
+              },
+              { productId: product.id, kind: opts.kind, ...(opts.until === undefined ? {} : { until: opts.until }) },
+            );
+            deps.print(JSON.stringify(summary, null, 2));
+            if (
+              summary.outcome === 'blocked' ||
+              summary.sync?.accounts.some((a) => a.outcome === 'error') ||
+              summary.trustResult === 'fail' ||
+              summary.analysed?.status === 'failed'
+            ) {
+              process.exitCode = 1;
+            }
+          });
+        } finally {
+          // A CLI exits right after: send the buffered spans first.
+          await tracing?.shutdown();
         }
-      });
-    });
+      },
+    );
 
   program
     .command('sync')
