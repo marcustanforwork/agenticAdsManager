@@ -4,6 +4,22 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-08 — M06b built (analyst input, look-ups, analyse stage) and code-reviewed
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR opened at the end of the session
+- **Did:**
+  - Started M06b. A plan fix first: the analyst names a finding's target as an entity, an ad account or the product (`FindingTargetRef`, D-080).
+  - Build 5 (moved from M06a): the `no_delivery` and `cost_spike` detectors, with fires / doesn't-fire tests.
+  - Build 1: the analyst input (`core/src/analyst/input.ts`, `instructions.ts` `analyst-v1`): trusted context (pack context, phase, product docs), then the DATA block; a 60k-token cap with deterministic truncation.
+  - Build 2: six read-only look-ups as model tools, with the per-cycle budget (`lookups.ts`); `generateStructured` gained tools.
+  - Build 3: the analyse stage (`analyse.ts`): validation, computed evidence, thresholds, verdicts; the `analysed` stage in `runCycle`.
+  - Build 4: `ads cycle --until analysed`, `ads findings`.
+  - The property fixture "Sora at Lakeside" and the first replay case (`packages/evals`); its answer is recorded (no model key in the cloud). The `add-finding-type` skill.
+  - Code review at high effort (D-067): 10 findings, 9 fixed with tests (the analyst's added findings must meet their rule; look-ups stop with `toolChoice: 'none'`; per-step cost; fractional conversions; three smaller ones); one kept by choice (a failed analysis doesn't hold the cycle).
+- **Decided:** D-080 (M06b build choices).
+- **Learned:** GOTCHAS: AI SDK 7 tools with structured output (step cost, `toolChoice: 'none'`, last-step usage on errors).
+- **Next:** Marcus reviews the M06b PR; then a clean session starts M07.
+- **Open:** Q13 (can wait, D-074).
+
 ## 2026-10-08 — PR #11 (M06a) merged
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge"; squash-merged PR #11 on his instruction (D-057).
