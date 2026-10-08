@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-08 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M06b built and code-reviewed; its PR is open for Marcus's review** (see "In flight"). M06a is merged (PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)). **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0. SnapPool's tracking change (T6b) is live since 2026-09-25 (see "Deployed").
+**Last updated:** 2026-10-08 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M06b built and code-reviewed; PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) is open for Marcus's review.** M06a is merged (PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)). **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0. SnapPool's tracking change (T6b) is live since 2026-09-25 (see "Deployed").
 
 ## Where we are
 - **Phase:** 0.
@@ -12,14 +12,14 @@
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review the M06b PR (link in "In flight"); say "merge" when happy (D-057, after CI passes).
+1. **Marcus:** review PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (M06b); say "merge" when happy (D-057, after CI passes).
 2. **Claude (next session, clean context, Opus 5.5, medium effort):** after the merge, `start-milestone` for **M07** (digest, brief, services on the SER9; Phase 0 exit). Read M06b's "Leave behind" first (how the brief should treat verdicts and unreviewed candidates). Cloud: reset the assigned branch to `origin/main` first (`start-session` §2).
 3. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
 4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- M06b on `claude/gifted-franklin-hk0fku`: PR opened at the end of this session (ready for review), awaiting CI and Marcus's "merge".
+- M06b on `claude/gifted-franklin-hk0fku`: PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (ready for review), awaiting CI and Marcus's "merge".
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).

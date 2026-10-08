@@ -10,7 +10,7 @@
 | **Phase** | 0 |
 | **Started** | 2026-10-08 |
 | **Finished** | 2026-10-08 (cloud part) |
-| **PRs** | branch `claude/gifted-franklin-hk0fku` (PR opened at close) |
+| **PRs** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) |
 
 ## Goal
 The analyst AI reviews, ranks and explains the candidates, and the core validates everything it returns. Everything is traced.

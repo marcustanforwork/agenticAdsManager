@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-10-08 — M06b built (analyst input, look-ups, analyse stage) and code-reviewed
-- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR opened at the end of the session
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12)
 - **Did:**
   - Started M06b. A plan fix first: the analyst names a finding's target as an entity, an ad account or the product (`FindingTargetRef`, D-080).
   - Build 5 (moved from M06a): the `no_delivery` and `cost_spike` detectors, with fires / doesn't-fire tests.
