@@ -32,6 +32,7 @@ import {
   type FindingTarget,
   computeEvidence,
   judgeEvidence,
+  searchTermEvidence,
   windowEndingYesterday,
 } from './evidence.ts';
 import { evidenceWindowDays } from './registry.ts';
@@ -282,14 +283,7 @@ export const wastefulSearchTerm: Detector = {
       const target: FindingTarget = { kind: 'entity', entity: adGroup };
       const base = watched.get(adGroup.id) ?? (await evidenceFor(ctx, target, window));
       watched.set(adGroup.id, base);
-      const evidence: ComputedEvidence = {
-        ...base,
-        impressions: term.impressions,
-        clicks: term.clicks,
-        spendMicros: term.spendMicros.toString(),
-        outcomesByStage: { [kpi]: 0 }, // the platform's KPI conversions for the term
-        detail: { level: 'search_term', daysWithTerm: term.daysWithRows },
-      };
+      const evidence = searchTermEvidence(base, term, kpi); // no KPI conversions: checked above
       if (!judgeEvidence(evidence, threshold).met) continue;
       out.push({
         type: this.type,
