@@ -6,7 +6,6 @@
 // counts. Aggregates only: no outcome row, contact detail or click id (§5.18).
 import { type PackManifest, type ProductPack, localDate, minusDays } from '@ads/contracts';
 import {
-  type Account,
   type AdEntity,
   type DbOrTx,
   type Finding,
@@ -28,7 +27,6 @@ import {
 import type { FindingTarget } from '../findings/evidence.ts';
 import { ANALYST_PROMPT_VERSION, analystInstructions } from './instructions.ts';
 import {
-  PRODUCT_REF,
   accountRefText,
   entityRefOf,
   entityRefText,

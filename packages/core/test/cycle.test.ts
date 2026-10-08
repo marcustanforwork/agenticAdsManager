@@ -62,7 +62,8 @@ describe('runCycle', () => {
     expect(summary.detected?.skipped).toBeUndefined();
     expect(Array.isArray(summary.detected?.candidates)).toBe(true);
     // Without a model key the analysis fails, and the cycle still finishes (M06b): the brief reports the candidates.
-    expect(summary.analysed).toMatchObject({ status: 'failed', detail: expect.stringContaining('ANTHROPIC_API_KEY') });
+    expect(summary.analysed?.status).toBe('failed');
+    expect(summary.analysed?.detail).toContain('ANTHROPIC_API_KEY');
     expect(summary).toMatchObject({
       product: 'cycle',
       kind: 'daily',
