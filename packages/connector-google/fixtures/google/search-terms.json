@@ -1,6 +1,6 @@
 {
   "source": "hand-written from the Google Ads API REST reference (v25), M03",
-  "notes": "Made-up search terms. Real ones are untrusted text and are replaced by the redactor when recorded.",
+  "notes": "Made-up search terms. Real ones are untrusted text and are replaced by the redactor when recorded. The second exchange is the KPI conversions per term (M06a): action 555 is the KPI action, 557 another; the KPI rows are summed, the others ignored.",
   "exchanges": [
     {
       "request": {
@@ -71,6 +71,84 @@
             ],
             "fieldMask": "x",
             "requestId": "req0"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/customers/1234567890/googleAds:searchStream",
+        "query": {},
+        "headers": {
+          "login-customer-id": "1112223333"
+        },
+        "body": {
+          "query": "SELECT search_term_view.search_term, ad_group.id, segments.date, segments.conversion_action, metrics.all_conversions FROM search_term_view WHERE segments.date BETWEEN '2026-09-28' AND '2026-09-30'"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8"
+        },
+        "body": [
+          {
+            "results": [
+              {
+                "searchTermView": {
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
+                  "searchTerm": "photo sharing app for weddings"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-28",
+                  "conversionAction": "customers/1234567890/conversionActions/555"
+                },
+                "metrics": {
+                  "allConversions": 1.5
+                }
+              },
+              {
+                "searchTermView": {
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
+                  "searchTerm": "photo sharing app for weddings"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-28",
+                  "conversionAction": "customers/1234567890/conversionActions/557"
+                },
+                "metrics": {
+                  "allConversions": 4
+                }
+              },
+              {
+                "searchTermView": {
+                  "resourceName": "customers/1234567890/searchTermViews/111~211~REDACTED",
+                  "searchTerm": "free event photo pool"
+                },
+                "adGroup": {
+                  "resourceName": "customers/1234567890/adGroups/211",
+                  "id": "211"
+                },
+                "segments": {
+                  "date": "2026-09-29",
+                  "conversionAction": "customers/1234567890/conversionActions/557"
+                },
+                "metrics": {
+                  "allConversions": 2
+                }
+              }
+            ],
+            "fieldMask": "searchTermView.searchTerm,adGroup.id,segments.date,segments.conversionAction,metrics.allConversions",
+            "requestId": "fixture-search-terms-conversions"
           }
         ]
       }

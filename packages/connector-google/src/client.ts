@@ -122,6 +122,13 @@ const SearchTermViewRow = z.looseObject({
   metrics: Metrics,
   segments: z.looseObject({ date: z.iso.date() }),
 });
+const SearchTermConversionRow = z.looseObject({
+  searchTermView: z.looseObject({ searchTerm: z.string() }),
+  adGroup: AdGroupRef,
+  metrics: Metrics,
+  segments: z.looseObject({ date: z.iso.date(), conversionAction: z.string().optional() }),
+});
+const termKey = (adGroupId: string, day: string, term: string): string => JSON.stringify([adGroupId, day, term]);
 const ClickViewRow = z.looseObject({
   clickView: z.looseObject({ gclid: z.string().optional() }),
   campaign: CampaignRef,
@@ -611,6 +618,7 @@ export class GoogleReadClient implements PlatformReadClient {
       }),
       SearchTermViewRow,
     );
+    const kpi = await this.#searchTermConversions(accountId, range);
     return rows.map((r) => ({
       adGroup: ref(accountId, 'ad_group', r.adGroup.id),
       day: r.segments.date,
@@ -618,7 +626,40 @@ export class GoogleReadClient implements PlatformReadClient {
       impressions: count(r.metrics?.impressions),
       clicks: count(r.metrics?.clicks),
       spendMicros: microsToJson(microsFromGoogle(r.metrics?.costMicros ?? '0')),
+      ...(kpi === null
+        ? {}
+        : { kpiConversions: kpi.get(termKey(r.adGroup.id, r.segments.date, r.searchTermView.searchTerm)) ?? 0 }),
     }));
+  }
+
+  /** KPI-stage conversions per ad group, day and term (M06a): the same query segmented by conversion action, kept
+   *  for the KPI actions only, as for the metrics (D-073). Null when no KPI action is configured. */
+  async #searchTermConversions(accountId: string, range: DateRange): Promise<Map<string, number> | null> {
+    if (this.#conversionActionIds.length === 0) return null;
+    const rows = await this.api.search(
+      accountId,
+      gaql({
+        from: 'search_term_view',
+        select: [
+          'search_term_view.search_term',
+          'ad_group.id',
+          'segments.date',
+          'segments.conversion_action',
+          'metrics.all_conversions',
+        ],
+        where: [between(range)],
+      }),
+      SearchTermConversionRow,
+    );
+    const wanted = new Set(this.#conversionActionIds);
+    const out = new Map<string, number>();
+    for (const r of rows) {
+      const id = /\/conversionActions\/(\d+)$/.exec(r.segments.conversionAction ?? '')?.[1];
+      if (id === undefined || !wanted.has(id)) continue;
+      const key = termKey(r.adGroup.id, r.segments.date, r.searchTermView.searchTerm);
+      out.set(key, (out.get(key) ?? 0) + (r.metrics?.allConversions ?? 0));
+    }
+    return out;
   }
 
   /** Click ids for one day (Google allows only one day per `click_view` query, at most 90 days back). */

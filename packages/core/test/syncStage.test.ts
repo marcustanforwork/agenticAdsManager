@@ -4,6 +4,7 @@ import {
   createProposal,
   findAccount,
   getProduct,
+  getSearchTerms,
   insertChange,
   listEntities,
   listUnacknowledgedDrift,
@@ -90,6 +91,12 @@ describe('syncStage', () => {
       clickIds: { days: 1 },
     });
     expect(google?.searchTerms).toBeGreaterThan(0);
+    // The KPI action's conversions per term are stored (M06a); another action's are not.
+    const terms = await getSearchTerms(t.db, { productId: world.productId, from: '2000-01-01', to: '2100-01-01' });
+    expect(Object.fromEntries(terms.map((r) => [r.term, Number(r.conversions)]))).toEqual({
+      'photo sharing app for weddings': 1.5,
+      'free event photo pool': 0,
+    });
     expect(meta).toMatchObject({
       account: `meta:${META_ACCOUNT}`,
       outcome: 'synced',

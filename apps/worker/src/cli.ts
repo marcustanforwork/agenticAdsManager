@@ -8,6 +8,7 @@ import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { accountsCommand } from './accounts.ts';
 import { docsCommand } from './docs.ts';
+import { type ModelCliDeps, modelCommand } from './model.ts';
 import { outcomesCommand } from './outcomes.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { seedCommand, settingsCommand } from './settings.ts';
@@ -27,6 +28,9 @@ export interface WorkerCliDeps extends CliDeps {
   fetch?: typeof fetch;
   now?: () => Date;
   packs?: PackRegistry;
+  /** `ads model ping` in tests: a mock model and an in-memory trace exporter. */
+  model?: ModelCliDeps['model'];
+  traceExporter?: ModelCliDeps['traceExporter'];
 }
 export type { CliDeps };
 
@@ -56,12 +60,20 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program.addCommand(outcomesCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
   program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
+  program.addCommand(
+    modelCommand(withDb, requireProduct, {
+      env: deps.env,
+      print: deps.print,
+      ...(deps.model === undefined ? {} : { model: deps.model }),
+      ...(deps.traceExporter === undefined ? {} : { traceExporter: deps.traceExporter }),
+    }),
+  );
 
   program
     .command('cycle')
     .description(
-      "run today's cycle for the product (sync, then the trust check), or continue it if it was interrupted; " +
-        'prints a JSON summary (counts, never names). Needs DATABASE_URL (the direct connection, not the pooler) ' +
+      "run today's cycle for the product (sync, the trust check, then the detectors), or continue it if it was " +
+        'interrupted; prints a JSON summary (counts, ids and the candidate findings, never names). Needs DATABASE_URL (the direct connection, not the pooler) ' +
         'and VAULT_READ_KEY. Exits 1 if an account failed to sync or the trust check failed.',
     )
     .addOption(
@@ -73,9 +85,10 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
       new Option('--until <stage>', 'stop after this stage; the cycle stays resumable').choices([
         'synced',
         'trust_checked',
+        'detected',
       ]),
     )
-    .action(async (opts: { kind: 'daily' | 'weekly' | 'manual'; until?: 'synced' | 'trust_checked' }) => {
+    .action(async (opts: { kind: 'daily' | 'weekly' | 'manual'; until?: 'synced' | 'trust_checked' | 'detected' }) => {
       const slug = requireProduct();
       const masterKey = masterKeyFromEnv('VAULT_READ_KEY', 'read', deps.env);
       await withDb(async (db) => {

@@ -1,5 +1,5 @@
 // Cycles (one run of the agent for a product), their trust checks, and findings.
-import type { ComputedEvidence, WriteOp } from '@ads/contracts';
+import { ComputedEvidence, type WriteOp } from '@ads/contracts';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { DuplicateCycleError, NotFoundError, RefusedError, isUniqueViolation } from '../errors.ts';
@@ -144,6 +144,17 @@ export async function finish(db: DbOrTx, id: string, outcome: { error?: string }
   return row;
 }
 
+/** Adds a model call's cost (USD micros, D-078) to the cycle's running total, atomically: calls may run in parallel. */
+export async function addModelCost(db: DbOrTx, cycleId: string, costMicros: bigint): Promise<void> {
+  if (costMicros < 0n) throw new RangeError('a model cost cannot be negative');
+  const rows = await db
+    .update(cycles)
+    .set({ modelCostMicros: sql`${cycles.modelCostMicros} + ${costMicros.toString()}::bigint` })
+    .where(eq(cycles.id, cycleId))
+    .returning({ id: cycles.id });
+  if (rows.length === 0) throw new NotFoundError('cycle', cycleId);
+}
+
 /** Cycles that started but never finished, oldest first (worker startup reconciliation, BLUEPRINT §5.5). */
 export async function listUnfinishedCycles(db: DbOrTx): Promise<Cycle[]> {
   return db.select().from(cycles).where(isNull(cycles.finishedAt)).orderBy(asc(cycles.startedAt));
@@ -214,7 +225,9 @@ export interface NewFinding {
   cycleId: string;
   type: string;
   source: (typeof FINDING_SOURCES)[number];
-  targetEntityId: string;
+  /** The target (D-079): an ad entity, else an ad account, else (both null) the whole product. */
+  targetEntityId: string | null;
+  targetAccountId?: string | null;
   analystVerdict?: (typeof ANALYST_VERDICTS)[number] | null;
   dismissedReason?: string | null;
   summary: string;
@@ -227,13 +240,35 @@ export interface NewFinding {
   proposedAction?: WriteOp | null;
 }
 
+const findingRow = (input: NewFinding) => ({
+  ...input,
+  evidence: ComputedEvidence.parse(input.evidence), // checked on write: evidence is computed, never free-form
+  evidenceRefs: input.evidenceRefs ?? [],
+});
+
 export async function insertFinding(db: DbOrTx, input: NewFinding): Promise<Finding> {
-  const [row] = await db
-    .insert(findings)
-    .values({ ...input, evidenceRefs: input.evidenceRefs ?? [] })
-    .returning();
+  const [row] = await db.insert(findings).values(findingRow(input)).returning();
   if (!row) throw new Error('insert into findings returned nothing');
   return row;
+}
+
+/** Stores a cycle's detector candidates, replacing any from an interrupted run of the same stage (idempotent). */
+export async function replaceDetectorFindings(
+  db: DbOrTx,
+  input: { productId: string; cycleId: string; findings: Omit<NewFinding, 'productId' | 'cycleId' | 'source'>[] },
+): Promise<Finding[]> {
+  return db.transaction(async (tx) => {
+    await tx.delete(findings).where(and(eq(findings.cycleId, input.cycleId), eq(findings.source, 'detector')));
+    if (input.findings.length === 0) return [];
+    return tx
+      .insert(findings)
+      .values(
+        input.findings.map((f) =>
+          findingRow({ ...f, productId: input.productId, cycleId: input.cycleId, source: 'detector' }),
+        ),
+      )
+      .returning();
+  });
 }
 
 export async function setAnalystVerdict(

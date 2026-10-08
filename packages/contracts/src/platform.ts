@@ -73,6 +73,8 @@ export const SearchTermRow = z.object({
   impressions: z.number().int().min(0),
   clicks: z.number().int().min(0),
   spendMicros: MicrosJson,
+  /** The platform's conversions of the KPI stage's conversion actions (M06a); absent when none are configured. */
+  kpiConversions: z.number().min(0).optional(),
 });
 export type SearchTermRow = z.infer<typeof SearchTermRow>;
 
