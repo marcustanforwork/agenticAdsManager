@@ -126,6 +126,8 @@ export const searchTermEvidence = (
   impressions: term.impressions,
   clicks: term.clicks,
   spendMicros: term.spendMicros.toString(),
-  outcomesByStage: { [kpiStage]: Math.floor(Number(term.conversions)) }, // whole conversions (Google reports fractions)
-  detail: { level: 'search_term', daysWithTerm: term.daysWithRows },
+  // Whole conversions, rounded up: any share of a conversion counts (Google reports fractions); the exact figure
+  // goes in the detail.
+  outcomesByStage: { [kpiStage]: Math.ceil(Number(term.conversions)) },
+  detail: { level: 'search_term', daysWithTerm: term.daysWithRows, platformConversions: term.conversions },
 });

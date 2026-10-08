@@ -21,7 +21,8 @@ export interface MetricTotals {
   firstDataDay: string | null;
   /** When the scope was first synced, as a local day (null: no entity). */
   firstSeenDay: string | null;
-  /** The scope's last day with impressions, any time (null: never delivered). */
+  /** The scope's last day with impressions up to the window's end (null: none by then). Today's partial rows come
+   *  after a window ending yesterday, so they don't count. */
   lastImpressionDay: string | null;
 }
 
@@ -48,7 +49,7 @@ export async function sumMetrics(
       firstDataDay: sql<string | null>`min(${metricsDaily.date})::text`,
       lastImpressionDay: sql<
         string | null
-      >`(max(${metricsDaily.date}) filter (where ${metricsDaily.impressions} > 0))::text`,
+      >`(max(${metricsDaily.date}) filter (where ${metricsDaily.impressions} > 0 and ${metricsDaily.date} <= ${input.to}::date))::text`,
     })
     .from(metricsDaily)
     .innerJoin(adEntities, eq(adEntities.id, metricsDaily.adEntityId))

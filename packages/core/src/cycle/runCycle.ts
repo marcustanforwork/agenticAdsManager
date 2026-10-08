@@ -155,8 +155,7 @@ export const STAGES: readonly StageStep[] = [
     stage: 'analysed',
     kinds: ALL_KINDS,
     async run({ deps, product, cycle, summary }) {
-      // The model's raw answer stays out of the summary: its text may quote entity names (the findings hold it).
-      const { output: _answer, ...analysed } = await analyseStage(
+      const analysed = await analyseStage(
         {
           db: deps.db,
           env: deps.env ?? {},
@@ -168,11 +167,29 @@ export const STAGES: readonly StageStep[] = [
         product,
         cycle.id,
       );
-      summary.analysed = analysed;
+      summary.analysed = withoutModelText(analysed);
       return {};
     },
   },
 ];
+
+/** The analysis for the printed summary: ids, types, refs and core's own words only. The model's answer and its
+ *  free text (dismissal reasons, the targets it named) may quote entity names; `ads findings` shows them. */
+function withoutModelText(analysed: AnalyseSummary): AnalyseSummary {
+  const { output: _answer, result, ...rest } = analysed;
+  if (result === undefined) return rest;
+  return {
+    ...rest,
+    result: {
+      ...result,
+      dismissed: result.dismissed.map(({ reason: _reason, ...d }) => d),
+      dropped: result.dropped.map(({ target: _target, ...d }) => ({
+        ...d,
+        target: '(not shown: written by the model)',
+      })),
+    },
+  };
+}
 
 const order = (stage: CycleStage): number => CYCLE_STAGE_ORDER.indexOf(stage);
 

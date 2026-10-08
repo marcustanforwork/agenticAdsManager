@@ -1,7 +1,7 @@
 // How the analyst's input names things (M06b): refs that map one-to-one onto `FindingTargetRef`, and money as a
 // decimal string in the account currency (invariant 6: never a float).
 import type { ComputedEvidence, EntityRef, FindingTargetRef } from '@ads/contracts';
-import type { Account, AdEntity } from '@ads/db';
+import type { Account, AdEntity, Finding } from '@ads/db';
 import type { FindingTarget } from '../findings/evidence.ts';
 
 /** `google:1234567890:campaign:42`: platform, account id, entity type, external id. */
@@ -69,4 +69,32 @@ export function evidenceForAnalyst(evidence: ComputedEvidence): Record<string, u
     outcomes: evidence.outcomesByStage,
     ...(detail === undefined ? {} : { detail }),
   };
+}
+
+/** A stored finding's target (D-079): its entity, else its account, else (both null) the product. Null when the row
+ *  names an entity or account that isn't in the maps. */
+export function findingTargetOf(
+  row: Pick<Finding, 'targetEntityId' | 'targetAccountId'>,
+  entitiesById: ReadonlyMap<string, AdEntity>,
+  accountsById: ReadonlyMap<string, Account>,
+): FindingTarget | null {
+  if (row.targetEntityId !== null) {
+    const entity = entitiesById.get(row.targetEntityId);
+    return entity === undefined ? null : { kind: 'entity', entity };
+  }
+  if (row.targetAccountId !== null) {
+    const account = accountsById.get(row.targetAccountId);
+    return account === undefined ? null : { kind: 'account', account };
+  }
+  return { kind: 'product' };
+}
+
+/** A stored finding's target as a ref (`?` when it can't be resolved). */
+export function findingRefText(
+  row: Pick<Finding, 'targetEntityId' | 'targetAccountId'>,
+  entitiesById: ReadonlyMap<string, AdEntity>,
+  accountsById: ReadonlyMap<string, Account>,
+): string {
+  const target = findingTargetOf(row, entitiesById, accountsById);
+  return target === null ? '?' : targetRefText(target, accountsById);
 }

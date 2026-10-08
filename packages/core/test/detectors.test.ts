@@ -250,7 +250,9 @@ describe('the detect stage', () => {
     await w.outcome('s4', 'signup', '2026-10-04T02:00:00Z', null, { ids: { fbclid: 'fb.4' } });
     const product = ctx().product;
     const first = await detectStage({ db: t.db, packs: registry, now: () => NOW }, product, cycle.id);
-    expect(first.candidates.map((c) => [c.type, c.target])).toEqual([['zero_outcome_spend', 'meta:campaign:81']]);
+    expect(first.candidates.map((c) => [c.type, c.target.replace(/act_\d+/, 'act_N')])).toEqual([
+      ['zero_outcome_spend', 'meta:act_N:campaign:81'],
+    ]);
     // The stored evidence is exactly what SQL computes for that target and window.
     const window = windowEndingYesterday(NOW, TZ, 14);
     const computed = await computeEvidence(t.db, {
@@ -309,6 +311,15 @@ describe('no_delivery', () => {
       'This active ad group had no impressions in the last 3 days and has never delivered.',
     );
     expect(quietGroup.parentId).toBe(live.id);
+  });
+
+  it("names the last delivery day before the window's end, not today's partial rows", async () => {
+    const { w, ctx } = await silent();
+    const resumed = await w.entity('google', 'campaign', '105');
+    await w.metrics(resumed, '2026-10-02', 300, 6, S(3));
+    await w.metrics(resumed, '2026-10-08', 40, 1, S(1)); // today, still coming in
+    const [found] = await noDelivery.detect(ctx());
+    expect(found?.summary).toBe('This active campaign had no impressions in the last 3 days (last on 2026-10-02).');
   });
 
   it("doesn't fire on a delivering, new or paused entity, or on an account not synced today", async () => {

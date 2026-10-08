@@ -24,15 +24,14 @@ import {
   sumMetrics,
   sumMetricsByEntity,
 } from '@ads/db';
-import type { FindingTarget } from '../findings/evidence.ts';
 import { ANALYST_PROMPT_VERSION, analystInstructions } from './instructions.ts';
 import {
   accountRefText,
   entityRefOf,
   entityRefText,
   evidenceForAnalyst,
+  findingRefText,
   microsToDecimal,
-  targetRefText,
 } from './refs.ts';
 
 /** The days the metrics table covers (ending yesterday), and the recent part shown alongside. */
@@ -206,21 +205,8 @@ export async function buildAnalystInput(db: DbOrTx, opts: BuildAnalystInputOptio
   const entitiesById = new Map(entities.map((e) => [e.id, e] as const));
   const refOf = (e: AdEntity): string =>
     entityRefText(entityRefOf(e, { externalId: accountsById.get(e.accountId)?.externalId ?? '?' }));
-  const targetOf = (f: Pick<Finding, 'targetEntityId' | 'targetAccountId'>): FindingTarget | null => {
-    if (f.targetEntityId !== null) {
-      const entity = entitiesById.get(f.targetEntityId);
-      return entity === undefined ? null : { kind: 'entity', entity };
-    }
-    if (f.targetAccountId !== null) {
-      const account = accountsById.get(f.targetAccountId);
-      return account === undefined ? null : { kind: 'account', account };
-    }
-    return { kind: 'product' };
-  };
-  const refOfFinding = (f: Pick<Finding, 'targetEntityId' | 'targetAccountId'>): string => {
-    const target = targetOf(f);
-    return target === null ? '?' : targetRefText(target, accountsById);
-  };
+  const refOfFinding = (f: Pick<Finding, 'targetEntityId' | 'targetAccountId'>): string =>
+    findingRefText(f, entitiesById, accountsById);
 
   // Candidates: this cycle's detector findings. Never truncated.
   const candidates = (await listFindings(db, cycleId)).filter((f) => f.source === 'detector');
@@ -232,24 +218,6 @@ export async function buildAnalystInput(db: DbOrTx, opts: BuildAnalystInputOptio
       id = entitiesById.get(id)?.parentId ?? null;
     }
   }
-
-  const totals = new Map(
-    (await sumMetricsByEntity(db, { productId: product.id, from, to, recentFrom })).map((t) => [t.entityId, t]),
-  );
-  // Removed entities without data in the window say nothing about now.
-  const ranked: Ranked[] = entities
-    .filter((e) => e.status !== 'removed' || totals.has(e.id) || pinned.has(e.id))
-    .map((entity) => {
-      const t = totals.get(entity.id);
-      return {
-        entity,
-        ref: refOf(entity),
-        spend: t?.spendMicros ?? 0n,
-        lastDataDay: t?.lastDataDay ?? '',
-        pinned: pinned.has(entity.id),
-      };
-    })
-    .sort(compareRanked);
 
   const outcomeRows = await countOutcomesByCampaign(db, { productId: product.id, from, to, timeZone: tz });
   const stages = product.settings.outcomes.stages.map((s) => s.id);
@@ -264,6 +232,24 @@ export async function buildAnalystInput(db: DbOrTx, opts: BuildAnalystInputOptio
     counts[r.stage] = r.n;
     byCampaign.set(r.campaignEntityId, counts);
   }
+
+  const totals = new Map(
+    (await sumMetricsByEntity(db, { productId: product.id, from, to, recentFrom })).map((t) => [t.entityId, t]),
+  );
+  // Removed entities without data or outcomes in the window say nothing about now.
+  const ranked: Ranked[] = entities
+    .filter((e) => e.status !== 'removed' || totals.has(e.id) || byCampaign.has(e.id) || pinned.has(e.id))
+    .map((entity) => {
+      const t = totals.get(entity.id);
+      return {
+        entity,
+        ref: refOf(entity),
+        spend: t?.spendMicros ?? 0n,
+        lastDataDay: t?.lastDataDay ?? '',
+        pinned: pinned.has(entity.id),
+      };
+    })
+    .sort(compareRanked);
 
   const drift = (await listUnacknowledgedDrift(db, product.id))
     .slice()

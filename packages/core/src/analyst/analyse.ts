@@ -41,14 +41,23 @@ import { type ModelDeps, generateStructured } from '../model/generate.ts';
 import type { ModelTracing } from '../model/tracing.ts';
 import { type AnalystInput, buildAnalystInput } from './input.ts';
 import { LookupBudget, analystLookupTools } from './lookups.ts';
-import { analystRefText, targetRefText } from './refs.ts';
+import { analystRefText, findingRefText, targetRefText } from './refs.ts';
 import { resolveTargetRef } from './targets.ts';
 
 /** Rejections of one type for one target after which the analyst's finding is kept only at `low` confidence. */
 export const MEMORY_CAP_REJECTIONS = 3;
-/** The types the analyst may add: those the detectors cover. The Phase 3 and 4 types arrive with their milestones
- *  (M14, M15b), so a finding of those types (a budget increase, a copy refresh) is dropped until then. */
-export const ANALYST_TYPES: ReadonlySet<FindingTypeId> = new Set(DETECTORS.map((d) => d.type));
+/** What a finding the analyst adds must show in its computed evidence besides the pack's threshold: the direction
+ *  of its type's rule (no KPI outcome, no impression). Only these types may be added. The others are decided by
+ *  state the evidence doesn't hold (a trust check, the month's pace, the weekly cost ratio): their detectors raise
+ *  them, and the analyst confirms or dismisses. The Phase 3 and 4 types (a budget change, a copy refresh) aren't in
+ *  use until their milestones (M14, M15b). */
+export const ANALYST_RULES: Partial<Record<FindingTypeId, (evidence: ComputedEvidence, kpiStage: string) => boolean>> =
+  {
+    zero_outcome_spend: (e, kpi) => BigInt(e.spendMicros) > 0n && e.clicks > 0 && (e.outcomesByStage[kpi] ?? 0) === 0,
+    wasteful_search_term: (e, kpi) => BigInt(e.spendMicros) > 0n && e.clicks > 0 && (e.outcomesByStage[kpi] ?? 0) === 0,
+    no_delivery: (e) => e.impressions === 0,
+  };
+const DETECTED_TYPES: ReadonlySet<string> = new Set(DETECTORS.map((d) => d.type));
 
 export interface ReviewedFinding {
   findingId: string;
@@ -138,19 +147,9 @@ export async function applyAnalystOutput(ctx: ApplyContext, output: AnalystOutpu
   await resetAnalysis(db, cycleId);
   const accountsById = new Map<string, Account>((await listAccounts(db, product.id)).map((a) => [a.id, a]));
   const entitiesById = new Map((await listEntities(db, product.id)).map((e) => [e.id, e] as const));
-  const labelOf = (f: Pick<Finding, 'targetEntityId' | 'targetAccountId'>): string => {
-    const entity = f.targetEntityId === null ? undefined : entitiesById.get(f.targetEntityId);
-    const account = f.targetAccountId === null ? undefined : accountsById.get(f.targetAccountId);
-    const target: FindingTarget | null =
-      entity !== undefined
-        ? { kind: 'entity', entity }
-        : account !== undefined
-          ? { kind: 'account', account }
-          : f.targetEntityId === null && f.targetAccountId === null
-            ? { kind: 'product' }
-            : null;
-    return target === null ? '?' : targetRefText(target, accountsById);
-  };
+  const labelOf = (f: Pick<Finding, 'targetEntityId' | 'targetAccountId'>): string =>
+    findingRefText(f, entitiesById, accountsById);
+
   const candidates = new Map(
     (await listFindings(db, cycleId)).filter((f) => f.source === 'detector').map((f) => [f.id, f] as const),
   );
@@ -252,8 +251,14 @@ export async function applyAnalystOutput(ctx: ApplyContext, output: AnalystOutpu
       continue;
     }
 
-    if (!ANALYST_TYPES.has(f.type)) {
-      drop(f, `${f.type} findings are not in use yet`);
+    const rule = ANALYST_RULES[f.type];
+    if (rule === undefined) {
+      drop(
+        f,
+        DETECTED_TYPES.has(f.type)
+          ? `${f.type} findings come from their detector only`
+          : `${f.type} findings are not in use yet`,
+      );
       continue;
     }
     const addedKey = `${f.type}|${key}|${negativeText ?? ''}`;
@@ -263,7 +268,9 @@ export async function applyAnalystOutput(ctx: ApplyContext, output: AnalystOutpu
     }
     addedKeys.add(addedKey);
     const evidence = await evidenceForNew(ctx, f.type, target, negativeText);
-    const passed = judgeEvidence(evidence, thresholdFor(ctx.manifest, f.type)).met;
+    const passed =
+      judgeEvidence(evidence, thresholdFor(ctx.manifest, f.type)).met &&
+      rule(evidence, product.settings.outcomes.primaryKpiStage);
     const row = await insertFinding(db, {
       productId: product.id,
       cycleId,

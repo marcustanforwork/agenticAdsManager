@@ -54,6 +54,7 @@ const MANIFEST = {
     tracking_gap: { minImpressions: 500, minClicks: 30, minSpendMicros: '0', minDays: 7 },
     pacing_risk: { minImpressions: 0, minClicks: 0, minSpendMicros: '0', minDays: 3 },
     budget_limited_efficient: { minImpressions: 0, minClicks: 0, minSpendMicros: '0', minDays: 0 },
+    no_delivery: { minImpressions: 0, minClicks: 0, minSpendMicros: '0', minDays: 3 },
   },
 } as unknown as PackManifest;
 const PACK = { manifest: MANIFEST, runtime: { detectPhase: () => 'beta' } } as unknown as ProductPack;
@@ -233,6 +234,16 @@ describe('the analyst input', () => {
     expect(a.data.candidates).toHaveLength(1);
   });
 
+  it("keeps a removed campaign's outcomes when it has no metrics left in the window", async () => {
+    const { w, cycle, product } = await world();
+    const gone = await w.entity('meta', 'campaign', '41', { status: 'removed' });
+    await w.outcome('late-1', 'signup', '2026-10-03T02:00:00Z', gone, { ids: { fbclid: 'fb.late' } });
+    await w.entity('meta', 'campaign', '42', { status: 'removed' }); // no data, no outcomes: left out
+    const input = await buildAnalystInput(t.db, { product, pack: PACK, cycleId: cycle.id, now: NOW, lookups: false });
+    expect(input.data.outcomesByCampaign.rows).toEqual([[await refText(gone), 1]]);
+    expect(input.data.entities.rows.map((r) => r[0])).toEqual([await refText(gone)]);
+  });
+
   it('carries decision memory: the last rejections per type, with reasons', async () => {
     const { w, cycle, product } = await world();
     const c = await w.entity('meta', 'campaign', '7');
@@ -335,19 +346,20 @@ describe('look-ups', () => {
     expect(budget).toMatchObject({ used: 2, exhausted: true });
   });
 
-  it('stop being offered to the model once the budget is used up, and the model must answer', async () => {
+  it('stop being callable once the budget is used up, and the model must answer', async () => {
     const { w, cycle, product } = await world();
     const c = await w.entity('google', 'campaign', '1');
     await w.metrics(c, '2026-10-06', 100, 5, S(3));
     const ref = await refText(c);
-    const offered: number[] = [];
+    const offered: string[] = [];
     let calls = 0;
     const model = new MockLanguageModelV4({
       doGenerate: (options: LanguageModelV4CallOptions) => {
-        offered.push(options.tools?.length ?? 0);
+        const choice = options.toolChoice?.type ?? 'none';
+        offered.push(`${options.tools?.length ?? 0}:${choice}`);
         calls += 1;
         // The model keeps asking for more while it may.
-        if ((options.tools?.length ?? 0) > 0) {
+        if (choice !== 'none') {
           return Promise.resolve(toolCall(`c${calls}`, 'get_metrics', { ref, from: '2026-10-01', to: '2026-10-07' }));
         }
         return Promise.resolve(reply(JSON.stringify({ findings: [], dismissed: [] })));
@@ -361,18 +373,20 @@ describe('look-ups', () => {
     );
     expect(summary.status).toBe('analysed');
     expect(summary.lookups).toEqual({ budget: 2, used: 2, refused: 0 });
-    expect(offered).toEqual([6, 6, 0]); // two look-up steps, then the answer with no tools on offer
+    // Two look-up steps, then the answer: the tools stay defined (the history holds tool calls), but none may be called.
+    expect(offered).toEqual(['6:auto', '6:auto', '6:none']);
     expect((await getCycle(t.db, cycle.id)).modelCostMicros).toBeGreaterThan(0n);
   });
 
-  it('generateStructured sums the cost of every step', async () => {
+  it('generateStructured pays for every step, and makes the last allowed step answer', async () => {
     const { product } = await world();
-    let step = 0;
+    // A model that calls a tool whenever it may: a call the input schema refuses spends no look-up budget, so
+    // only the step limit stops it.
     const model = new MockLanguageModelV4({
-      doGenerate: () => {
-        step += 1;
-        return Promise.resolve(step === 1 ? toolCall('a', 'noop', {}) : reply('{"ok":true}', 1000, 100));
-      },
+      doGenerate: (options: LanguageModelV4CallOptions) =>
+        Promise.resolve(
+          options.toolChoice?.type === 'none' ? reply('{"ok":true}', 1000, 100) : toolCall('a', 'noop', {}),
+        ),
     });
     const out = await generateStructured(
       { env: {}, model: { model, spec: SPEC } },
@@ -384,7 +398,8 @@ describe('look-ups', () => {
         tools: { set: { noop: tool({ inputSchema: z.object({}), execute: () => ({}) }) }, maxSteps: 3 },
       },
     );
-    expect(out.usage).toEqual({ inputTokens: 2000, outputTokens: 150 });
+    expect(out.output).toEqual({ ok: true });
+    expect(out.usage).toEqual({ inputTokens: 3000, outputTokens: 200 }); // two tool steps and the answer
   });
 });
 
@@ -427,14 +442,12 @@ describe('the analyse stage', () => {
       ],
       dismissed: [],
     });
-    expect(result.dropped).toEqual([
-      expect.objectContaining({
-        type: 'budget_limited_efficient',
-        reason: 'budget_limited_efficient findings are not in use yet',
-      }),
+    expect(result.dropped.map((d) => [d.type, d.reason])).toEqual([
+      ['budget_limited_efficient', 'budget_limited_efficient findings are not in use yet'],
+      ['pacing_risk', 'pacing_risk findings come from their detector only'],
     ]);
     const stored = await listFindings(t.db, cycle.id);
-    expect(stored.map((f) => f.type).sort()).toEqual(['pacing_risk', 'wasteful_search_term']);
+    expect(stored.map((f) => f.type)).toEqual(['wasteful_search_term']);
     for (const f of stored) expect(JSON.stringify(f.params ?? {})).not.toContain('budgetChangePct');
     const term = stored.find((f) => f.type === 'wasteful_search_term');
     expect(term).toMatchObject({
@@ -472,6 +485,37 @@ describe('the analyse stage', () => {
       }),
     );
     expect(stored?.evidence).toMatchObject({ impressions: 40, clicks: 2, spendMicros: S(1.5).toString() });
+  });
+
+  it("an added finding must also show its type's rule in the computed evidence, not only the volume", async () => {
+    const { w, cycle, apply } = await world();
+    await w.outcome('o1', 'signup', '2026-10-04T02:00:00Z', null, { ids: { fbclid: 'fb.1', gclid: 'g.1' } });
+    const delivering = await w.entity('meta', 'campaign', '31');
+    await w.metrics(delivering, '2026-10-06', 5000, 60, S(50));
+    const c = await w.entity('google', 'campaign', '32');
+    const g = await w.entity('google', 'ad_group', '33', { parent: c });
+    // 0.5 of a conversion (Google's data-driven attribution) is a conversion: not a wasteful term.
+    await w.searchTerm(g, '2026-10-01', 'sora condo', [80, 12, S(20), '0.5']);
+    const result = await apply({
+      findings: [
+        finding({ type: 'no_delivery', target: await entityTarget(delivering) }),
+        finding({
+          type: 'wasteful_search_term',
+          target: await entityTarget(g),
+          params: { negativeText: 'sora condo', negativeMatchType: 'EXACT' },
+        }),
+      ],
+      dismissed: [],
+    });
+    expect(result.added.map((f) => [f.type, f.passedThreshold])).toEqual([
+      ['no_delivery', false],
+      ['wasteful_search_term', false],
+    ]);
+    const term = (await listFindings(t.db, cycle.id)).find((f) => f.type === 'wasteful_search_term');
+    expect(term?.evidence).toMatchObject({
+      outcomesByStage: { signup: 1 },
+      detail: { platformConversions: expect.stringMatching(/^0\.50*$/) as unknown },
+    });
   });
 
   it("drops unknown targets, another product's entity, wrong target kinds and made-up search terms", async () => {

@@ -1,7 +1,7 @@
 // `ads findings`: a cycle's findings as JSON (M06b): the detector candidates with the analyst's verdicts, and the
 // analyst's own findings, each with its computed evidence and whether it met the pack's threshold. Read only.
 // Targets are shown as refs (platform ids), never names.
-import { type FindingTarget, targetRefText } from '@ads/core';
+import { findingRefText } from '@ads/core';
 import {
   type Db,
   type Finding,
@@ -68,19 +68,7 @@ export function findingsCommand(
         if (cycle.productId !== product.id) throw new NotFoundError('cycle', `${cycle.id} of ${slug}`);
         const accounts = new Map((await listAccounts(db, product.id)).map((a) => [a.id, a] as const));
         const entities = new Map((await listEntities(db, product.id)).map((e) => [e.id, e] as const));
-        const targetOf = (f: Finding): string => {
-          const entity = f.targetEntityId === null ? undefined : entities.get(f.targetEntityId);
-          const account = f.targetAccountId === null ? undefined : accounts.get(f.targetAccountId);
-          const target: FindingTarget | null =
-            entity !== undefined
-              ? { kind: 'entity', entity }
-              : account !== undefined
-                ? { kind: 'account', account }
-                : f.targetEntityId === null && f.targetAccountId === null
-                  ? { kind: 'product' }
-                  : null;
-          return target === null ? '?' : targetRefText(target, accounts);
-        };
+        const targetOf = (f: Finding): string => findingRefText(f, entities, accounts);
         const report: FindingsReport = {
           product: slug,
           cycleId: cycle.id,
