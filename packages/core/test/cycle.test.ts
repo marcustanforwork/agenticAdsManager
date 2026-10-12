@@ -49,7 +49,7 @@ const count = async (table: string): Promise<number> =>
   ).rows[0]?.n ?? -1;
 
 describe('runCycle', () => {
-  it('runs a daily cycle: sync, trust check, detect, analyse, then finishes; stages are recorded in order', async () => {
+  it('runs a daily cycle: sync, trust check, detect, digest, then finishes; stages are recorded in order', async () => {
     const stages: string[] = [];
     const replay = fixtures();
     const summary = await runCycle(deps(replay, { onStage: (s) => void stages.push(s) }), {
@@ -57,13 +57,14 @@ describe('runCycle', () => {
       kind: 'daily',
     });
     expect(replay.remaining()).toBe(0);
-    expect(stages).toEqual(['synced', 'trust_checked', 'detected', 'analysed']);
+    // A daily cycle doesn't analyse (D-081): the weekly one does.
+    expect(stages).toEqual(['synced', 'trust_checked', 'detected', 'reported']);
     // The detectors ran on the synced fixture data with the pack's thresholds (M06a).
     expect(summary.detected?.skipped).toBeUndefined();
     expect(Array.isArray(summary.detected?.candidates)).toBe(true);
-    // Without a model key the analysis fails, and the cycle still finishes (M06b): the brief reports the candidates.
-    expect(summary.analysed?.status).toBe('failed');
-    expect(summary.analysed?.detail).toContain('ANTHROPIC_API_KEY');
+    expect(summary.analysed).toBeUndefined();
+    // The fixture spent yesterday, so the digest is queued (M07).
+    expect(summary.reported).toMatchObject({ kind: 'digest', status: 'queued' });
     expect(summary).toMatchObject({
       product: 'cycle',
       kind: 'daily',
@@ -152,7 +153,8 @@ describe('runCycle', () => {
         return Promise.resolve({});
       },
     });
-    const summary = await runCycle(deps(fixtures(), { stages: [...STAGES, later('detected'), later('reported')] }), {
+    const stages = [...STAGES.filter((s) => s.stage !== 'reported'), later('detected'), later('reported')];
+    const summary = await runCycle(deps(fixtures(), { stages }), {
       productId: world.productId,
       kind: 'daily',
     });

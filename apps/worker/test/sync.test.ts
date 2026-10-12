@@ -106,9 +106,19 @@ describe('ads cycle', () => {
     const r = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily', '--until', 'trust_checked']);
     await r.done;
     const summary = JSON.parse(r.printed.join('\n')) as { outcome: string; trustResult: string };
-    expect(summary).toMatchObject({ outcome: 'finished', trustResult: 'fail' });
+    // After a failed trust check only the report remains (M07): --until stops before it.
+    expect(summary).toMatchObject({ outcome: 'stopped', trustResult: 'fail', stageReached: 'trust_checked' });
     expect(r.printed.join('\n')).not.toContain(TOKEN);
     expect(process.exitCode).toBe(1);
+    // Run on: the digest is built (a failed check is always reported) and the cycle finishes.
+    process.exitCode = undefined;
+    const rest = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily']);
+    await rest.done;
+    expect(JSON.parse(rest.printed.join('\n'))).toMatchObject({
+      outcome: 'finished',
+      resumedFrom: 'trust_checked',
+      reported: { kind: 'digest', status: 'queued' },
+    });
     // The same day again: already finished, nothing runs.
     process.exitCode = undefined;
     const again = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily']);

@@ -2,7 +2,7 @@
 // `stage_reached` advances after each one, so an interrupted cycle resumes where it stopped. Every stage is
 // idempotent, a scheduled cycle is unique per (product, kind, date), and a named advisory lock keeps two
 // processes from running the same cycle at once. M04 has the first two stages: sync and trust check; M06a adds
-// detect, M06b analyse. The later ones (draft, report) join the STAGES list in M08 and M07.
+// detect, M06b analyse, M07 report (the digest or the brief). Draft joins the STAGES list in M08.
 import { localDate } from '@ads/contracts';
 import {
   CYCLE_STAGE_ORDER,
@@ -29,6 +29,7 @@ import type { PackRegistry } from '@ads/pack-sdk';
 import { type AnalyseSummary, analyseStage } from '../analyst/analyse.ts';
 import { type AttributionRunSummary, attributeOutcomes } from '../attribution/attribute.ts';
 import { type DetectSummary, detectStage } from '../findings/stage.ts';
+import { type ReportSummary, reportStage } from '../report/stage.ts';
 import type { ModelDeps } from '../model/generate.ts';
 import type { ModelTracing } from '../model/tracing.ts';
 import { type OutcomeReadSummary, syncOutcomes } from '../outcomes/sync.ts';
@@ -52,6 +53,21 @@ export interface CycleDeps extends SyncDeps {
   tracing?: ModelTracing | null;
   /** Tests supply the analyst's model instead of building one from the environment. */
   model?: ModelDeps['model'];
+  /** Aborted at shutdown (M07): the run stops before its next stage, leaving `stage_reached` at the last finished
+   *  one, and throws `CycleInterruptedError`; the next run resumes from there. */
+  signal?: AbortSignal;
+}
+
+/** The run stopped between stages because its signal was aborted (shutdown, or a lost job lease). */
+export class CycleInterruptedError extends Error {
+  override name = 'CycleInterruptedError';
+  readonly cycleId: string;
+  readonly stageReached: CycleStage;
+  constructor(cycleId: string, stageReached: CycleStage) {
+    super(`cycle ${cycleId} interrupted after ${stageReached}`);
+    this.cycleId = cycleId;
+    this.stageReached = stageReached;
+  }
 }
 
 export interface CycleSummary {
@@ -81,6 +97,8 @@ export interface CycleSummary {
   detected?: DetectSummary;
   /** The analyst's review of them (M06b). */
   analysed?: AnalyseSummary;
+  /** The digest or brief (M07). */
+  reported?: ReportSummary;
 }
 
 export interface StageContext {
@@ -98,6 +116,9 @@ export interface StageStep {
 }
 
 const ALL_KINDS: readonly CycleKind[] = ['daily', 'weekly', 'manual'];
+/** A daily cycle is sync → trust → detect → digest; the weekly one adds the analysis and the brief (PROPOSAL §1,
+ *  D-081). A manual run is a full weekly one. */
+const WEEKLY_KINDS: readonly CycleKind[] = ['weekly', 'manual'];
 
 /** The stages, in order. A stage that already ran in an interrupted cycle is skipped on resume. */
 export const STAGES: readonly StageStep[] = [
@@ -153,7 +174,7 @@ export const STAGES: readonly StageStep[] = [
   },
   {
     stage: 'analysed',
-    kinds: ALL_KINDS,
+    kinds: WEEKLY_KINDS,
     async run({ deps, product, cycle, summary }) {
       const analysed = await analyseStage(
         {
@@ -168,6 +189,25 @@ export const STAGES: readonly StageStep[] = [
         cycle.id,
       );
       summary.analysed = withoutModelText(analysed);
+      return {};
+    },
+  },
+  {
+    stage: 'reported',
+    kinds: ALL_KINDS,
+    async run({ deps, product, cycle, summary }) {
+      summary.reported = await reportStage(
+        {
+          db: deps.db,
+          env: deps.env ?? {},
+          now: deps.now,
+          ...(deps.packs === undefined ? {} : { packs: deps.packs }),
+          ...(deps.tracing === undefined ? {} : { tracing: deps.tracing }),
+          ...(deps.model === undefined ? {} : { model: deps.model }),
+        },
+        product,
+        cycle.id,
+      );
       return {};
     },
   },
@@ -193,7 +233,7 @@ function withoutModelText(analysed: AnalyseSummary): AnalyseSummary {
 
 const order = (stage: CycleStage): number => CYCLE_STAGE_ORDER.indexOf(stage);
 
-/** After a failed trust check only the diagnostic report may run (M07 adds the `reported` stage). */
+/** After a failed trust check only the report runs: the digest, or the diagnostic brief (M07). */
 const allowedAfterFail = (stage: CycleStage): boolean => stage === 'reported';
 
 function summaryOf(product: { slug: string }, cycle: Cycle | null, outcome: CycleSummary['outcome']): CycleSummary {
@@ -327,6 +367,7 @@ async function continueCycle(
         stopped = true;
         break;
       }
+      if (deps.signal?.aborted === true) throw new CycleInterruptedError(cycle.id, cycle.stageReached);
       const out = await next.run({ deps, product, cycle, summary });
       cycle = await advance(
         db,

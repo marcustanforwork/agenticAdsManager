@@ -47,6 +47,17 @@ export async function listBriefs(db: DbOrTx, productId: string, limit = 10): Pro
   return db.select().from(briefs).where(eq(briefs.productId, productId)).orderBy(desc(briefs.createdAt)).limit(limit);
 }
 
+/** The cycle's brief, if its report stage already wrote one (resume). */
+export async function findCycleBrief(db: DbOrTx, cycleId: string): Promise<Brief | null> {
+  const [row] = await db
+    .select()
+    .from(briefs)
+    .where(eq(briefs.cycleId, cycleId))
+    .orderBy(desc(briefs.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function markBriefSent(db: DbOrTx, id: string, at: Date = new Date()): Promise<void> {
   await db.update(briefs).set({ sentAt: at }).where(eq(briefs.id, id));
 }
@@ -138,6 +149,20 @@ export async function enqueueNotification(
     .returning();
   if (!row) throw new Error('insert into notifications returned nothing');
   return row;
+}
+
+/** A cycle's notification of `kind` (its payload carries `cycleId`), if one was queued: a resumed report stage
+ *  doesn't queue a second digest or brief. */
+export async function findCycleNotification(
+  db: DbOrTx,
+  input: { kind: string; cycleId: string },
+): Promise<Notification | null> {
+  const [row] = await db
+    .select()
+    .from(notifications)
+    .where(and(eq(notifications.kind, input.kind), sql`${notifications.payload} ->> 'cycleId' = ${input.cycleId}`))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function listUnsentNotifications(db: DbOrTx, limit = 50): Promise<Notification[]> {
