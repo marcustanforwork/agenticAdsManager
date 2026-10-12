@@ -173,7 +173,20 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
   };
   const pingOpts = { ...(opts.pingFetch === undefined ? {} : { fetch: opts.pingFetch }), logger };
 
-  // 1. Startup reconciliation (§5.5): before the queue runs, so a resumed cycle isn't also claimed as a job.
+  // 1. Heartbeat (§5.16), first: the reconciliation below may resume a long cycle, and the check mustn't go silent
+  // meanwhile. It pings only after a database round trip, so a worker that can't reach its database goes quiet.
+  const heartbeat = startHeartbeat(async () => {
+    try {
+      await databaseNow(db);
+    } catch (error) {
+      logger.error({ err: error }, 'database unreachable: heartbeat reports a failure');
+      await ping(env['HEALTHCHECK_WORKER_URL'], { ...pingOpts, fail: true });
+      return;
+    }
+    await ping(env['HEALTHCHECK_WORKER_URL'], pingOpts);
+  }, opts.heartbeatMs ?? HEARTBEAT_MS);
+
+  // 2. Startup reconciliation (§5.5): before the queue runs, so a resumed cycle isn't also claimed as a job.
   try {
     const recovered = await recoverWorker(db, requests, {
       cycles: { ...cycleDeps, ...(opts.signal === undefined ? {} : { signal: opts.signal }) },
@@ -183,8 +196,21 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
   } catch (error) {
     logger.error({ err: error }, 'startup reconciliation failed');
   }
+  if (opts.signal?.aborted === true) {
+    // Shut down during the reconciliation: start nothing more.
+    return {
+      db,
+      isLeader: () => false,
+      sendOutboxNow: () => Promise.resolve(0),
+      async stop() {
+        await heartbeat.stop();
+        await tracing?.shutdown();
+        await database.close();
+      },
+    };
+  }
 
-  // 2. The job runner (every replica).
+  // 3. The job runner (every replica).
   let outboxWake: (() => void) | null = null;
   const scheduled = (kind: ScheduledJob) => async (_job: unknown, ctx: { signal: AbortSignal }) => {
     const run = await runScheduledCycles(cycleDeps, kind, ctx.signal);
@@ -203,19 +229,39 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
     logger,
   });
 
-  // 3. Leader-only work: the schedule, Telegram polling and the outbox.
+  // 4. Leader-only work: the schedule, Telegram polling and the outbox.
   const botContext: BotContext | null =
     telegram === null || ownerId === null ? null : { db, api: telegram.api, ownerId, requests, logger };
   let leaderWork: { stop(): Promise<void> } | null = null;
-  let sending: Promise<number> = Promise.resolve(0);
+  // One outbox pass at a time (an overlapping pass would send its notifications twice). A request during a pass sets
+  // `again`, so at most one more pass follows it. After a stalled pass (Telegram unreachable, rate limited, bot
+  // blocked) the timer's passes back off: 15 s, 30 s, 1 min … up to 15 min.
+  let inFlight: Promise<number> | null = null;
+  let again = false;
+  let stalls = 0;
+  let nextPassAt = 0;
   const sendNow = (): Promise<number> => {
     if (botContext === null) return Promise.resolve(0);
-    // One send at a time: a pass that overlaps the previous one would send its notifications twice.
-    sending = sending.then(
-      () => sendOutbox(botContext),
-      () => sendOutbox(botContext),
-    );
-    return sending;
+    if (inFlight !== null) {
+      again = true;
+      return inFlight;
+    }
+    const ctx = botContext;
+    inFlight = (async () => {
+      let total = 0;
+      do {
+        again = false;
+        const pass = await sendOutbox(ctx);
+        total += pass.sent;
+        stalls = pass.stalled ? stalls + 1 : 0;
+        nextPassAt = stalls === 0 ? 0 : Date.now() + Math.min(15_000 * 2 ** (stalls - 1), 15 * 60_000);
+        if (pass.stalled) break;
+      } while (again);
+      return total;
+    })().finally(() => {
+      inFlight = null;
+    });
+    return inFlight;
   };
 
   const startLeaderWork = (): { stop(): Promise<void> } => {
@@ -238,7 +284,9 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
       };
       outboxWake = pass;
       pass();
-      timer = setInterval(pass, opts.outboxMs ?? 15_000);
+      timer = setInterval(() => {
+        if (Date.now() >= nextPassAt) pass();
+      }, opts.outboxMs ?? 15_000);
     }
     return {
       async stop() {
@@ -246,7 +294,7 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
         if (timer !== null) clearInterval(timer);
         outboxWake = null;
         await polling?.stop().catch((error: unknown) => logger.error({ err: error }, 'stopping Telegram failed'));
-        await sending.catch(() => undefined);
+        await inFlight?.catch(() => undefined);
       },
     };
   };
@@ -266,30 +314,18 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
     onError: (error) => logger.error({ err: error }, 'leader lock error'),
   });
 
-  // 4. Heartbeat (§5.16): only after a database round trip, so a worker that can't reach its database goes quiet.
-  const heartbeat = startHeartbeat(async () => {
-    try {
-      await databaseNow(db);
-    } catch (error) {
-      logger.error({ err: error }, 'database unreachable: heartbeat reports a failure');
-      await ping(env['HEALTHCHECK_WORKER_URL'], { ...pingOpts, fail: true });
-      return;
-    }
-    await ping(env['HEALTHCHECK_WORKER_URL'], pingOpts);
-  }, opts.heartbeatMs ?? HEARTBEAT_MS);
-
   return {
     db,
     isLeader: () => leadership.isLeader(),
     sendOutboxNow: sendNow,
     async stop() {
-      heartbeat.stop();
       // The running job's signal is aborted: its cycle stops between stages and the job is released, not failed.
       await runner.stop();
       const work = leaderWork;
       leaderWork = null;
       await work?.stop();
       await leadership.stop();
+      await heartbeat.stop();
       await tracing?.shutdown();
       await database.close();
     },

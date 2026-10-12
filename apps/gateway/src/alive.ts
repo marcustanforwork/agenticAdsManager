@@ -36,7 +36,7 @@ export function startGatewayHeartbeat(
   }, opts.everyMs ?? HEARTBEAT_MS);
   return {
     async stop() {
-      heartbeat.stop();
+      await heartbeat.stop();
       await database?.close();
     },
   };

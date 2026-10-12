@@ -174,6 +174,15 @@ export async function listUnsentNotifications(db: DbOrTx, limit = 50): Promise<N
     .limit(limit);
 }
 
+/** Records how many of a notification's messages went out, so a retry after a failure part-way doesn't send the
+ *  first ones again (kept in its payload as `sentChunks`). */
+export async function setNotificationProgress(db: DbOrTx, id: string, sentChunks: number): Promise<void> {
+  await db
+    .update(notifications)
+    .set({ payload: sql`${notifications.payload} || jsonb_build_object('sentChunks', ${sentChunks}::int)` })
+    .where(and(eq(notifications.id, id), isNull(notifications.sentAt)));
+}
+
 export async function markNotificationSent(db: DbOrTx, id: string, at: Date = new Date()): Promise<void> {
   await db
     .update(notifications)

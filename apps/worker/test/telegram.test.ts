@@ -174,7 +174,7 @@ describe('the outbox sender', () => {
       kind: 'alert',
       payload: { alert: 'invalid_settings', issues: ['x<y'] },
     });
-    expect(await sendOutbox(context(api))).toBe(3);
+    expect(await sendOutbox(context(api))).toEqual({ sent: 3, stalled: false });
     expect(sent[0]).toMatchObject({ chatId: OWNER, text: '<b>TG · day</b>\nA &amp; B', other: { parse_mode: 'HTML' } });
     const briefMessages = sent.slice(1, -1);
     expect(briefMessages.length).toBeGreaterThan(1);
@@ -185,7 +185,7 @@ describe('the outbox sender', () => {
     expect(await listUnsentNotifications(t.db)).toHaveLength(0);
     expect((await getBrief(t.db, b.id)).sentAt).not.toBeNull();
     // Nothing is sent twice.
-    expect(await sendOutbox(context(api))).toBe(0);
+    expect(await sendOutbox(context(api))).toEqual({ sent: 0, stalled: false });
   });
 
   it('a network error leaves the notification queued; a refused message goes out as plain text', async () => {
@@ -197,11 +197,42 @@ describe('the outbox sender', () => {
       return undefined;
     });
     await enqueueNotification(t.db, { productId, kind: 'digest', payload: { cycleId: 'd', text: 'A & B' } });
-    expect(await sendOutbox(context(api))).toBe(0);
+    expect(await sendOutbox(context(api))).toEqual({ sent: 0, stalled: true });
     expect(await listUnsentNotifications(t.db)).toHaveLength(1);
     down = false;
-    expect(await sendOutbox(context(api))).toBe(1);
+    expect(await sendOutbox(context(api))).toEqual({ sent: 1, stalled: false });
     expect(sent).toEqual([{ chatId: OWNER, text: 'A & B', other: { link_preview_options: { is_disabled: true } } }]);
+    expect(await listUnsentNotifications(t.db)).toHaveLength(0);
+  });
+});
+
+describe('the outbox sender, when a send fails part-way', () => {
+  beforeEach(async () => {
+    await t.db.update(schema.notifications).set({ sentAt: new Date() });
+  });
+
+  it('continues a long brief where it stopped, without sending its first messages again', async () => {
+    const b = await brief(
+      ['# Long', ...Array.from({ length: 300 }, (_, i) => `- line ${i} ${'z'.repeat(40)}`)].join('\n'),
+    );
+    await enqueueNotification(t.db, { productId, kind: 'brief', payload: { cycleId: 'p', briefId: b.id } });
+    let calls = 0;
+    const { api, sent } = fakeApi(() => (++calls === 2 ? new TypeError('fetch failed') : undefined));
+    expect(await sendOutbox(context(api))).toEqual({ sent: 0, stalled: true });
+    expect(sent).toHaveLength(1);
+    expect(await sendOutbox(context(api))).toEqual({ sent: 1, stalled: false });
+    const texts = sent.map((m) => m.text);
+    expect(new Set(texts).size).toBe(texts.length); // no message twice
+    expect(texts[0]).toContain('<b>Long</b>');
+    expect(sent.filter((m) => m.other?.reply_markup !== undefined)).toHaveLength(1);
+  });
+
+  it('drops a notification that can’t be rendered (its brief is gone) instead of retrying it forever', async () => {
+    const { api, sent } = fakeApi();
+    await enqueueNotification(t.db, { productId, kind: 'brief', payload: { cycleId: 'q', briefId: randomUUID() } });
+    await enqueueNotification(t.db, { productId, kind: 'digest', payload: { cycleId: 'q', text: 'after' } });
+    expect(await sendOutbox(context(api))).toEqual({ sent: 1, stalled: false });
+    expect(sent.map((m) => m.text)).toEqual(['after']);
     expect(await listUnsentNotifications(t.db)).toHaveLength(0);
   });
 });

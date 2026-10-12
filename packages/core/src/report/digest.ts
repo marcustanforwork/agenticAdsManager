@@ -47,11 +47,16 @@ export interface DigestData {
 
 export async function buildDigest(
   db: DbOrTx,
-  input: { product: Product; now: Date; cycle?: { id: string; trustResult: string | null } | null },
+  input: {
+    product: Product;
+    now: Date;
+    /** The cycle reported on: its `cycleDate` is "today", so a cycle resumed the next day reports its own day. */
+    cycle?: { id: string; trustResult: string | null; cycleDate: string } | null;
+  },
 ): Promise<DigestData> {
   const { product, now } = input;
   const tz = product.timezone;
-  const today = localDate(now, tz);
+  const today = input.cycle?.cycleDate ?? localDate(now, tz);
   const day = minusDays(today, 1);
   const month = day.slice(0, 7);
   const spendOn = async (from: string, to: string) =>

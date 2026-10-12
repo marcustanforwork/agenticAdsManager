@@ -11,6 +11,7 @@ import {
   listUnsentNotifications,
   markBriefSent,
   markNotificationSent,
+  setNotificationProgress,
 } from '@ads/db';
 import { chunkHtml, escapeHtml, markdownLiteToHtml } from './format.ts';
 
@@ -181,15 +182,37 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
 const isBadRequest = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && 'error_code' in error && error.error_code === 400;
 
-/** Sends what is queued, oldest first; each notification is marked sent once all its messages went out. A message
- *  Telegram refuses as malformed is sent again as plain text; if that fails too, it is marked sent (logged) so it
- *  can't block the queue. Any other error leaves it queued for the next pass. Returns the number sent. */
-export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {}): Promise<number> {
+export interface OutboxPass {
+  sent: number;
+  /** A send failed for a reason retrying later may fix (network, rate limit, bot blocked): the pass stopped there,
+   *  and the caller should back off before the next one. */
+  stalled: boolean;
+}
+
+/** Sends what is queued, oldest first; each notification is marked sent once all its messages went out, and the
+ *  messages already sent are counted (`sentChunks`), so a retry continues where it stopped. A message Telegram
+ *  refuses as malformed (400) is sent again as plain text; if that fails too, it is skipped (logged). A notification
+ *  that can't be rendered (its brief is gone) is dropped (logged). Any other send error stops the pass: the rest
+ *  wait, and the caller backs off. */
+export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {}): Promise<OutboxPass> {
   let sent = 0;
   for (const n of await listUnsentNotifications(ctx.db, opts.limit ?? 50)) {
+    let out: RenderedNotification;
     try {
-      const out = await renderNotification(ctx.db, n);
+      out = await renderNotification(ctx.db, n);
+    } catch (error) {
+      ctx.logger?.error(
+        { err: error, notificationId: n.id, kind: n.kind },
+        'a notification could not be rendered; dropped',
+      );
+      await markNotificationSent(ctx.db, n.id);
+      continue;
+    }
+    const payload = (n.payload ?? {}) as Record<string, unknown>;
+    const done = typeof payload['sentChunks'] === 'number' ? payload['sentChunks'] : 0;
+    try {
       for (const [i, chunk] of out.chunks.entries()) {
+        if (i < done) continue;
         const last = i === out.chunks.length - 1;
         const options: SendOptions = {
           parse_mode: 'HTML',
@@ -212,19 +235,18 @@ export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {})
           const { parse_mode: _html, ...rest } = options;
           await ctx.api.sendMessage(ctx.ownerId, plain, rest).catch((again: unknown) => {
             if (!isBadRequest(again)) throw again;
-            ctx.logger?.error(
-              { err: again, notificationId: n.id },
-              'Telegram refused the plain text too; giving up on it',
-            );
+            ctx.logger?.error({ err: again, notificationId: n.id }, 'Telegram refused the plain text too; skipped');
           });
         }
+        if (!last) await setNotificationProgress(ctx.db, n.id, i + 1);
       }
       await markNotificationSent(ctx.db, n.id);
       if (out.briefId !== undefined) await markBriefSent(ctx.db, out.briefId);
       sent += 1;
     } catch (error) {
-      ctx.logger?.error({ err: error, notificationId: n.id, kind: n.kind }, 'sending a notification failed');
+      ctx.logger?.error({ err: error, notificationId: n.id, kind: n.kind }, 'sending stopped; the rest wait');
+      return { sent, stalled: true };
     }
   }
-  return sent;
+  return { sent, stalled: false };
 }

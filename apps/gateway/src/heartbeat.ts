@@ -29,23 +29,31 @@ export async function ping(
 }
 
 export interface Heartbeat {
-  stop(): void;
+  /** Stops the timer and waits for a beat in flight, so closing the database afterwards can't turn it into a false
+   *  `/fail` ping. */
+  stop(): Promise<void>;
 }
 
 /** Calls `beat` now and every `everyMs`. `beat` decides what to ping (e.g. only after a database round trip). */
 export function startHeartbeat(beat: () => Promise<void>, everyMs = HEARTBEAT_MS): Heartbeat {
-  let running = false;
+  let current: Promise<void> | null = null;
+  let stopped = false;
   const tick = (): void => {
-    if (running) return;
-    running = true;
-    beat()
+    if (current !== null || stopped) return;
+    current = beat()
       .catch(() => undefined)
       .finally(() => {
-        running = false;
+        current = null;
       });
   };
   tick();
   const timer = setInterval(tick, everyMs);
   timer.unref();
-  return { stop: () => clearInterval(timer) };
+  return {
+    async stop() {
+      stopped = true;
+      clearInterval(timer);
+      await current;
+    },
+  };
 }

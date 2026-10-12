@@ -3,16 +3,18 @@
 // it up or worked it out itself, and the brief falls back to the plain template (invariant 4).
 
 const DATE = /\b\d{4}-\d{2}-\d{2}\b/g;
-const NUMBER = /\d[\d,]*(?:\.\d+)?/g;
+// A minus sign written right before the digits belongs to the number: "-20%" must match -20, not 20.
+const NUMBER = /-?\d[\d,]*(?:\.\d+)?/g;
 const DATE_VALUE = /^\d{4}-\d{2}-\d{2}$/;
 const NUMBER_VALUE = /^-?\d+(?:\.\d+)?$/;
 
-/** "1,234.50" → "1234.5"; "007" → "7"; "40.00" → "40". */
+/** "1,234.50" → "1234.5"; "007" → "7"; "40.00" → "40"; "-20" stays "-20" (a fall is not a rise); "-0" → "0". */
 export function canonicalNumber(token: string): string {
+  const negative = token.startsWith('-');
   let t = token.replaceAll(',', '').replace(/^-/, '');
   if (t.includes('.')) t = t.replace(/0+$/, '').replace(/\.$/, '');
   t = t.replace(/^0+(?=\d)/, '');
-  return t;
+  return negative && t !== '0' ? `-${t}` : t;
 }
 
 export interface AllowedValues {

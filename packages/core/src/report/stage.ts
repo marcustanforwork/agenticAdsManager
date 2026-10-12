@@ -12,6 +12,7 @@ import {
   insertBrief,
 } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
+import { microsToDecimal } from '../analyst/refs.ts';
 import { type ModelDeps, generateStructured } from '../model/generate.ts';
 import type { ModelTracing } from '../model/tracing.ts';
 import {
@@ -62,7 +63,7 @@ export async function reportStage(deps: ReportDeps, product: Product, cycleId: s
 async function digest(
   deps: ReportDeps,
   product: Product,
-  cycle: { id: string; trustResult: string | null },
+  cycle: { id: string; trustResult: string | null; cycleDate: string },
 ): Promise<ReportSummary> {
   if ((await findCycleNotification(deps.db, { kind: DIGEST_NOTIFICATION, cycleId: cycle.id })) !== null) {
     return { kind: 'digest', status: 'already_done' };
@@ -141,7 +142,7 @@ async function writeProse(deps: ReportDeps, product: Product, cycleId: string, n
 async function brief(
   deps: ReportDeps,
   product: Product,
-  cycle: { id: string; trustResult: string | null },
+  cycle: { id: string; trustResult: string | null; cycleDate: string },
 ): Promise<ReportSummary> {
   const existing = await findCycleBrief(deps.db, cycle.id);
   if (existing !== null) {
@@ -156,9 +157,13 @@ async function brief(
     }
     return { kind: existing.kind, status: 'already_done', briefId: existing.id };
   }
-  const numbers = await buildBriefNumbers(deps.db, { product, cycleId: cycle.id, now: deps.now() });
+  const numbers = await buildBriefNumbers(deps.db, { product, cycleId: cycle.id });
   const diagnostic = cycle.trustResult === 'fail';
   const written = diagnostic ? null : await writeProse(deps, product, cycle.id, numbers);
+  if (written !== null) {
+    // The footer's model cost includes the brief's own call, made after the table was built.
+    numbers.modelCostUsd = microsToDecimal((await getCycle(deps.db, cycle.id)).modelCostMicros);
+  }
   const markdown = written === null ? renderDiagnosticBrief(numbers) : renderBrief(numbers, written.prose);
   const kind = diagnostic ? 'diagnostic' : 'weekly';
   const row = await deps.db.transaction(async (tx) => {
