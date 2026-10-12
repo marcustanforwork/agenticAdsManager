@@ -1,5 +1,15 @@
 import { randomBytes } from 'node:crypto';
-import { connect, createProduct, insertFinding, startManual, upsertAccount, upsertAdEntity } from '@ads/db';
+import {
+  connect,
+  createProduct,
+  findProductBySlug,
+  insertBrief,
+  insertFinding,
+  listUnsentNotifications,
+  startManual,
+  upsertAccount,
+  upsertAdEntity,
+} from '@ads/db';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey, put } from '@ads/vault';
 import type { Command } from 'commander';
@@ -106,9 +116,19 @@ describe('ads cycle', () => {
     const r = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily', '--until', 'trust_checked']);
     await r.done;
     const summary = JSON.parse(r.printed.join('\n')) as { outcome: string; trustResult: string };
-    expect(summary).toMatchObject({ outcome: 'finished', trustResult: 'fail' });
+    // After a failed trust check only the report remains (M07): --until stops before it.
+    expect(summary).toMatchObject({ outcome: 'stopped', trustResult: 'fail', stageReached: 'trust_checked' });
     expect(r.printed.join('\n')).not.toContain(TOKEN);
     expect(process.exitCode).toBe(1);
+    // Run on: the digest is built (a failed check is always reported) and the cycle finishes.
+    process.exitCode = undefined;
+    const rest = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily']);
+    await rest.done;
+    expect(JSON.parse(rest.printed.join('\n'))).toMatchObject({
+      outcome: 'finished',
+      resumedFrom: 'trust_checked',
+      reported: { kind: 'digest', status: 'queued' },
+    });
     // The same day again: already finished, nothing runs.
     process.exitCode = undefined;
     const again = run(['--product', 'sync-cli', 'cycle', '--kind', 'daily']);
@@ -197,5 +217,42 @@ describe('ads findings', () => {
     await expect(run(['--product', 'sync-cli', 'findings', '--cycle', cycle.id]).done).rejects.toThrow(
       /findings-cli|sync-cli/,
     );
+  });
+});
+
+describe('ads digest and ads brief', () => {
+  it('previews the digest without queuing anything, and prints a stored brief', async () => {
+    const queued = (await listUnsentNotifications(t.db, 500)).length;
+    const d = run(['--product', 'sync-cli', 'digest']);
+    await d.done;
+    const preview = JSON.parse(d.printed.join('\n')) as { setting: string; wouldSend: boolean; text: string };
+    // No spend: the `auto` setting wouldn't send it.
+    expect(preview).toMatchObject({ setting: 'auto', wouldSend: false });
+    expect(preview.text).toMatch(/^\*\*Sync · \d{4}-\d{2}-\d{2}\*\*\nSpend: S\$0\.00 yesterday/);
+    expect(await listUnsentNotifications(t.db, 500)).toHaveLength(queued);
+
+    const product = await findProductBySlug(t.db, 'sync-cli');
+    const cycle = await startManual(t.db, { productId: product?.id ?? '', cycleDate: '2026-10-12' });
+    await insertBrief(t.db, {
+      productId: product?.id ?? '',
+      cycleId: cycle.id,
+      kind: 'weekly',
+      numbers: { writer: { source: 'template' } },
+      markdown: '# Sync: weekly brief',
+      usedTemplateFallback: true,
+    });
+    const b = run(['--product', 'sync-cli', 'brief', '--cycle', cycle.id]);
+    await b.done;
+    expect(JSON.parse(b.printed.join('\n'))).toMatchObject({
+      cycleId: cycle.id,
+      kind: 'weekly',
+      usedTemplateFallback: true,
+      writer: { source: 'template' },
+      markdown: '# Sync: weekly brief',
+      sentAt: null,
+    });
+    await expect(
+      run(['--product', 'sync-cli', 'brief', '--cycle', '00000000-0000-4000-8000-000000000000']).done,
+    ).rejects.toThrow(/brief/);
   });
 });

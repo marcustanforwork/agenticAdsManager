@@ -16,7 +16,7 @@ import {
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey } from '@ads/vault';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { type CycleDeps, STAGES, resumeUnfinishedCycles, runCycle } from '../src/index.ts';
+import { type CycleDeps, CycleInterruptedError, STAGES, resumeUnfinishedCycles, runCycle } from '../src/index.ts';
 import { NOW, TEST_PACKS, type World, googleCassettes, makeWorld, metaCassettes, tokenFetch } from './support/world.ts';
 
 let t: TestDatabase;
@@ -49,7 +49,7 @@ const count = async (table: string): Promise<number> =>
   ).rows[0]?.n ?? -1;
 
 describe('runCycle', () => {
-  it('runs a daily cycle: sync, trust check, detect, analyse, then finishes; stages are recorded in order', async () => {
+  it('runs a daily cycle: sync, trust check, detect, digest, then finishes; stages are recorded in order', async () => {
     const stages: string[] = [];
     const replay = fixtures();
     const summary = await runCycle(deps(replay, { onStage: (s) => void stages.push(s) }), {
@@ -57,13 +57,14 @@ describe('runCycle', () => {
       kind: 'daily',
     });
     expect(replay.remaining()).toBe(0);
-    expect(stages).toEqual(['synced', 'trust_checked', 'detected', 'analysed']);
+    // A daily cycle doesn't analyse (D-081): the weekly one does.
+    expect(stages).toEqual(['synced', 'trust_checked', 'detected', 'reported']);
     // The detectors ran on the synced fixture data with the pack's thresholds (M06a).
     expect(summary.detected?.skipped).toBeUndefined();
     expect(Array.isArray(summary.detected?.candidates)).toBe(true);
-    // Without a model key the analysis fails, and the cycle still finishes (M06b): the brief reports the candidates.
-    expect(summary.analysed?.status).toBe('failed');
-    expect(summary.analysed?.detail).toContain('ANTHROPIC_API_KEY');
+    expect(summary.analysed).toBeUndefined();
+    // The fixture spent yesterday, so the digest is queued (M07).
+    expect(summary.reported).toMatchObject({ kind: 'digest', status: 'queued' });
     expect(summary).toMatchObject({
       product: 'cycle',
       kind: 'daily',
@@ -140,6 +141,30 @@ describe('runCycle', () => {
     expect(await listCycles(t.db, world.productId)).toHaveLength(1);
   });
 
+  it('shutdown in the middle of a cycle leaves stage_reached consistent, and the next run resumes it', async () => {
+    const shutdown = new AbortController();
+    const run = runCycle(
+      deps(fixtures(), {
+        signal: shutdown.signal,
+        // SIGTERM arrives while the sync stage is being recorded: the run stops before the trust check.
+        onStage: (stage) => void (stage === 'synced' && shutdown.abort()),
+      }),
+      { productId: world.productId, kind: 'daily' },
+    );
+    await expect(run).rejects.toBeInstanceOf(CycleInterruptedError);
+    const [cycle] = await listCycles(t.db, world.productId);
+    expect(cycle).toMatchObject({ stageReached: 'synced', finishedAt: null, trustResult: null });
+    // The lock was released: the next run (after the restart) resumes from the sync, without syncing again.
+    const resumed = await runCycle(deps(fixtures()), { productId: world.productId, kind: 'daily' });
+    expect(resumed).toMatchObject({
+      cycleId: cycle?.id,
+      outcome: 'finished',
+      resumedFrom: 'synced',
+      stageReached: 'done',
+    });
+    expect(resumed.sync).toBeUndefined();
+  });
+
   it('a failed trust check stops the cycle: later stages are skipped, the diagnostic report still runs', async () => {
     // An account that never synced (no credential) fails data_fresh.
     await upsertAccount(t.db, { productId: world.productId, platform: 'meta', externalId: 'act_999' });
@@ -152,7 +177,8 @@ describe('runCycle', () => {
         return Promise.resolve({});
       },
     });
-    const summary = await runCycle(deps(fixtures(), { stages: [...STAGES, later('detected'), later('reported')] }), {
+    const stages = [...STAGES.filter((s) => s.stage !== 'reported'), later('detected'), later('reported')];
+    const summary = await runCycle(deps(fixtures(), { stages }), {
       productId: world.productId,
       kind: 'daily',
     });

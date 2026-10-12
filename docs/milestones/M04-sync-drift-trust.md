@@ -73,13 +73,13 @@ _After the M01a, M02 and M03 live steps (D-074: at the end of Phase 0). Doppler 
 1. `git pull` on `main`, `pnpm install`, then `doppler run --config dev -- pnpm --filter @ads/db db:migrate`
    - expect: `migrations and roles.sql applied` (adds the accounts' sync columns, migration 0002).
 2. Day 1: `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads cycle --product snappool --kind daily --until trust_checked`
-   - expect: `"outcome": "finished"`, `"stageReached": "done"`, each account `"outcome": "synced"`, `"trustResult"` `ok` or `degraded`. `degraded` is expected while the Meta spending limit is unset or 80%+ used (`spend_cap_headroom` warns). `tracking_active` says `no_signal` until conversion uploads start in Phase 2 (D-075).
+   - expect: `"outcome": "stopped"`, `"stageReached": "trust_checked"` (since M06a/M07 the detectors and the digest come after; updated 2026-10-12, D-081), each account `"outcome": "synced"`, `"trustResult"` `ok` or `degraded`. `degraded` is expected while the Meta spending limit is unset or 80%+ used (`spend_cap_headroom` warns). `tracking_active` says `no_signal` until conversion uploads start in Phase 2 (D-075).
    - report back: the JSON (counts only, no names) and the time.
 3. Day 2: the same command.
    - expect: a new cycle for the new date; `"snapshots"` small (only what changed), `"drift": 0` unless something was changed by hand. Optional: rename or pause a test campaign in Ads Manager between the two days, and see `"drift": 1` or more.
    - report back: the JSON.
 4. Restart check, on the SER9 with the dev stack (`docker compose -p ads-agent-dev up -d --build`, with the dev worker's Doppler token): in one terminal `docker compose -p ads-agent-dev exec worker ads-entrypoint ads cycle --product snappool --kind daily`; while it syncs, in another `docker compose -p ads-agent-dev restart worker`.
-   - expect: the worker's log shows `"msg":"unfinished cycles checked"` with the cycle `"outcome": "finished"`; then the command from step 2 prints `"outcome": "already_finished"`.
+   - expect: the worker's log shows `"msg":"startup reconciliation done"` with `"cyclesResumed": 1` (since M07; it was `"unfinished cycles checked"` before, D-081), and the cycle finishes; then the command from step 2 prints `"outcome": "already_finished"`.
    - report back: those two lines.
 
 ## Cut / moved

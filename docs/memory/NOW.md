@@ -2,31 +2,47 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-08 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M06b built and code-reviewed; PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) is open for Marcus's review.** M06a is merged (PR [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11)). **D-074:** the builds carry on without account setup; all setup tasks and live steps happen together at the end of Phase 0. SnapPool's tracking change (T6b) is live since 2026-09-25 (see "Deployed").
+**Last updated:** 2026-10-12 · cloud session · branch `claude/gifted-franklin-hk0fku` · **M07 built, code-reviewed and handed over in PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13)** (awaiting Marcus's review and "merge", D-057). This is **Phase 0's last build**. **D-074:** all setup tasks and live steps happen together now, at the end of Phase 0. SnapPool's tracking change (T6b) has been live since 2026-09-25 (see "Deployed").
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestone:** **M06b (analyst input, look-ups, analyse stage): built, awaiting review and live acceptance** (`docs/milestones/M06b-analyst-lookups-analyse.md`). Nothing cut. Next: **M07** (digest, brief, services; Phase 0 exit), one clean-context session (D-056).
-- **M00–M06a** are merged; all but M01b await live acceptance (below). Under D-074 that doesn't block the builds.
-- **Status:** BLUEPRINT v3.18, PROPOSAL v3.8. **D-080:** M06b build choices (analyst targets as `FindingTargetRef`; the input, look-ups and validation; the analyst may add only `zero_outcome_spend`, `wasteful_search_term`, `no_delivery`, and only when their rule holds; replay case v0). **D-079:** M06a build choices. **D-078:** AI SDK 7 + Langfuse. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). D-069 to D-077: earlier build choices (see DECISIONS).
+- **Active milestone:** **M07 (digest, brief, services; Phase 0 exit): awaiting live acceptance** (`docs/milestones/M07-digest-brief-services.md`). The cloud part is done: the daily digest, the weekly brief (number check, template fallback, diagnostic variant), Telegram with the feedback buttons, the worker service (schedule, job runner, restart catch-up, heartbeats), the gateway heartbeat stub, `docs/runbook.md`.
+- **M00–M07** are built; M00–M06b are merged. All but M01b await live acceptance (below). **No more builds until the Phase 0 gate passes:** M08 needs it (4 weeks of briefs after M07 runs live).
+- **Status:** BLUEPRINT v3.19, PROPOSAL v3.8. **D-081:** M07 build choices (a daily cycle no longer analyses; reports cover the days before the cycle's date; the brief's AI writes prose only, with every number checked, sign included; the outbox and worker service). **D-080:** M06b build choices (analyst targets as `FindingTargetRef`; the input, look-ups and validation; the analyst may add only `zero_outcome_spend`, `wasteful_search_term`, `no_delivery`, and only when their rule holds; replay case v0). **D-079:** M06a build choices. **D-078:** AI SDK 7 + Langfuse. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). D-069 to D-077: earlier build choices (see DECISIONS).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** review PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (M06b); say "merge" when happy (D-057, after CI passes).
-2. **Claude (next session, clean context, Opus 5.5, medium effort):** after the merge, `start-milestone` for **M07** (digest, brief, services on the SER9; Phase 0 exit). Read M06b's "Leave behind" first (how the brief should treat verdicts and unreviewed candidates). Cloud: reset the assigned branch to `origin/main` first (`start-session` §2).
-3. **Marcus:** nothing needed for the builds. At the end of Phase 0 (after M07's cloud part): answer Q13, do the setup tasks (T1's optional part, T2–T5, then the rest as the milestones need them), then run the live steps below in milestone order.
-4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
-5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
+1. **Marcus:** review PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (M07) and say "merge" once CI is green (D-057).
+2. **Marcus:** Phase 0's setup and live run, in this order:
+   - answer Q13;
+   - do the setup tasks: T1's optional part, then T2–T9 (T7 Telegram and T8 healthchecks are M07's), then the rest as the milestones need them;
+   - run the live steps below in milestone order, M00 → M07; M07's live steps deploy to production on the SER9.
+3. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. **M08 starts only after Marcus records the gate as passed.**
+4. **Claude (next session):** record live-step results and fix what they find, or `start-session` and wait for the gate. No new milestone until it passes.
+5. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
+6. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- M06b on `claude/gifted-franklin-hk0fku`: PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (ready for review), awaiting CI and Marcus's "merge".
+- PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (M07) on `claude/gifted-franklin-hk0fku`: ready for review, awaiting CI and Marcus's "merge".
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
-- At the end of Phase 0: Q13; setup tasks T1 (optional part), T2–T14 (T6b is already live); then the live steps of M00, M01a, M02, M03, M04 and the milestones after them (through M06b).
+- Now (the end of Phase 0): Q13; setup tasks T1 (optional part), T2–T14 (T6b is already live); then the live steps of M00 through M07.
 
 ## Live steps for Marcus
-_All of these wait until the end of Phase 0 (D-074), and run in milestone order: M00, M01a, M02, M03, M04, M05a, M05b, M06a, M06b, then later ones._
+_All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07._
+
+**M07** (to do; last; **production** on the SER9: compose project `ads-agent`, Doppler `worker`/`gateway`; needs T7, T8). Full text in the M07 milestone file:
+1. T7: create the BotFather bot and send it `/start`; in Doppler `worker`, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID` (your numeric id).
+2. T8: create three healthchecks.io checks:
+   - `worker-alive` and `gateway-alive`: every 10 min, 20 min grace;
+   - `daily-sync`: cron `0 6 * * *`, Asia/Singapore, 3 h grace.
+
+   Their URLs go in `HEALTHCHECK_WORKER_URL` and `HEALTHCHECK_DAILY_SYNC_URL` (Doppler `worker`) and `HEALTHCHECK_GATEWAY_URL` (Doppler `gateway`).
+3. Production data: prod settings in Doppler `worker`; prod migrated; SnapPool's accounts linked with read credentials on prod; starting settings set.
+4. Add a `.env` with `DOPPLER_TOKEN_WORKER` and `DOPPLER_TOKEN_GATEWAY`, then run `docker compose up -d --build` → both `healthy`; the log shows `startup reconciliation done` and `leader: starting …`; heartbeats are green.
+5. Run `… exec worker ads-entrypoint ads cycle --product snappool --kind manual` → a brief arrives in Telegram. Press 👍 and 💡; `ads brief --product snappool` shows the feedback and the `writer`. Report "brief arrived" and the `writer`.
+6. Leave it 7 days unattended, with one `docker compose restart` and one reboot. Expect a digest each morning SnapPool spends, none for property (dormant), and SnapPool's brief on Monday at 07:00 SGT. Report the days, the Monday brief, any alert, and "restart + reboot OK".
 
 **M06b** (to do; after the M06a steps; no migration). Full text in the M06b milestone file:
 1. `git pull` on `main`, `pnpm install`.
@@ -57,9 +73,9 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 
 **M04** (to do; needs the M01a, M02 and M03 steps, and since M05a `SNAPPOOL_DATABASE_URL` (T6a) in Doppler `dev`; Neon dev branch, read credentials only). Full text in the M04 milestone file:
 1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (adds the accounts' sync columns).
-2. Day 1: `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads cycle --product snappool --kind daily --until trust_checked` → `"outcome": "finished"`, each account `"synced"`, `"trustResult"` `ok` or `degraded` (`degraded` while the Meta limit is unset or 80%+ used). Paste the JSON (counts only) and the time.
+2. Day 1: `time doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads cycle --product snappool --kind daily --until trust_checked` → `"outcome": "stopped"` at `trust_checked`, each account `"synced"`, `"trustResult"` `ok` or `degraded` (`degraded` while the Meta limit is unset or 80%+ used). Paste the JSON (counts only) and the time.
 3. Day 2: the same command → a new cycle; few snapshots, `"drift": 0` unless something changed by hand. Paste the JSON.
-4. Restart check with the dev stack: `docker compose -p ads-agent-dev exec worker ads-entrypoint ads cycle --product snappool --kind daily`, and during its sync `docker compose -p ads-agent-dev restart worker` → the worker logs `"unfinished cycles checked"` with the cycle `finished`; step 2's command then prints `"already_finished"`.
+4. Restart check with the dev stack: `docker compose -p ads-agent-dev exec worker ads-entrypoint ads cycle --product snappool --kind daily`, and during its sync `docker compose -p ads-agent-dev restart worker` → the worker logs `"startup reconciliation done"` with `"cyclesResumed": 1` and the cycle finishes; step 2's command then prints `"already_finished"`.
 
 **M03** (to do; needs T5, your Q13 answer, the M01a steps 1–4 and M02's step 2; Doppler `dev`, Neon dev branch, read credential only). Full text in the M03 milestone file:
 1. `git pull` on `main`, `pnpm install`; `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (adds `accounts.login_customer_id`).
@@ -108,8 +124,8 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 | M05a | Pack SDK, SnapPool pack, settings | 0 | **awaiting live acceptance** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged) | Live: outcomes, starting settings, KPI switch (to do; needs T6a) |
 | M05b | Property pack (G8), attribution, product docs | 0 | **awaiting live acceptance** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) (merged) | G8 passed; live: docs seeded, attribution rate (needs T6a; real ids need T14) |
 | M06a | AI layer, finding registry, detectors | 0 | **awaiting live acceptance** | [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (merged) | Live: model ping + trace, detect on real data (needs T9, `ANTHROPIC_API_KEY`) |
-| M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting review** | (opened this session) | Live: analysed cycle, findings, trace, property case with the real model |
-| M07 | Digest, brief, services (Phase 0 exit) | 0 | **next** | — | T7, T8 |
+| M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting live acceptance** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (merged) | Live: analysed cycle, findings, trace, property case with the real model |
+| M07 | Digest, brief, services (Phase 0 exit) | 0 | **awaiting live acceptance** | [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) | Live: deploy on the SER9, 7 days unattended (needs T7, T8) |
 | M08 | Draft stage, proposals, replay v0 | 1 | not started | — | Phase 0 gate |
 | M09a | Telegram bot core and proposal cards | 1 | not started | — | |
 | M09b | Telegram operator commands | 1 | not started | — | |
@@ -128,7 +144,7 @@ _All of these wait until the end of Phase 0 (D-074), and run in milestone order:
 ## Phase gates (PROPOSAL §12)
 | Gate | Condition, in short | Status |
 |---|---|---|
-| 0 → 1 | Brief useful and new in 2 of the first 4 weeks; property pack added with zero core changes | not started |
+| 0 → 1 | Brief useful and new in 2 of the first 4 weeks; property pack added with zero core changes | **waiting for M07's live run** (then measuring for 4 weeks: the 👍 / 💡 buttons on each brief, stored in `briefs`; G8 already passed in M05b) |
 | 1 → 2 | ≥ 70% agree over 3 weeks, with ≥ 15 agent proposals | not started |
 | 2 → 3 | ≥ 20 live changes, 0 wrong, 0 unexplained verify failures, 1 undo drill | not started |
 | 3 → 4 | 4 weeks: no guard bypass, no wrong budget change, no ceiling breach caused by the agent | not started |

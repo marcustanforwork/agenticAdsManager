@@ -37,3 +37,8 @@ export * from './analyst/targets.ts';
 export * from './analyst/input.ts';
 export * from './analyst/lookups.ts';
 export * from './analyst/analyse.ts';
+export * from './report/format.ts';
+export * from './report/numberCheck.ts';
+export * from './report/digest.ts';
+export * from './report/brief.ts';
+export * from './report/stage.ts';

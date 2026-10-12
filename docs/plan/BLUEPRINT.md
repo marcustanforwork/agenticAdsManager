@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.18 — 2026-10-08 (M06b build choices: analyst targets, input, look-ups, analyse stage, two detectors, D-080) |
+| **Version** | v3.19 — 2026-10-12 (M07 build choices: stages per cycle kind, the report stage, the number check, the worker service, D-081) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1073,6 +1073,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
 - **One runner per cycle (M04, D-075).** A run holds a named advisory lock (`cycle:<id>`) on a direct connection of its own; another process finds it busy. A killed process's lock goes with its connection.
 - Every stage is idempotent: upserts, snapshots written only on change, and findings and proposals keyed to the cycle.
 - An interrupted cycle resumes from `stage_reached`. If it was interrupted mid-analysis, the AI call is simply made again, and that extra cost is recorded. A resumed sync skips the accounts it already synced. Worker startup (`apps/worker/src/startup.ts` from M04; part of `recoverWorker` from M07) resumes unfinished daily and weekly cycles; one unfinished for more than 24 hours is closed as abandoned instead (the next cycle covers its days). Unfinished manual cycles are never resumed unasked: they wait for the next manual run that day, or close after 24 hours.
+- **Stages per kind (D-081):** daily = sync → trust check → detect → report (the digest); weekly and manual add the analysis before the report (the brief). After a failed trust check only the report runs: the digest (always sent unless `off`), or the diagnostic brief. A run whose signal is aborted (shutdown) stops between stages (`CycleInterruptedError`), leaving `stage_reached` at the last finished one; its job is released, not failed. The report covers the days before the cycle's own `cycle_date`, so a cycle resumed the next day reports its own day.
 - `ads cycle --product X --kind daily|weekly|manual [--until <stage>]` runs or continues today's cycle (a manual run continues today's unfinished manual cycle); `--until` stops after that stage, also on a rerun, and leaves the cycle resumable.
 
 ### 5.7 Sync details
@@ -1195,6 +1196,13 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
   2. The AI writes the text around it.
   3. The **number check** extracts every numeric token (amounts, %, counts, dates) from the text and normalises it. Each token must match a value in the table.
   4. If any token doesn't match, a plain template is used instead and `used_template_fallback` is recorded.
+- **As built (M07, D-081):**
+  - The numbers table (`brief-numbers-v1`, stored in `briefs.numbers` with how the prose was written) holds: the week (7 days ending the day before the cycle date) and the week before; spend and its change; month to date against the monthly ceiling; impressions and clicks; outcomes per stage; cost per KPI and its change; the top 5 campaigns by spend; the findings (standing = passed the threshold and `confirmed`/`added`; unreviewed detector candidates listed apart; dismissed only counted; at most 12 listed); the trust warnings and failures; drift; open proposals; the cycle's model cost (USD). Money is decimal strings in the product currency.
+  - The AI (`brief-v1`, stage `brief`) writes only a headline and one to four paragraphs. The table, findings list and checks are rendered by code. The analyst's free text never reaches the brief.
+  - The number check removes the table's names (platform text with digits) first, then matches whole dates and every number token, sign included, against the table's values. Any mismatch, or a failed model call, gives the template prose (`used_template_fallback`). The model's unmatched tokens are stored with the brief.
+  - The diagnostic brief (`kind = 'diagnostic'`) is template only: the failed and warning checks, what each means and what to do, and the week's spend for reference.
+  - Reports are "markdown-lite" (`# `/`## ` headings, `- ` bullets, `**bold**`): `briefs.markdown` stores it; the worker turns it into Telegram HTML, escaping everything else.
+  - Each report is queued in the `notifications` outbox (`digest`: the text; `brief`: the brief id), in one transaction with the brief. A rerun of the stage queues nothing new.
 - **Digest.** About 6 lines, with no AI:
   - yesterday's spend vs the daily ceiling;
   - month-to-date spend vs the monthly ceiling;
@@ -1204,6 +1212,8 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
   - open proposals;
   - trust and drift flags.
 
+- **Digest send rule (M07):** `off` never; `always` every day; `auto` when the product spent yesterday or a trust check failed. Cost per KPI covers 7 days (one day is noise at low volume).
+
 ### 5.15 Telegram
 
 - **Formatting:** HTML parse mode (escape `<`, `>` and `&`). Messages are chunked at 4,000 characters.
@@ -1211,6 +1221,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 - **Who may use it:** updates are accepted only from Marcus's user id, in a private chat. Everything else is ignored.
 - **Conversation state** (e.g. waiting for a reject reason) is stored in the DB and expires after 10 minutes.
 - **Polling:** exactly one poller, the leader.
+- **As built (M07):** the outbox sender runs on the leader, one pass at a time, every 15 s and after each scheduled job. A notification is marked sent when all its messages went out; the messages sent so far are counted in its payload (`sentChunks`), so a retry continues. A message refused as malformed (400) is sent again as plain text; a notification that can't be rendered is dropped (logged); any other error stops the pass and the passes back off (15 s doubling to 15 min). Brief buttons: `v1:useful:<briefId>:0` and `v1:new:<briefId>:0`; each press toggles that answer and is recorded as a `brief_feedback` request (actor `telegram:<user id>`, which the worker adds to the allowed actors).
 
 ### 5.16 Heartbeats and alerts
 
@@ -1219,6 +1230,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
   - `gateway-alive`: the same;
   - `daily-sync`: once a day, alert after 3 h of lateness.
 - **Alerts** go through the `notifications` outbox and are sent by the worker's bot. The gateway therefore never needs the Telegram token.
+- **As built (M07):** check URLs in `HEALTHCHECK_WORKER_URL`, `HEALTHCHECK_GATEWAY_URL`, `HEALTHCHECK_DAILY_SYNC_URL` (secrets: never logged). A beat pings only after a database round trip, else `/fail`. The worker's heartbeat starts before the startup reconciliation; `daily-sync` is pinged after the daily job (`/fail` if a product's cycle failed). The schedule (croner, `Asia/Singapore`) runs on the leader only; it queues a `daily` or `weekly` job (not if one is already waiting), and a new leader catches up a run missed earlier the same Singapore day.
 
 ### 5.17 Model routing and tracing
 
@@ -1767,6 +1779,8 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 **Cut first:** the pack's `briefSections`; publishing to GHCR (build on the SER9 instead).
 
 **Skills to create:** `deploy-worker`, `incident`.
+
+**As built (D-081):** the report stage, the worker service and the gateway stub as in §5.6, §5.14–5.16; CLI `ads digest` (a preview, nothing queued) and `ads brief [--cycle <id>]`; `docs/runbook.md`. **Cut and moved to M16b:** the pack's `briefSections` (neither pack defines any yet) and publishing images to GHCR (built on the SER9 instead).
 
 ---
 
@@ -2326,6 +2340,7 @@ The **Phase 3 gate** then runs for 4 weeks.
    - heartbeats are configured;
    - the dashboard is unreachable without Access.
 6. Deferred, and documented only: the policy adjuster.
+7. **Moved from M07 (D-081):** the pack's `briefSections` (named core queries a pack adds to its brief; build when a pack first needs one) and the image build and push to GHCR on git tags. Both can't be cut again without Marcus's OK.
 
 **Tests:** `ads doctor` against fixtures.
 
