@@ -120,7 +120,7 @@ export async function handleCallback(
   );
   if (outcome.status !== 'done') {
     await ctx.api.answerCallbackQuery(query.id, {
-      text: `Not saved: ${String(outcome.result['reason'] ?? 'refused')}`,
+      text: `Not saved: ${typeof outcome.result['reason'] === 'string' ? outcome.result['reason'] : 'refused'}`,
     });
     return 'refused';
   }
@@ -169,7 +169,7 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
   const product = n.productId === null ? null : await getStoredSettings(db, n.productId);
   const title =
     n.kind === 'alert'
-      ? `⚠️ Alert${product === null ? '' : ` (${product.slug})`}: ${String(payload['alert'] ?? 'unknown')}`
+      ? `⚠️ Alert${product === null ? '' : ` (${product.slug})`}: ${typeof payload['alert'] === 'string' ? payload['alert'] : 'unknown'}`
       : n.kind === 'worker_recovered'
         ? 'The worker restarted and recovered its work'
         : `${n.kind}${product === null ? '' : ` (${product.slug})`}`;
@@ -179,10 +179,7 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
 
 /** Telegram refused the message itself (bad markup, too long): retrying the same text won't help. */
 const isBadRequest = (error: unknown): boolean =>
-  typeof error === 'object' &&
-  error !== null &&
-  'error_code' in error &&
-  (error as { error_code: unknown }).error_code === 400;
+  typeof error === 'object' && error !== null && 'error_code' in error && error.error_code === 400;
 
 /** Sends what is queued, oldest first; each notification is marked sent once all its messages went out. A message
  *  Telegram refuses as malformed is sent again as plain text; if that fails too, it is marked sent (logged) so it

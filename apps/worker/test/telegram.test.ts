@@ -79,14 +79,14 @@ interface Sent {
   other?: SendOptions;
 }
 
-function fakeApi(fail?: (text: string, other?: SendOptions) => unknown) {
+function fakeApi(fail?: (text: string, other?: SendOptions) => Error | undefined) {
   const sent: Sent[] = [];
   const answers: (string | undefined)[] = [];
   const edits: unknown[] = [];
   const api: TelegramApi = {
     sendMessage(chatId, text, other) {
       const error = fail?.(text, other);
-      if (error !== undefined) return Promise.reject(error as Error);
+      if (error !== undefined) return Promise.reject(error);
       sent.push({ chatId, text, ...(other === undefined ? {} : { other }) });
       return Promise.resolve({ message_id: sent.length });
     },
@@ -192,7 +192,8 @@ describe('the outbox sender', () => {
     let down = true;
     const { api, sent } = fakeApi((text, other) => {
       if (down) return new TypeError('fetch failed');
-      if (other?.parse_mode === 'HTML' && text.includes('&amp;')) return { error_code: 400, description: 'bad' };
+      if (other?.parse_mode === 'HTML' && text.includes('&amp;'))
+        return Object.assign(new Error("Bad Request: can't parse entities"), { error_code: 400 });
       return undefined;
     });
     await enqueueNotification(t.db, { productId, kind: 'digest', payload: { cycleId: 'd', text: 'A & B' } });

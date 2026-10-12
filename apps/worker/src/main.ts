@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, 'stopping');
     shuttingDown.abort();
     starting
-      .then(() => (worker as RunningWorker | null)?.stop())
+      .then(() => worker?.stop())
       .then(() => service.stop())
       .then(
         () => {

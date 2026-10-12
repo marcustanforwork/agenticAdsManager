@@ -2,7 +2,7 @@
 // there is tested against a fake API. Exactly one poller runs: the leader's (Telegram allows one getUpdates
 // consumer per bot).
 import { Api, Bot } from 'grammy';
-import { type BotContext, type CallbackQuery, type TelegramApi, handleCallback } from './bot.ts';
+import { type BotContext, type TelegramApi, handleCallback } from './bot.ts';
 
 export function grammyApi(token: string): TelegramApi {
   const api = new Api(token);
@@ -17,7 +17,7 @@ export function grammyApi(token: string): TelegramApi {
 export function startGrammyPolling(token: string, ctx: BotContext): { stop(): Promise<void> } {
   const bot = new Bot(token);
   bot.on('callback_query:data', async (c) => {
-    const outcome = await handleCallback(ctx, c.callbackQuery as CallbackQuery);
+    const outcome = await handleCallback(ctx, c.callbackQuery);
     ctx.logger?.info({ outcome }, 'button press handled');
   });
   bot.catch((err) => ctx.logger?.error({ err: err.error }, 'Telegram update failed'));

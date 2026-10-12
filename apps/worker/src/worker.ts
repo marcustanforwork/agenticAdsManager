@@ -30,7 +30,7 @@ import { masterKeyFromEnv } from '@ads/vault';
 import { HEARTBEAT_MS, ping, startHeartbeat } from './heartbeat.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { type ScheduledJob, missedToday, startScheduler } from './schedule.ts';
-import { type BotContext, type TelegramApi, handleCallback, sendOutbox } from './telegram/bot.ts';
+import { type BotContext, type TelegramApi, sendOutbox } from './telegram/bot.ts';
 import { grammyApi, startGrammyPolling } from './telegram/grammy.ts';
 
 export interface WorkerLogger {
@@ -99,7 +99,7 @@ export async function runScheduledCycles(
   signal?: AbortSignal,
 ): Promise<ScheduledRun> {
   const out: ScheduledRun = { kind, cycles: [], errors: [] };
-  for (const product of await listProducts(deps.db as Db)) {
+  for (const product of await listProducts(deps.db)) {
     if (product.status !== 'active') continue;
     if (signal?.aborted === true) throw new CycleInterruptedError('(not started)', 'started');
     try {

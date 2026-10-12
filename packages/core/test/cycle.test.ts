@@ -16,7 +16,7 @@ import {
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey } from '@ads/vault';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { type CycleDeps, STAGES, resumeUnfinishedCycles, runCycle } from '../src/index.ts';
+import { type CycleDeps, CycleInterruptedError, STAGES, resumeUnfinishedCycles, runCycle } from '../src/index.ts';
 import { NOW, TEST_PACKS, type World, googleCassettes, makeWorld, metaCassettes, tokenFetch } from './support/world.ts';
 
 let t: TestDatabase;
@@ -139,6 +139,30 @@ describe('runCycle', () => {
     expect(rest).toMatchObject({ cycleId: first.cycleId, outcome: 'finished', resumedFrom: 'synced' });
     expect(quiet.calls).toHaveLength(0);
     expect(await listCycles(t.db, world.productId)).toHaveLength(1);
+  });
+
+  it('shutdown in the middle of a cycle leaves stage_reached consistent, and the next run resumes it', async () => {
+    const shutdown = new AbortController();
+    const run = runCycle(
+      deps(fixtures(), {
+        signal: shutdown.signal,
+        // SIGTERM arrives while the sync stage is being recorded: the run stops before the trust check.
+        onStage: (stage) => void (stage === 'synced' && shutdown.abort()),
+      }),
+      { productId: world.productId, kind: 'daily' },
+    );
+    await expect(run).rejects.toBeInstanceOf(CycleInterruptedError);
+    const [cycle] = await listCycles(t.db, world.productId);
+    expect(cycle).toMatchObject({ stageReached: 'synced', finishedAt: null, trustResult: null });
+    // The lock was released: the next run (after the restart) resumes from the sync, without syncing again.
+    const resumed = await runCycle(deps(fixtures()), { productId: world.productId, kind: 'daily' });
+    expect(resumed).toMatchObject({
+      cycleId: cycle?.id,
+      outcome: 'finished',
+      resumedFrom: 'synced',
+      stageReached: 'done',
+    });
+    expect(resumed.sync).toBeUndefined();
   });
 
   it('a failed trust check stops the cycle: later stages are skipped, the diagnostic report still runs', async () => {
