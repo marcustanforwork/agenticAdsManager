@@ -49,6 +49,16 @@ export async function enqueueJob(db: DbOrTx, input: NewJob): Promise<Job> {
   return row;
 }
 
+/** Whether a job of `kind` is waiting or running on `queue` (the scheduler doesn't stack scheduled jobs). */
+export async function hasPendingJob(db: DbOrTx, input: { queue: JobQueue; kind: string }): Promise<boolean> {
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.queue, input.queue), eq(jobs.kind, input.kind), inArray(jobs.status, ['queued', 'running'])))
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function notifyQueue(db: DbOrTx, queue: JobQueue, payload = ''): Promise<void> {
   await db.execute(sql`select pg_notify(${jobsChannel(queue)}, ${payload})`);
 }
