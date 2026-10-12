@@ -4,6 +4,13 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-12 — PR #13 (M07) merged; Phase 0 checklist published
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge"; squash-merged PR #13 on his instruction (D-057). Published the artifact [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f): Q13, the setup tasks, every live step M00 → M07 with commands, and the gate, with ticks saved in its `progress` collection (empty at publish).
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus works through the checklist; the next session reads its ticks and records the results.
+
 ## 2026-10-12 — M07 built (digest, brief, Telegram, worker service) and code-reviewed
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13)
 - **Did:**
