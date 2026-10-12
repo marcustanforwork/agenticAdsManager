@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { IsoDate } from './hash.ts';
 import { MicrosJson } from './money.ts';
-import { EntityRef } from './platform.ts';
+import { EntityType, Platform } from './platform.ts';
 
 export const FindingTypeId = z.enum([
   'zero_outcome_spend', // → pause_entity                 (Phase 2)
@@ -18,10 +18,22 @@ export type FindingTypeId = z.infer<typeof FindingTypeId>;
 // The registry in core/findings maps each type to: allowed target types, the action it maps to (or none),
 // required params, and the phase from which it may produce proposals.
 
+/** What a finding the AI returns is about (D-080): an ad entity (all four fields, as in `EntityRef`), an ad account
+ *  (`platform` and `accountId`), or the whole product (all null). Nullable rather than optional, so the schema suits
+ *  every provider's structured output; core checks that the fields fit the level. */
+export const FindingTargetRef = z.object({
+  level: z.enum(['entity', 'account', 'product']),
+  platform: Platform.nullable(),
+  accountId: z.string().nullable(), // Google customer id (digits) / Meta 'act_…'
+  type: EntityType.nullable(),
+  externalId: z.string().nullable(),
+});
+export type FindingTargetRef = z.infer<typeof FindingTargetRef>;
+
 /** What the AI returns. Nothing in here decides a number. */
 export const AnalystFinding = z.object({
   type: FindingTypeId,
-  target: EntityRef, // must exist in our DB and belong to this product (checked)
+  target: FindingTargetRef, // must exist in our DB and belong to this product (checked)
   fromCandidateId: z.string().nullable(), // the detector candidate it confirms; null = a new finding
   summary: z.string().max(400),
   whyNow: z.string().max(400),

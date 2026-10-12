@@ -285,6 +285,32 @@ export async function setAnalystVerdict(
   if (rows.length === 0) throw new NotFoundError('finding', id);
 }
 
+/** Undoes a cycle's analysis, so a rerun of the analyse stage starts clean (idempotent): the analyst's own findings
+ *  go, and the detector findings lose their verdicts. */
+export async function resetAnalysis(db: DbOrTx, cycleId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(findings).where(and(eq(findings.cycleId, cycleId), eq(findings.source, 'analyst')));
+    await tx
+      .update(findings)
+      .set({ analystVerdict: null, dismissedReason: null, whyNow: null, confidence: null, evidenceRefs: [] })
+      .where(and(eq(findings.cycleId, cycleId), eq(findings.source, 'detector')));
+  });
+}
+
+/** The analyst confirmed a detector finding: its explanation goes with it; the evidence stays the computed one. */
+export async function confirmFinding(
+  db: DbOrTx,
+  id: string,
+  input: { whyNow: string; confidence: string; evidenceRefs: string[]; params: Record<string, unknown> | null },
+): Promise<void> {
+  const rows = await db
+    .update(findings)
+    .set({ analystVerdict: 'confirmed', dismissedReason: null, ...input })
+    .where(eq(findings.id, id))
+    .returning({ id: findings.id });
+  if (rows.length === 0) throw new NotFoundError('finding', id);
+}
+
 export async function listFindings(db: DbOrTx, cycleId: string): Promise<Finding[]> {
   return db.select().from(findings).where(eq(findings.cycleId, cycleId)).orderBy(asc(findings.createdAt));
 }

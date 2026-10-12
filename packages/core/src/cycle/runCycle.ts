@@ -2,7 +2,7 @@
 // `stage_reached` advances after each one, so an interrupted cycle resumes where it stopped. Every stage is
 // idempotent, a scheduled cycle is unique per (product, kind, date), and a named advisory lock keeps two
 // processes from running the same cycle at once. M04 has the first two stages: sync and trust check; M06a adds
-// detect. The later ones (analyse, draft, report) join the STAGES list in M06b, M08 and M07.
+// detect, M06b analyse. The later ones (draft, report) join the STAGES list in M08 and M07.
 import { localDate } from '@ads/contracts';
 import {
   CYCLE_STAGE_ORDER,
@@ -26,8 +26,11 @@ import {
   tryAdvisoryLock,
 } from '@ads/db';
 import type { PackRegistry } from '@ads/pack-sdk';
+import { type AnalyseSummary, analyseStage } from '../analyst/analyse.ts';
 import { type AttributionRunSummary, attributeOutcomes } from '../attribution/attribute.ts';
 import { type DetectSummary, detectStage } from '../findings/stage.ts';
+import type { ModelDeps } from '../model/generate.ts';
+import type { ModelTracing } from '../model/tracing.ts';
 import { type OutcomeReadSummary, syncOutcomes } from '../outcomes/sync.ts';
 import { alertInvalidSettings, assertSettingsUsable } from '../settings/settings.ts';
 import { type SyncDeps, type SyncStageResult, syncStage } from '../sync/stage.ts';
@@ -45,6 +48,10 @@ export interface CycleDeps extends SyncDeps {
   onStage?: (stage: CycleStage, cycle: Cycle) => void | Promise<void>;
   /** The stages to run (default STAGES). Tests add later stages to check that a failed trust check skips them. */
   stages?: readonly StageStep[];
+  /** Langfuse tracing for the model calls (the worker creates it once per process; none = untraced). */
+  tracing?: ModelTracing | null;
+  /** Tests supply the analyst's model instead of building one from the environment. */
+  model?: ModelDeps['model'];
 }
 
 export interface CycleSummary {
@@ -72,6 +79,8 @@ export interface CycleSummary {
   };
   /** The detectors' candidate findings (M06a). */
   detected?: DetectSummary;
+  /** The analyst's review of them (M06b). */
+  analysed?: AnalyseSummary;
 }
 
 export interface StageContext {
@@ -142,7 +151,45 @@ export const STAGES: readonly StageStep[] = [
       return {};
     },
   },
+  {
+    stage: 'analysed',
+    kinds: ALL_KINDS,
+    async run({ deps, product, cycle, summary }) {
+      const analysed = await analyseStage(
+        {
+          db: deps.db,
+          env: deps.env ?? {},
+          now: deps.now,
+          ...(deps.packs === undefined ? {} : { packs: deps.packs }),
+          ...(deps.tracing === undefined ? {} : { tracing: deps.tracing }),
+          ...(deps.model === undefined ? {} : { model: deps.model }),
+        },
+        product,
+        cycle.id,
+      );
+      summary.analysed = withoutModelText(analysed);
+      return {};
+    },
+  },
 ];
+
+/** The analysis for the printed summary: ids, types, refs and core's own words only. The model's answer and its
+ *  free text (dismissal reasons, the targets it named) may quote entity names; `ads findings` shows them. */
+function withoutModelText(analysed: AnalyseSummary): AnalyseSummary {
+  const { output: _answer, result, ...rest } = analysed;
+  if (result === undefined) return rest;
+  return {
+    ...rest,
+    result: {
+      ...result,
+      dismissed: result.dismissed.map(({ reason: _reason, ...d }) => d),
+      dropped: result.dropped.map(({ target: _target, ...d }) => ({
+        ...d,
+        target: '(not shown: written by the model)',
+      })),
+    },
+  };
+}
 
 const order = (stage: CycleStage): number => CYCLE_STAGE_ORDER.indexOf(stage);
 

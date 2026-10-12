@@ -10,6 +10,7 @@ export * from './repos/adData.ts';
 export * from './repos/outcomes.ts';
 export * from './repos/cycles.ts';
 export * from './repos/evidence.ts';
+export * from './repos/analyst.ts';
 export * from './repos/proposals.ts';
 export * from './repos/changes.ts';
 export * from './repos/plumbing.ts';

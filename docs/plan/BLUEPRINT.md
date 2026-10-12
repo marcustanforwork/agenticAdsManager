@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.16 — 2026-10-07 (M06a build choices: finding targets, evidence fields, detector rules; two detectors to M06b, two to M14, D-079) |
+| **Version** | v3.18 — 2026-10-08 (M06b build choices: analyst targets, input, look-ups, analyse stage, two detectors, D-080) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -429,10 +429,18 @@ export const FindingTypeId = z.enum([
 // The registry in core/findings maps each type to: allowed target types, the action it maps to (or none),
 // required params, and the phase from which it may produce proposals.
 
+/** What a finding is about (D-080): an ad entity (all four fields), an ad account (platform + accountId) or the
+ *  product (all null). Nullable, not optional, so every provider's structured output accepts it; core checks the fit. */
+export const FindingTargetRef = z.object({
+  level: z.enum(['entity', 'account', 'product']),
+  platform: Platform.nullable(), accountId: z.string().nullable(),
+  type: EntityType.nullable(), externalId: z.string().nullable(),
+});
+
 /** What the AI returns. Nothing in here decides a number. */
 export const AnalystFinding = z.object({
   type: FindingTypeId,
-  target: EntityRef,                         // must exist in our DB and belong to this product (checked)
+  target: FindingTargetRef,                  // must exist in our DB and belong to this product (checked)
   fromCandidateId: z.string().nullable(),    // the detector candidate it confirms; null = a new finding
   summary: z.string().max(400),
   whyNow: z.string().max(400),
@@ -1121,7 +1129,7 @@ The cycle result is `fail` if any check fails, which means a diagnostic brief on
 | Budget-limited and efficient (Phase 3) | `budget_limited_efficient` | ≥ 95% of the daily budget spent on at least 5 of the last 7 days, with cost per KPI at or below the product median |
 | Overspending and inefficient (Phase 3) | `overspend_inefficient` | Cost per KPI ≥ 1.5 × the product median, with meaningful spend |
 
-A candidate needs its rule **and** the pack's threshold, applied to evidence computed from SQL over the type's window (ending yesterday, stretched to the threshold's `minDays`); a pack without a threshold for a type gets no candidates of it. Summaries use computed figures only, never platform text. M06a built `zero_outcome_spend`, `wasteful_search_term`, `tracking_gap` and `pacing_risk`; `cost_spike` and `no_delivery` moved to M06b, the two Phase 3 detectors to M14 (D-079).
+A candidate needs its rule **and** the pack's threshold, applied to evidence computed from SQL over the type's window (ending yesterday, stretched to the threshold's `minDays`); a pack without a threshold for a type gets no candidates of it. Summaries use computed figures only, never platform text. M06a built `zero_outcome_spend`, `wasteful_search_term`, `tracking_gap` and `pacing_risk`; `cost_spike` and `no_delivery` moved to M06b, the two Phase 3 detectors to M14 (D-079). M06b built `no_delivery` (active campaigns, and active ad groups of a delivering campaign, on accounts synced today) and `cost_spike` (active campaigns; this week's cost per KPI against the median of the previous 4 weeks that had a KPI outcome, at least 2 of them; the threshold on the 5-week span) (D-080).
 
 ### 5.10 Analyst input and look-ups
 
@@ -1147,6 +1155,10 @@ A candidate needs its rule **and** the pack's threshold, applied to evidence com
   - the current LEARNINGS doc.
 
   This is look-up, not learning (PROPOSAL §5.5).
+- **As built (M06b, D-080).**
+  - Refs name targets in the input and the answer: `platform:accountId:type:externalId`, `platform:accountId`, `product`. Money is a decimal string in the account currency. The metrics table covers 28 days ending yesterday, with the last 7 alongside. The size estimate is 4 characters a token (deterministic); candidate targets and their parents are never truncated. The phase comes from the pack's `detectPhase` per offering.
+  - Look-ups spend one unit of the budget per call; over budget a call returns an error, and once the budget is used up (or one step is left) the model must answer (`toolChoice: 'none'`). Results are redacted like prompts.
+  - The analyse stage: a finding is dropped when its target doesn't resolve in the product, the type doesn't allow the target, a `negativeText` isn't a real search term of the ad group, or it contradicts the candidate it names. Naming a candidate's type, target and term confirms it. A type rejected 3 times for a target comes back at `low` confidence. The analyst may **add** only `zero_outcome_spend`, `wasteful_search_term` and `no_delivery`, and an added finding must meet its type's rule (no KPI outcome; no impression) as well as the threshold, on computed evidence. `budgetChangePct` is dropped until M14. A failed model call leaves the candidates unreviewed and the cycle goes on.
 
 ### 5.11 Drafting
 

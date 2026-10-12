@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "case:property": "node --conditions=@ads/source scripts/property-case.ts"
   },
   "dependencies": {
     "@ads/contracts": "workspace:*",
@@ -24,5 +25,9 @@
     "@ads/pack-sdk": "workspace:*",
     "@ads/pack-saas-snappool": "workspace:*",
     "@ads/pack-property-sg": "workspace:*"
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "4.0.24",
+    "ai": "7.0.130"
   }
 }

@@ -19,8 +19,10 @@ import {
   type Product,
   listAccounts,
   listEntities,
+  countOutcomesByScope,
   countOutcomesWithPlatformIds,
   listTrustChecks,
+  sumMetrics,
   sumSearchTerms,
 } from '@ads/db';
 import { thresholdFor } from '@ads/pack-sdk';
@@ -30,6 +32,7 @@ import {
   type FindingTarget,
   computeEvidence,
   judgeEvidence,
+  searchTermEvidence,
   windowEndingYesterday,
 } from './evidence.ts';
 import { evidenceWindowDays } from './registry.ts';
@@ -61,6 +64,11 @@ export const NEGATIVE_KEYWORD_MAX_WORDS = 10;
 /** Pacing: projected month spend above 100% or below 60% of the monthly ceiling (§5.9). */
 export const PACING_HIGH_PCT = 100n;
 export const PACING_LOW_PCT = 60n;
+/** Cost spike: cost per KPI this week above 1.5 × the median of the previous 4 weeks (§5.9), with at least two of
+ *  those weeks having a KPI outcome to compare with. */
+export const COST_SPIKE_RATIO_PCT = 150n;
+export const COST_SPIKE_WEEKS = 4;
+export const COST_SPIKE_MIN_WEEKS = 2;
 
 /** Money for a summary, rounded to the cent in bigint (invariant 6): S$ for SGD, else the currency code. */
 const money = (micros: bigint, currency: string): string =>
@@ -275,14 +283,7 @@ export const wastefulSearchTerm: Detector = {
       const target: FindingTarget = { kind: 'entity', entity: adGroup };
       const base = watched.get(adGroup.id) ?? (await evidenceFor(ctx, target, window));
       watched.set(adGroup.id, base);
-      const evidence: ComputedEvidence = {
-        ...base,
-        impressions: term.impressions,
-        clicks: term.clicks,
-        spendMicros: term.spendMicros.toString(),
-        outcomesByStage: { [kpi]: 0 }, // the platform's KPI conversions for the term
-        detail: { level: 'search_term', daysWithTerm: term.daysWithRows },
-      };
+      const evidence = searchTermEvidence(base, term, kpi); // no KPI conversions: checked above
       if (!judgeEvidence(evidence, threshold).met) continue;
       out.push({
         type: this.type,
@@ -298,9 +299,146 @@ export const wastefulSearchTerm: Detector = {
   },
 };
 
-/** The detectors M06a runs, in order. `cost_spike` and `no_delivery` were cut to M06b; the two Phase 3 detectors
- *  (`budget_limited_efficient`, `overspend_inefficient`) come with their proposals in M14. */
-export const DETECTORS: readonly Detector[] = [zeroOutcomeSpend, trackingGap, pacingRisk, wastefulSearchTerm];
+/** No delivery: an active campaign, or an active ad group of a delivering campaign, with no impressions over the
+ *  window (3 days). Judged only on accounts synced today, so a missed sync isn't mistaken for silence; the
+ *  threshold's `minDays` keeps a new entity out. */
+export const noDelivery: Detector = {
+  type: 'no_delivery',
+  async detect(ctx) {
+    const threshold = thresholdFor(ctx.manifest, this.type);
+    if (threshold === null) return [];
+    const today = localDate(ctx.now, ctx.product.timezone);
+    const synced = new Set(
+      (await listAccounts(ctx.db, ctx.product.id))
+        .filter((a) => a.lastSyncedAt !== null && localDate(a.lastSyncedAt, ctx.product.timezone) >= today)
+        .map((a) => a.id),
+    );
+    const window = windowEndingYesterday(ctx.now, ctx.product.timezone, evidenceWindowDays(this.type, threshold));
+    const out: Candidate[] = [];
+    const silentCampaigns = new Set<string>();
+    const consider = async (entity: AdEntity): Promise<void> => {
+      if (!synced.has(entity.accountId)) return;
+      const totals = await sumMetrics(ctx.db, {
+        productId: ctx.product.id,
+        scope: { kind: 'entity', entityId: entity.id },
+        ...window,
+        timeZone: ctx.product.timezone,
+      });
+      if (totals.impressions > 0) return;
+      if (entity.type === 'campaign') silentCampaigns.add(entity.id);
+      const target: FindingTarget = { kind: 'entity', entity };
+      const evidence = await evidenceFor(ctx, target, window, { lastImpressionDay: totals.lastImpressionDay });
+      if (!judgeEvidence(evidence, threshold).met) return;
+      const level = entity.type === 'campaign' ? 'campaign' : 'ad group';
+      out.push({
+        type: this.type,
+        target,
+        evidence,
+        summary:
+          `This active ${level} had no impressions in the last ${evidence.windowDays} days` +
+          (totals.lastImpressionDay === null ? ' and has never delivered.' : ` (last on ${totals.lastImpressionDay}).`),
+      });
+    };
+    const campaigns = await activeEntities(ctx, 'campaign');
+    for (const campaign of campaigns) await consider(campaign);
+    // An ad group counts only under an active campaign that delivered: a silent campaign's ad groups are its echo.
+    const delivering = new Set(campaigns.filter((c) => !silentCampaigns.has(c.id)).map((c) => c.id));
+    for (const adGroup of await activeEntities(ctx, 'ad_group')) {
+      if (adGroup.parentId !== null && delivering.has(adGroup.parentId)) await consider(adGroup);
+    }
+    return out;
+  },
+};
+
+/** The median of bigints (the mean of the middle two, rounded down, for an even count). */
+export function medianMicros(values: readonly bigint[]): bigint {
+  if (values.length === 0) throw new RangeError('no values');
+  const sorted = [...values].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? (sorted[mid] as bigint)
+    : ((sorted[mid - 1] as bigint) + (sorted[mid] as bigint)) / 2n;
+}
+
+/** Cost spike: a campaign's cost per KPI outcome this week (7 days ending yesterday) against the median of the 4
+ *  weeks before it. A week without a KPI outcome has no cost per KPI and isn't compared (spend without outcomes is
+ *  `zero_outcome_spend`'s); the pack's threshold applies to the whole span's evidence. */
+export const costSpike: Detector = {
+  type: 'cost_spike',
+  async detect(ctx) {
+    const threshold = thresholdFor(ctx.manifest, this.type);
+    if (threshold === null) return [];
+    const tz = ctx.product.timezone;
+    const kpi = ctx.product.settings.outcomes.primaryKpiStage;
+    const span = windowEndingYesterday(
+      ctx.now,
+      tz,
+      Math.max(7 * (COST_SPIKE_WEEKS + 1), evidenceWindowDays(this.type, threshold)),
+    );
+    const weeks = Array.from({ length: COST_SPIKE_WEEKS + 1 }, (_, i) => {
+      const to = minusDays(span.to, 7 * i);
+      return { from: minusDays(to, 6), to };
+    });
+    const out: Candidate[] = [];
+    for (const entity of await activeEntities(ctx, 'campaign')) {
+      const perWeek: { spend: bigint; kpi: number }[] = [];
+      for (const week of weeks) {
+        const m = await sumMetrics(ctx.db, {
+          productId: ctx.product.id,
+          scope: { kind: 'entity', entityId: entity.id },
+          ...week,
+          timeZone: tz,
+        });
+        const o = await countOutcomesByScope(ctx.db, {
+          productId: ctx.product.id,
+          scope: { kind: 'campaign', entityId: entity.id },
+          ...week,
+          timeZone: tz,
+        });
+        perWeek.push({ spend: m.spendMicros, kpi: o[kpi] ?? 0 });
+      }
+      const [current, ...before] = perWeek;
+      if (current === undefined || current.kpi === 0 || current.spend === 0n) continue;
+      const earlier = before.filter((w) => w.kpi > 0).map((w) => w.spend / BigInt(w.kpi));
+      if (earlier.length < COST_SPIKE_MIN_WEEKS) continue;
+      const cost = current.spend / BigInt(current.kpi);
+      const median = medianMicros(earlier);
+      if (median === 0n || cost * 100n <= median * COST_SPIKE_RATIO_PCT) continue;
+      const ratioPct = (cost * 100n) / median;
+      const target: FindingTarget = { kind: 'entity', entity };
+      const evidence = await evidenceFor(ctx, target, span, {
+        costPerKpiMicros: cost.toString(),
+        medianCostPerKpiMicros: median.toString(),
+        weeksCompared: earlier.length,
+        ratioPct: Number(ratioPct),
+        weekSpendMicros: current.spend.toString(),
+        weekKpiOutcomes: current.kpi,
+      });
+      if (!judgeEvidence(evidence, threshold).met) continue;
+      const c = ctx.product.currency;
+      out.push({
+        type: this.type,
+        target,
+        evidence,
+        summary:
+          `Cost per ${kpiName(ctx.product)} in the last 7 days was ${money(cost, c)}, ${ratioPct}% of the ` +
+          `${money(median, c)} median over the ${plural(earlier.length, 'week')} before.`,
+      });
+    }
+    return out;
+  },
+};
+
+/** The detectors, in order. The two Phase 3 detectors (`budget_limited_efficient`, `overspend_inefficient`) come
+ *  with their proposals in M14. */
+export const DETECTORS: readonly Detector[] = [
+  zeroOutcomeSpend,
+  trackingGap,
+  pacingRisk,
+  wastefulSearchTerm,
+  noDelivery,
+  costSpike,
+];
 
 export async function runDetectors(
   ctx: DetectorContext,

@@ -163,7 +163,7 @@ const samples: Record<string, unknown[]> = {
   AnalystFinding: [
     {
       type: 'wasteful_search_term',
-      target: ref,
+      target: { level: 'entity', ...ref },
       fromCandidateId: 'cand-1',
       summary: 's',
       whyNow: 'w',
@@ -171,6 +171,10 @@ const samples: Record<string, unknown[]> = {
       params: { negativeText: 'free', negativeMatchType: 'EXACT' },
       confidence: 'high',
     },
+  ],
+  FindingTargetRef: [
+    { level: 'account', platform: 'meta', accountId: 'act_1', type: null, externalId: null },
+    { level: 'product', platform: null, accountId: null, type: null, externalId: null },
   ],
   AnalystOutput: [{ findings: [], dismissed: [{ candidateId: 'cand-2', reason: 'too early' }] }],
   EvidenceDetailValue: ['512000000', 102.4, true, null],

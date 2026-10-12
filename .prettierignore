@@ -8,3 +8,6 @@ coverage/
 .turbo/
 scripts/test/fixtures/
 packages/db/migrations/
+
+# Replay cases are written by `pnpm --filter @ads/evals case:property --write`, byte for byte.
+packages/evals/cases/
