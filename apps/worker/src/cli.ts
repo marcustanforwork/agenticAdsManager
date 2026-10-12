@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The `ads` CLI. Like every surface, it only creates operator requests (invariant 9): `ads settings set` records a
 // settings_patch for the one processor. The `credentials`, `accounts` and `seed` commands are setup, and the
-// reads (`sync --dry`, `cycle`, `outcomes`, `findings`) never touch an ad account.
+// reads (`sync --dry`, `cycle`, `outcomes`, `findings`, `digest`, `brief`) never touch an ad account.
 import { readFileSync } from 'node:fs';
 import { createModelTracing, dryRunSync, runCycle } from '@ads/core';
 import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
@@ -11,6 +11,7 @@ import { docsCommand } from './docs.ts';
 import { findingsCommand } from './findings.ts';
 import { type ModelCliDeps, modelCommand } from './model.ts';
 import { outcomesCommand } from './outcomes.ts';
+import { reportCommands } from './reports.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { seedCommand, settingsCommand } from './settings.ts';
 import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, withDatabase, type CliDeps } from '@ads/vault';
@@ -62,6 +63,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
   program.addCommand(findingsCommand(withDb, requireProduct, { print: deps.print }));
+  for (const c of reportCommands(withDb, requireProduct, { print: deps.print, now })) program.addCommand(c);
   program.addCommand(
     modelCommand(withDb, requireProduct, {
       env: deps.env,
@@ -74,8 +76,9 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program
     .command('cycle')
     .description(
-      "run today's cycle for the product (sync, the trust check, the detectors, then the analyst), or continue it " +
-        'if it was interrupted; prints a JSON summary (counts, ids, the candidate findings and the analysis, never ' +
+      "run today's cycle for the product (sync, the trust check, the detectors; weekly and manual: the analyst; then " +
+        'the digest (daily) or the brief, queued for the worker to send), or continue it if it was interrupted; ' +
+        'prints a JSON summary (counts, ids, the candidate findings and the analysis, never ' +
         'names). Needs DATABASE_URL (the direct connection, not the pooler), VAULT_READ_KEY and, for the analyst, ' +
         "the model's key (e.g. ANTHROPIC_API_KEY); traced to Langfuse when its keys are set. Exits 1 if an account " +
         'failed to sync, the trust check failed or the analysis failed.',
