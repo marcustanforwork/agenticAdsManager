@@ -4,6 +4,18 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-12 — M07 built (digest, brief, Telegram, worker service) and code-reviewed
+- **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13)
+- **Did:**
+  - `core/src/report/` (`digest.ts`, `brief.ts`, `numberCheck.ts`, `stage.ts`, `format.ts`): the `reported` stage, the digest, the brief with its number check and template fallback, and the diagnostic brief. The analysis now runs on weekly and manual cycles only.
+  - `apps/worker/src/telegram/` (format, outbox, feedback buttons, grammY), `worker.ts` (startup reconciliation, job runner, leader schedule, outbox, heartbeats), `schedule.ts` (croner, SGT), `heartbeat.ts`, `reports.ts` (`ads digest`, `ads brief`).
+  - `apps/gateway/src/alive.ts` (heartbeat stub); `docs/runbook.md`; skills `deploy-worker` and `incident`.
+  - Code review at high effort: 10 findings, all fixed. 843 tests pass.
+- **Decided:** D-081 (M07 build choices); BLUEPRINT v3.19. Cut and moved to M16b: the pack's `briefSections` and the GHCR push.
+- **Learned:** GOTCHAS gains grammY 1.46.0 / croner 10.0.1, the Telegram limits and HTML escaping, and the healthchecks.io ping API. `core.telegram.org` and `healthchecks.io` don't resolve from cloud containers.
+- **Next:** Marcus reviews PR #13; then Phase 0's setup and live steps (M00 → M07), and the 4-week Phase 0 gate.
+- **Open:** Q13.
+
 ## 2026-10-12 — PR #12 (M06b) merged
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge"; squash-merged PR #12 on his instruction (D-057).
