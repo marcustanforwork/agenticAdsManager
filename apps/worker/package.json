@@ -23,6 +23,7 @@
     "@ads/contracts": "workspace:*",
     "@ads/core": "workspace:*",
     "@ads/db": "workspace:*",
+    "@ads/evals": "workspace:*",
     "@ads/pack-property-sg": "workspace:*",
     "@ads/pack-saas-snappool": "workspace:*",
     "@ads/pack-sdk": "workspace:*",

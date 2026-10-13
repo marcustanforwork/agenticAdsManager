@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The `ads` CLI. Like every surface, it only creates operator requests (invariant 9): `ads settings set` records a
-// settings_patch for the one processor. The `credentials`, `accounts` and `seed` commands are setup, and the
-// reads (`sync --dry`, `cycle`, `outcomes`, `findings`, `digest`, `brief`) never touch an ad account.
+// settings_patch for the one processor, `ads proposals approve|reject` and `ads phase set` their requests (M08).
+// The `credentials`, `accounts` and `seed` commands are setup, and the reads (`sync --dry`, `cycle`, `outcomes`,
+// `findings`, `digest`, `brief`, `proposals list|show`, `eval replay`) never touch an ad account.
 import { readFileSync } from 'node:fs';
 import { createModelTracing, dryRunSync, runCycle } from '@ads/core';
 import { type Db, NotFoundError, findProductBySlug } from '@ads/db';
@@ -11,6 +12,7 @@ import { docsCommand } from './docs.ts';
 import { findingsCommand } from './findings.ts';
 import { type ModelCliDeps, modelCommand } from './model.ts';
 import { outcomesCommand } from './outcomes.ts';
+import { evalCommand, phaseCommand, proposalsCommand } from './proposals.ts';
 import { reportCommands } from './reports.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { seedCommand, settingsCommand } from './settings.ts';
@@ -63,6 +65,10 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
   program.addCommand(findingsCommand(withDb, requireProduct, { print: deps.print }));
+  const decisionDeps = { env: deps.env, print: deps.print, packs };
+  program.addCommand(proposalsCommand(withDb, requireProduct, decisionDeps));
+  program.addCommand(phaseCommand(withDb, decisionDeps));
+  program.addCommand(evalCommand(withDb, () => program.opts<{ product?: string }>().product, decisionDeps));
   for (const c of reportCommands(withDb, requireProduct, { print: deps.print, now })) program.addCommand(c);
   program.addCommand(
     modelCommand(withDb, requireProduct, {

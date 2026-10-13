@@ -1,0 +1,77 @@
+{
+  "format": "replay-case-v1",
+  "id": "hand-0001",
+  "product": "snappool",
+  "source": "hand-written",
+  "cycleId": null,
+  "promptVersion": "analyst-v1",
+  "prompt": null,
+  "note": "Confirms a pause Marcus approved and a negative he rejected; adds a diagnosis nobody decided.",
+  "analystOutput": {
+    "findings": [
+      {
+        "type": "zero_outcome_spend",
+        "target": {
+          "level": "entity",
+          "platform": "google",
+          "accountId": "1110000001",
+          "type": "campaign",
+          "externalId": "1"
+        },
+        "fromCandidateId": "candidate-1",
+        "summary": "hand-written",
+        "whyNow": "hand-written",
+        "evidenceRefs": [],
+        "confidence": "high"
+      },
+      {
+        "type": "wasteful_search_term",
+        "target": {
+          "level": "entity",
+          "platform": "google",
+          "accountId": "1110000001",
+          "type": "ad_group",
+          "externalId": "11"
+        },
+        "fromCandidateId": "candidate-2",
+        "summary": "hand-written",
+        "whyNow": "hand-written",
+        "evidenceRefs": [],
+        "confidence": "high",
+        "params": {
+          "negativeText": "snappool login",
+          "negativeMatchType": "EXACT"
+        }
+      },
+      {
+        "type": "no_delivery",
+        "target": {
+          "level": "entity",
+          "platform": "google",
+          "accountId": "1110000001",
+          "type": "campaign",
+          "externalId": "2"
+        },
+        "fromCandidateId": null,
+        "summary": "hand-written",
+        "whyNow": "hand-written",
+        "evidenceRefs": [],
+        "confidence": "medium"
+      }
+    ],
+    "dismissed": []
+  },
+  "expected": [
+    {
+      "type": "zero_outcome_spend",
+      "target": "google:1110000001:campaign:1"
+    }
+  ],
+  "rejected": [
+    {
+      "type": "wasteful_search_term",
+      "target": "google:1110000001:ad_group:11",
+      "reason": "that is our own brand search"
+    }
+  ]
+}

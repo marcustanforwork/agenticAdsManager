@@ -100,7 +100,7 @@ These rules are what make "product-agnostic" and "one write path" real. They are
 | `core` | contracts, db, vault, connector-google, connector-meta, pack-sdk |
 | `gateway` | contracts, db, vault, all four connectors |
 | `evals` | contracts, db, core, pack-sdk, packs/* |
-| `apps/worker` | contracts, db, vault, core, pack-sdk, packs/* — **not** gateway, **not** any `*-write` package |
+| `apps/worker` | contracts, db, vault, core, pack-sdk, packs/*, evals (for `ads eval`, M08) — **not** gateway, **not** any `*-write` package |
 | `apps/gateway` | contracts, db, vault, gateway |
 | `apps/web` | contracts, db — **nothing else** |
 

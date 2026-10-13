@@ -358,27 +358,26 @@ describe('the draft stage', () => {
 
 describe('actionForFinding', () => {
   const guards: GuardConfig = CORE_GUARD_DEFAULTS;
-  const entity = (o: Partial<AdEntity> = {}): AdEntity =>
-    ({
-      id: 'e1',
-      productId: 'p',
-      accountId: 'a',
-      platform: 'google',
-      type: 'campaign',
-      externalId: '42',
-      parentId: null,
-      name: 'c',
-      status: 'active',
-      rawStatus: 'ENABLED',
-      dailyBudgetMicros: S(100),
-      budgetShared: false,
-      offeringId: null,
-      attributes: {},
-      createdByUs: false,
-      firstSeenAt: NOW,
-      lastSyncedAt: NOW,
-      ...o,
-    });
+  const entity = (o: Partial<AdEntity> = {}): AdEntity => ({
+    id: 'e1',
+    productId: 'p',
+    accountId: 'a',
+    platform: 'google',
+    type: 'campaign',
+    externalId: '42',
+    parentId: null,
+    name: 'c',
+    status: 'active',
+    rawStatus: 'ENABLED',
+    dailyBudgetMicros: S(100),
+    budgetShared: false,
+    offeringId: null,
+    attributes: {},
+    createdByUs: false,
+    firstSeenAt: NOW,
+    lastSyncedAt: NOW,
+    ...o,
+  });
   const ctx = (phase: number, e: AdEntity = entity()) => ({
     phase,
     settings: { disabledActions: [] },

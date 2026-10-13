@@ -8,6 +8,7 @@ import {
   RefusedError,
   StaleVersionError,
   getEntity,
+  getFinding,
   getPhase,
   getProposal,
   getStoredSettings,
@@ -159,8 +160,7 @@ const setPhase: RequestHandler<RequestOf<'set_phase'>> = async (tx, request, row
 /** Every decision on an agent proposal becomes eval data (M08): the finding it came from, as a ref. */
 async function recordCase(tx: Tx, proposal: ProposalRecord, decision: 'approve' | 'reject', reason: string | null) {
   if (proposal.origin !== 'agent' || proposal.cycleId === null || proposal.findingId === null) return false;
-  const [finding] = await tx.select().from(schema.findings).where(eq(schema.findings.id, proposal.findingId));
-  if (finding === undefined) return false;
+  const finding = await getFinding(tx, proposal.findingId);
   const entities = new Map<string, AdEntity>();
   if (finding.targetEntityId !== null)
     entities.set(finding.targetEntityId, await getEntity(tx, finding.targetEntityId));

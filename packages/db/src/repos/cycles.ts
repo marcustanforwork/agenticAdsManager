@@ -329,6 +329,12 @@ export async function confirmFinding(
   if (rows.length === 0) throw new NotFoundError('finding', id);
 }
 
+export async function getFinding(db: DbOrTx, id: string): Promise<Finding> {
+  const [row] = await db.select().from(findings).where(eq(findings.id, id));
+  if (!row) throw new NotFoundError('finding', id);
+  return row;
+}
+
 export async function listFindings(db: DbOrTx, cycleId: string): Promise<Finding[]> {
   return db.select().from(findings).where(eq(findings.cycleId, cycleId)).orderBy(asc(findings.createdAt));
 }
