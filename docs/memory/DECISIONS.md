@@ -542,7 +542,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** `docs/milestones/M03-google-read.md` · BLUEPRINT §4, §5.7 · GOTCHAS "Google …" rows
 
 ### D-074 — Build first, set up accounts at the end of Phase 0
-- **When / who / status:** 2026-10-06 · Marcus · adopted. He asked to merge M03 and keep building "without all the account creation; we can do it at the end".
+- **When / who / status:** 2026-10-06 · Marcus · adopted (its last point, "M08 can't start before the gate", superseded by D-082). He asked to merge M03 and keep building "without all the account creation; we can do it at the end".
 - **Decision:**
   - The cloud builds carry on milestone by milestone (M04, M05a, … up to M07's cloud part) without the setup tasks (T1–T14, T6b) and without the live steps. Each milestone depends on the previous ones' **code**, not on their live acceptance; connectors keep building against hand-written fixtures.
   - Every merged milestone stays `awaiting live acceptance`, and its live steps stay listed in `NOW.md`. They're run together **at the end of Phase 0**, after M07's cloud part: first the setup tasks, then the live steps in milestone order (M00, M01a, M02, M03, …), then the real fixture recordings, whose differences a session fixes.
@@ -648,3 +648,28 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M07 needed these choices; the code review (D-067) shaped the report dates, the signed number check, the outbox progress and back-off, and the heartbeat order.
 - **Instead of:** analysing every day at model cost for nothing new; letting the AI write the whole brief and checking numbers only loosely; re-sending whole messages after a partial failure.
 - **See:** `docs/milestones/M07-digest-brief-services.md` · BLUEPRINT §5.6, §5.14–5.16, M07, M16b · `docs/runbook.md`
+
+### D-082 — Build M08 before the Phase 0 gate; proposals stay off live until it passes
+- **When / who / status:** 2026-10-13 · Marcus · adopted. He asked to start M08 while he works through the Phase 0 checklist; of the options offered he chose "build now, gate still counts".
+- **Decision:**
+  - M08 is built in the cloud now, ahead of the Phase 0 → 1 gate, the same way D-074 built M04–M07 ahead of their live steps. Later Phase 1 parts (M09a onwards) still wait for the gate unless Marcus says otherwise.
+  - **The gate still counts for going live.** The system stores its current phase (`system_flags.phase`, 0 to 5, default 0, changed only by an operator request with a note: CLI `ads phase set <n> --note "…"`). The draft stage drafts a finding type only from the phase the registry names for it (`proposalsFromPhase`), so at phase 0 it drafts nothing. The phase stays 0 on production until Marcus records the Phase 0 gate as passed; then he sets it to 1, M08's live steps run, and the Phase 1 measuring (PROPOSAL §12) starts. Later gates raise it the same way.
+  - At phase 0, cycles behave exactly as in M07: no proposals, nothing new in the brief.
+- **Why:** Marcus's live checklist and the 4-week gate take calendar time; building ahead uses it. Phase 1 changes no ad account (no gateway until M11), so the risk is wasted work, not harm.
+- **Risk:** fixes found by the live checklist (D-074's risk) may touch M06b/M07 code that M08 builds on; if the gate fails, M08 may need rework.
+- **Instead of:** waiting for the gate before writing M08 (D-074's last point), or dropping the Phase 0 gate.
+- **Supersedes:** D-074's line "M08 can't start before the gate" (only that line).
+- **See:** BLUEPRINT M08 · PROPOSAL §12 · `docs/milestones/M08-*.md`
+
+### D-083 — M08 build choices: phases in the registry, drafting, the undo and fingerprint at draft time, eval cases
+- **When / who / status:** 2026-10-13 · Claude (fix) · adopted
+- **Decision:**
+  - **Registry phases.** `proposalsFromPhase` is the phase from which a type is *proposed*: pauses (`zero_outcome_spend`) and negatives (`wasteful_search_term`) from 1, budgets from 3, copy from 4. The gateway applies pauses and negatives from Phase 2 (PROPOSAL §6.2). The registry said 2, which would have left Phase 1 (whose gate needs ≥ 15 agent proposals) with nothing to propose.
+  - **Drafting** (BLUEPRINT §5.11 "As built"): only passed, confirmed-or-added findings; the stored phase (D-082); disabled actions; target state checks; no second open proposal with the same action hash; one `drafter` call for the words, number-checked, template on failure. Budget amounts: the hint becomes whole basis points (truncated), clamped by the guard, rounded to the platform unit towards the current budget; below the minimum delta, no proposal.
+  - **Undo and fingerprint at draft time** (BLUEPRINT §3.6): `plannedUndo` with the `SET_AT_APPLY` placeholder where the platform's id is needed; the fingerprint over the synced, normalised state, listing only the fields the sync holds.
+  - **Eval data.** `approve` and `reject` are handled now (CLI; Telegram in M09a). Each first decision on an agent proposal writes an `eval_cases` row (type and ref of its finding, the decision, the reason); the analyse stage keeps its prompt (personal data redacted) and answer in `analyst_runs` (its own table, so reads of `cycles` don't carry it). A wasteful_search_term case also keeps its term, since several can share an ad group. A decision case groups one cycle's decisions with that record; `ads eval replay` scores the recorded answers (precision and recall per type). Re-asking a model with the stored prompts stays M16a's `ads eval run`.
+  - **Agree rate**: over the agent proposals created in the 21 days before the cycle; agree = an approve decision on any version (approved proposals expire in Phase 1, since nothing is applied); expired undecided ones are counted apart (> 20% fails the gate). Shown in the brief's checks only once agent proposals exist.
+  - **`apps/worker` may depend on `evals`** (for `ads eval`).
+- **Why:** building M08 needed these choices; the registry's phase numbers contradicted Phase 1's purpose.
+- **Instead of:** drafting from Phase 2 only; deciding the undo only at apply time (Marcus would see no undo on a card); hashing fields the sync doesn't have (every proposal would go stale); a separate `evals` CLI outside `ads`.
+- **See:** `docs/milestones/M08-draft-proposals-replay.md` · BLUEPRINT §3.6, §5.11, M08

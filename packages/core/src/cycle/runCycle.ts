@@ -2,7 +2,7 @@
 // `stage_reached` advances after each one, so an interrupted cycle resumes where it stopped. Every stage is
 // idempotent, a scheduled cycle is unique per (product, kind, date), and a named advisory lock keeps two
 // processes from running the same cycle at once. M04 has the first two stages: sync and trust check; M06a adds
-// detect, M06b analyse, M07 report (the digest or the brief). Draft joins the STAGES list in M08.
+// detect, M06b analyse, M07 report (the digest or the brief), M08 draft (between analyse and report).
 import { localDate } from '@ads/contracts';
 import {
   CYCLE_STAGE_ORDER,
@@ -29,6 +29,7 @@ import type { PackRegistry } from '@ads/pack-sdk';
 import { type AnalyseSummary, analyseStage } from '../analyst/analyse.ts';
 import { type AttributionRunSummary, attributeOutcomes } from '../attribution/attribute.ts';
 import { type DetectSummary, detectStage } from '../findings/stage.ts';
+import { type DraftSummary, draftStage } from '../draft/stage.ts';
 import { type ReportSummary, reportStage } from '../report/stage.ts';
 import type { ModelDeps } from '../model/generate.ts';
 import type { ModelTracing } from '../model/tracing.ts';
@@ -97,6 +98,8 @@ export interface CycleSummary {
   detected?: DetectSummary;
   /** The analyst's review of them (M06b). */
   analysed?: AnalyseSummary;
+  /** The proposals drafted from the confirmed findings (M08). */
+  drafted?: DraftSummary;
   /** The digest or brief (M07). */
   reported?: ReportSummary;
 }
@@ -189,6 +192,25 @@ export const STAGES: readonly StageStep[] = [
         cycle.id,
       );
       summary.analysed = withoutModelText(analysed);
+      return {};
+    },
+  },
+  {
+    stage: 'drafted',
+    kinds: WEEKLY_KINDS,
+    async run({ deps, product, cycle, summary }) {
+      summary.drafted = await draftStage(
+        {
+          db: deps.db,
+          env: deps.env ?? {},
+          now: deps.now,
+          ...(deps.packs === undefined ? {} : { packs: deps.packs }),
+          ...(deps.tracing === undefined ? {} : { tracing: deps.tracing }),
+          ...(deps.model === undefined ? {} : { model: deps.model }),
+        },
+        product,
+        cycle.id,
+      );
       return {};
     },
   },

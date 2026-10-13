@@ -1,3 +1,4 @@
+import { hashOf } from './hash.ts';
 import type { ActionType } from './settings.ts';
 import type { EntityRef } from './platform.ts';
 import type { WriteOp } from './writes.ts';
@@ -129,5 +130,39 @@ export function fingerprintFieldsFor(action: WriteOp['action']): string[] {
       return ['idempotencyTagUnused', 'parentStatus'];
     case 'upload_conversions':
       return []; // instead, each event must not already be marked uploaded in outcomes
+  }
+}
+
+/** The fingerprint of an entity state (BLUEPRINT §5.11): the hash of just the fields an action depends on.
+ *  A field the state lacks counts as null, so a field that appears or disappears changes the hash. Used by the
+ *  draft stage (from the latest snapshot) and by the gateway (from a fresh read), over the same field list. */
+export function fingerprintOf(state: Readonly<Record<string, unknown>>, fields: readonly string[]): string {
+  const picked: Record<string, unknown> = {};
+  for (const field of [...fields].sort()) picked[field] = state[field] ?? null;
+  return hashOf(picked);
+}
+
+/** Stands in for what only the platform can tell (a criterion or entity it creates). The gateway stores the
+ *  real undo when it applies the action (`undoFor` with its ApplyContext, M11b). */
+export const SET_AT_APPLY = 'set-at-apply';
+
+/** The undo shown with a proposal when it's drafted, from the entity's last known state. It is a plan: for
+ *  actions whose undo needs what the platform creates, the gateway replaces it with `undoFor(op, ctx)`. */
+export function plannedUndo(op: WriteOp, state: { dailyBudgetMicros?: string | null } = {}): WriteOp | null {
+  switch (op.action) {
+    case 'add_negative_keyword':
+      return undoFor(op, { createdCriterionId: SET_AT_APPLY });
+    case 'create_entity_paused':
+      return undoFor(op, { createdRef: { ...op.parent, type: op.type, externalId: SET_AT_APPLY } });
+    case 'adjust_budget': {
+      const previous = state.dailyBudgetMicros;
+      if (previous === undefined || previous === null)
+        throw new UndoContextError(op.action, 'previousDailyBudgetMicros');
+      return undoFor(op, { previousDailyBudgetMicros: previous });
+    }
+    case 'remove_negative_keyword':
+      throw new UndoContextError(op.action, 'removedNegative'); // undo-only: never drafted
+    default:
+      return undoFor(op);
   }
 }

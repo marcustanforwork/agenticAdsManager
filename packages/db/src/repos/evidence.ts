@@ -125,7 +125,7 @@ export interface SearchTermTotals {
 /** Search-term totals over the window, per ad group and term. */
 export async function sumSearchTerms(
   db: DbOrTx,
-  input: { productId: string; from: string; to: string; adGroupEntityId?: string },
+  input: { productId: string; from: string; to: string; adGroupEntityId?: string; term?: string },
 ): Promise<SearchTermTotals[]> {
   const rows = await db
     .select({
@@ -144,6 +144,7 @@ export async function sumSearchTerms(
         gte(searchTerms.date, input.from),
         lte(searchTerms.date, input.to),
         input.adGroupEntityId !== undefined ? eq(searchTerms.adGroupEntityId, input.adGroupEntityId) : undefined,
+        input.term !== undefined ? eq(searchTerms.term, input.term) : undefined,
       ),
     )
     .groupBy(searchTerms.adGroupEntityId, searchTerms.term)

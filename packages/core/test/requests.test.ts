@@ -2,6 +2,13 @@ import type { OperatorRequest } from '@ads/contracts';
 import {
   claimJob,
   createProduct,
+  createProposal,
+  getCurrentApproval,
+  getPhase,
+  getProposal,
+  insertFinding,
+  listEvalCases,
+  startManual,
   ensureOffering,
   enqueueJob,
   findOffering,
@@ -33,6 +40,7 @@ import { createRegistry } from '@ads/pack-sdk';
 import { z } from 'zod';
 import { PRODUCT_DOC_MAX_CHARS } from '../src/requests/handlers.ts';
 import { TEST_PACKS } from './support/world.ts';
+import { makeAdWorld } from './support/adWorld.ts';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -106,7 +114,10 @@ describe('actor and schema checks', () => {
   it('refuses kinds that later milestones add, naming the milestone', async () => {
     const p = await makeProduct();
     const cases: [OperatorRequest, string][] = [
-      [{ kind: 'approve', proposalId: randomUUID(), version: 1, actionHash: 'h' }, 'M09a'],
+      [
+        { kind: 'edit_approve', proposalId: randomUUID(), version: 1, edit: { field: 'negative_text', text: 'x' } },
+        'M09a',
+      ],
       [{ kind: 'pause_all', productId: p.id }, 'M09b'],
       [
         {
@@ -478,5 +489,132 @@ describe('worker recovery', () => {
 
     const again = await recoverWorker(t.db, ctx);
     expect(again).toEqual({ jobsRequeued: 0, jobsFailed: 0, requestsProcessed: 0 });
+  });
+});
+
+describe('set_phase (D-082)', () => {
+  it('sets the phase with a note, and refuses one outside 0–5 or without a note', async () => {
+    expect((await submit({ kind: 'set_phase', phase: 1, note: 'Phase 0 gate passed' })).outcome).toEqual({
+      status: 'done',
+      result: { phase: 1, previous: 0 },
+    });
+    expect(await getPhase(t.db)).toBe(1);
+    for (const payload of [
+      { kind: 'set_phase', phase: 6, note: 'too high' },
+      { kind: 'set_phase', phase: 2, note: '' },
+    ]) {
+      const id = await dashboardInsert('set_phase', payload);
+      await processRequest(t.db, id, ctx);
+      expect((await getOperatorRequest(t.db, id)).status).toBe('refused');
+    }
+    expect(await getPhase(t.db)).toBe(1);
+    expect((await submit({ kind: 'set_phase', phase: 0, note: 'back to read-only' })).outcome.result).toEqual({
+      phase: 0,
+      previous: 1,
+    });
+  });
+});
+
+describe('approve and reject (M08)', () => {
+  async function proposalWorld() {
+    const w = await makeAdWorld(t.db, { slug: `decide-${randomBytes(3).toString('hex')}` });
+    const campaign = await w.entity('google', 'campaign', '77');
+    const cycle = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-08' });
+    const finding = await insertFinding(t.db, {
+      productId: w.productId,
+      cycleId: cycle.id,
+      type: 'zero_outcome_spend',
+      source: 'detector',
+      targetEntityId: campaign.id,
+      analystVerdict: 'confirmed',
+      summary: 's',
+      evidence: {
+        windowDays: 14,
+        impressions: 1,
+        clicks: 1,
+        spendMicros: '1',
+        outcomesByStage: {},
+        from: '2026-09-24',
+        to: '2026-10-07',
+        dataDays: 14,
+      },
+      passedThreshold: true,
+    });
+    const target = { platform: 'google' as const, accountId: '1', type: 'campaign' as const, externalId: '77' };
+    const make = (origin: 'agent' | 'operator' = 'agent') =>
+      createProposal(t.db, {
+        productId: w.productId,
+        cycleId: origin === 'agent' ? cycle.id : null,
+        findingId: origin === 'agent' ? finding.id : null,
+        origin,
+        action: { action: 'pause_entity', target },
+        undo: { action: 'resume_entity', target },
+        preconditionHash: 'h',
+        preconditionFields: ['status'],
+        rationale: 'r',
+        expectedEffect: 'e',
+      });
+    return { w, make, cycle, finding };
+  }
+
+  it('approves the version and hash Marcus saw, records an eval case, and a double tap is harmless', async () => {
+    const { w, make, cycle, finding } = await proposalWorld();
+    const p = await make();
+    const request = { kind: 'approve' as const, proposalId: p.id, version: 1, actionHash: p.actionHash };
+    const first = await submitRequest(t.db, { request, actor: 'cli:marcus', channel: 'cli' }, ctx);
+    expect(first.outcome).toEqual({
+      status: 'done',
+      result: { proposal: p.shortId, version: 1, decision: 'approve', duplicate: false, evalCase: true },
+    });
+    expect((await getCurrentApproval(t.db, p.id))?.channel).toBe('cli');
+    const again = await submitRequest(t.db, { request, actor: 'cli:marcus', channel: 'cli' }, ctx);
+    expect(again.outcome.result).toMatchObject({ duplicate: true, evalCase: false });
+    const cases = await listEvalCases(t.db, w.productId);
+    expect(cases.map((c) => c.evalCase)).toEqual([
+      expect.objectContaining({
+        cycleId: cycle.id,
+        findingId: finding.id,
+        proposalId: p.id,
+        decision: 'approve',
+        findingType: 'zero_outcome_spend',
+        target: expect.stringMatching(/^google:111000\d{4}:campaign:77$/) as unknown,
+      }),
+    ]);
+  });
+
+  it('every rejection creates a case with its reason; operator proposals make none', async () => {
+    const { w, make } = await proposalWorld();
+    const p = await make();
+    const { outcome } = await submit({ kind: 'reject', proposalId: p.id, version: 1, reason: 'seasonal dip' });
+    expect(outcome.result).toMatchObject({ decision: 'reject', evalCase: true });
+    expect((await getProposal(t.db, p.id)).status).toBe('rejected');
+    const own = await make('operator');
+    expect(
+      (await submit({ kind: 'reject', proposalId: own.id, version: 1, reason: 'changed my mind' })).outcome.result,
+    ).toMatchObject({ evalCase: false });
+    expect((await listEvalCases(t.db, w.productId)).map((c) => [c.evalCase.decision, c.evalCase.reason])).toEqual([
+      ['reject', 'seasonal dip'],
+    ]);
+  });
+
+  it('refuses a stale version, a changed hash, a decided proposal and an unknown one, changing nothing', async () => {
+    const { make } = await proposalWorld();
+    const p = await make();
+    const reasons = async (request: OperatorRequest) => (await submit(request)).outcome;
+    expect(await reasons({ kind: 'approve', proposalId: p.id, version: 2, actionHash: p.actionHash })).toMatchObject({
+      status: 'refused',
+    });
+    expect(await reasons({ kind: 'approve', proposalId: p.id, version: 1, actionHash: 'other' })).toMatchObject({
+      status: 'refused',
+      result: { reason: expect.stringContaining('the action changed') as unknown },
+    });
+    expect(await reasons({ kind: 'reject', proposalId: randomUUID(), version: 1, reason: 'gone' })).toMatchObject({
+      status: 'refused',
+    });
+    expect((await getProposal(t.db, p.id)).status).toBe('pending');
+    await submit({ kind: 'reject', proposalId: p.id, version: 1, reason: 'no thanks' });
+    expect(await reasons({ kind: 'approve', proposalId: p.id, version: 1, actionHash: p.actionHash })).toMatchObject({
+      status: 'refused',
+    });
   });
 });

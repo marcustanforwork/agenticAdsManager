@@ -1,6 +1,6 @@
 // Proposals, their versions, the §3.9 state machine, and approvals.
 import { hashOf, WriteOp, type ProposalStatus } from '@ads/contracts';
-import { and, asc, desc, eq, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import type { DbOrTx } from '../client.ts';
 import {
@@ -253,6 +253,69 @@ export async function expireDue(db: DbOrTx, now: Date = new Date()): Promise<str
     .where(and(inArray(proposals.status, ['pending', 'approved']), lte(proposals.expiresAt, now)))
     .returning({ id: proposals.id });
   return rows.map((r) => r.id);
+}
+
+/** The agent proposal drafted from a finding, if any (the draft stage is idempotent on resume). */
+export async function findProposalForFinding(db: DbOrTx, findingId: string): Promise<ProposalRecord | null> {
+  const [row] = await db.select().from(proposals).where(eq(proposals.findingId, findingId)).limit(1);
+  return row ? toRecord(row) : null;
+}
+
+/** Statuses in which a proposal is still waiting on Marcus or the gateway. */
+export const OPEN_STATUSES: readonly ProposalStatus[] = ['pending', 'approved', 'applying', 'needs_attention'];
+
+/** An open proposal of the product with exactly this action (the draft stage proposes each change once). */
+export async function findOpenProposalByAction(
+  db: DbOrTx,
+  input: { productId: string; actionHash: string },
+): Promise<ProposalRecord | null> {
+  const [row] = await db
+    .select()
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.productId, input.productId),
+        eq(proposals.actionHash, input.actionHash),
+        inArray(proposals.status, [...OPEN_STATUSES]),
+      ),
+    )
+    .limit(1);
+  return row ? toRecord(row) : null;
+}
+
+/** Counts for the agree rate (PROPOSAL §12) over the agent proposals created in [from, to). A proposal counts by
+ *  the decision on it (any version), whatever its status since: in Phase 1 nothing is applied, so approved ones
+ *  expire too. Operator and policy proposals are left out. */
+export async function agreeRateCounts(
+  db: DbOrTx,
+  input: { productId: string; from: Date; to: Date },
+): Promise<{ total: number; approved: number; rejected: number; expired: number; pending: number }> {
+  const decision = sql`(select ${approvals.decision} from ${approvals} where ${approvals.proposalId} = ${proposals.id}
+    order by ${approvals.proposalVersion} desc limit 1)`;
+  const [row] = await db
+    .select({
+      total: sql<string>`count(*)::text`,
+      approved: sql<string>`count(*) filter (where ${decision} = 'approve')::text`,
+      rejected: sql<string>`count(*) filter (where ${decision} = 'reject')::text`,
+      expired: sql<string>`count(*) filter (where ${decision} is null and ${proposals.status} = 'expired')::text`,
+      pending: sql<string>`count(*) filter (where ${decision} is null and ${proposals.status} = 'pending')::text`,
+    })
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.productId, input.productId),
+        eq(proposals.origin, 'agent'),
+        gte(proposals.createdAt, input.from),
+        lt(proposals.createdAt, input.to),
+      ),
+    );
+  return {
+    total: Number(row?.total ?? 0),
+    approved: Number(row?.approved ?? 0),
+    rejected: Number(row?.rejected ?? 0),
+    expired: Number(row?.expired ?? 0),
+    pending: Number(row?.pending ?? 0),
+  };
 }
 
 /** Proposals left in `applying` (gateway recovery, BLUEPRINT §6). */

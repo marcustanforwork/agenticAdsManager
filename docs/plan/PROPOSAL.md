@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.8 — 2026-10-07 (AI SDK 7 and Langfuse's AI SDK 7 integration; T9 includes the AI provider key, D-078) |
+| **Version** | v3.9 — 2026-10-13 (M08 is built before the Phase 0 gate; proposals stay off live until it passes, D-082) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
@@ -566,7 +566,7 @@ Two switches must both be on before the gateway writes anything: `GATEWAY_WRITES
 
 ## 12. Phases and gates
 
-Each phase ends with a **gate**: a test on real data that must pass before the next phase's first milestone starts. The calendar gaps between phases are deliberate. They are where the product is actually validated.
+Each phase ends with a **gate**: a test on real data that must pass before the next phase's first milestone starts. (Exception, D-082: M08 is built before the Phase 0 gate, but its proposals stay switched off on production until the gate passes.) The calendar gaps between phases are deliberate. They are where the product is actually validated.
 
 | Phase | What it adds | Milestones | Gate before the next phase | How it's measured |
 |---|---|---|---|---|

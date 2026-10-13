@@ -13,6 +13,7 @@ export * from './repos/evidence.ts';
 export * from './repos/analyst.ts';
 export * from './repos/proposals.ts';
 export * from './repos/changes.ts';
+export * from './repos/evals.ts';
 export * from './repos/plumbing.ts';
 export * from './queue/jobs.ts';
 export * from './queue/listener.ts';

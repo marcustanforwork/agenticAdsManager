@@ -4,8 +4,10 @@ import { IllegalTransitionError, RefusedError, StaleVersionError } from '../src/
 import {
   PROPOSAL_TRANSITIONS,
   TERMINAL_STATUSES,
+  agreeRateCounts,
   canTransition,
   createProposal,
+  findOpenProposalByAction,
   defaultExpiry,
   expireDue,
   findProposalByShortId,
@@ -146,6 +148,31 @@ describe('creating and editing proposals', () => {
   it('rejects an action that does not match the WriteOp contract', async () => {
     const bad = { action: 'delete_everything', target } as unknown as WriteOp;
     await expect(createProposal(t.db, draft({ action: bad }))).rejects.toThrow();
+  });
+
+  it('defaults the expiry for every action type: 72 h for budgets, 7 days for the rest', () => {
+    const at = new Date('2026-10-13T00:00:00Z');
+    const ops: WriteOp[] = [
+      pauseOp(target),
+      { action: 'resume_entity', target },
+      { action: 'mark_abandoned', target },
+      { action: 'add_negative_keyword', target, text: 'free', matchType: 'EXACT' },
+      { action: 'remove_negative_keyword', target, criterionId: 'c1' },
+      budgetOp('1000000'),
+      { action: 'create_entity_paused', parent: target, type: 'ad', spec: {}, idempotencyTag: 't' },
+      {
+        action: 'upload_conversions',
+        platform: 'meta',
+        accountId: 'act_1',
+        destinationId: 'd',
+        events: [{ eventId: 's:signup', stage: 'signup', occurredAt: '2026-10-12T00:00:00Z', ids: {} }],
+      },
+    ];
+    expect(new Set(ops.map((o) => o.action)).size).toBe(8); // every WriteOp action
+    for (const op of ops) {
+      const hours = (defaultExpiry(op, at).getTime() - at.getTime()) / 3_600_000;
+      expect(hours, op.action).toBe(op.action === 'adjust_budget' ? 72 : 168);
+    }
   });
 
   it('defaults the expiry: 72 h for budgets, 7 days otherwise', () => {
@@ -313,5 +340,57 @@ describe('decisions and approvals', () => {
       preconditionHash: null,
     });
     expect(await getCurrentApproval(t.db, p.id)).toBeNull();
+  });
+});
+
+describe('the agree rate counts (PROPOSAL §12)', () => {
+  it('counts agent proposals by their decision; expired undecided ones apart; operator ones not at all', async () => {
+    const own = await makeCampaign(t.db);
+    const base = { ...draft(), productId: own.product.id, action: pauseOp(own.ref) };
+    const decide = async (decision: 'approve' | 'reject') => {
+      const p = await createProposal(t.db, base);
+      await recordDecision(t.db, {
+        proposalId: p.id,
+        version: 1,
+        actionHash: p.actionHash,
+        decision,
+        reason: decision === 'reject' ? 'not now' : null,
+        actor: 'cli:marcus',
+        channel: 'cli',
+      });
+      return p;
+    };
+    const approved = await decide('approve');
+    await decide('approve');
+    await decide('reject');
+    // An approved proposal that expires (Phase 1 applies nothing) still counts as agreed.
+    await transitionProposal(t.db, { proposalId: approved.id, to: 'expired' });
+    const lapsed = await createProposal(t.db, base);
+    await transitionProposal(t.db, { proposalId: lapsed.id, to: 'expired' });
+    await createProposal(t.db, base); // still pending
+    await createProposal(t.db, { ...base, origin: 'operator' }); // Marcus's own: excluded
+
+    const window = { productId: own.product.id, from: new Date(Date.now() - 86_400_000), to: IN_A_DAY() };
+    expect(await agreeRateCounts(t.db, window)).toEqual({ total: 5, approved: 2, rejected: 1, expired: 1, pending: 1 });
+    expect(
+      await agreeRateCounts(t.db, { ...window, from: IN_A_DAY(), to: new Date(Date.now() + 2 * 86_400_000) }),
+    ).toEqual({ total: 0, approved: 0, rejected: 0, expired: 0, pending: 0 });
+  });
+
+  it('finds an open proposal with the same action, and none once it is decided against', async () => {
+    const own = await makeCampaign(t.db);
+    const p = await createProposal(t.db, { ...draft(), productId: own.product.id, action: pauseOp(own.ref) });
+    const query = { productId: own.product.id, actionHash: p.actionHash };
+    expect((await findOpenProposalByAction(t.db, query))?.id).toBe(p.id);
+    await recordDecision(t.db, {
+      proposalId: p.id,
+      version: 1,
+      actionHash: p.actionHash,
+      decision: 'reject',
+      reason: 'no',
+      actor: 'cli:marcus',
+      channel: 'cli',
+    });
+    expect(await findOpenProposalByAction(t.db, query)).toBeNull();
   });
 });

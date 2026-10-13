@@ -23,11 +23,13 @@ import {
   listFindings,
   listRejectedFindings,
   resetAnalysis,
+  setAnalystRecord,
   setAnalystVerdict,
   sumSearchTerms,
 } from '@ads/db';
 import { type PackRegistry, thresholdFor } from '@ads/pack-sdk';
 import { DETECTORS } from '../findings/detectors.ts';
+import { redactPersonalData } from '../model/redact.ts';
 import {
   type FindingTarget,
   computeEvidence,
@@ -402,6 +404,13 @@ export async function analyseStage(deps: AnalyseDeps, product: Product, cycleId:
       { db: deps.db, product, manifest: pack.manifest, cycleId, now },
       answer.output,
     );
+    // Kept for replay cases (M08): what was asked (personal data redacted, as sent) and what came back.
+    await setAnalystRecord(deps.db, cycleId, {
+      promptVersion: input.version,
+      model: answer.model,
+      prompt: redactPersonalData(input.prompt).text,
+      output: answer.output,
+    });
     return {
       status: 'analysed',
       model: answer.model,
@@ -416,6 +425,7 @@ export async function analyseStage(deps: AnalyseDeps, product: Product, cycleId:
   } catch (error) {
     // The cycle goes on: the brief still reports the detector candidates, marked unreviewed.
     await resetAnalysis(deps.db, cycleId);
+    await setAnalystRecord(deps.db, cycleId, null);
     return {
       status: 'failed',
       detail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),

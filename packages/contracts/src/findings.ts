@@ -16,7 +16,8 @@ export const FindingTypeId = z.enum([
 ]);
 export type FindingTypeId = z.infer<typeof FindingTypeId>;
 // The registry in core/findings maps each type to: allowed target types, the action it maps to (or none),
-// required params, and the phase from which it may produce proposals.
+// required params, and the phase from which it may produce proposals (pauses and negatives from Phase 1, applied by
+// the gateway from Phase 2; D-083).
 
 /** What a finding the AI returns is about (D-080): an ad entity (all four fields, as in `EntityRef`), an ad account
  *  (`platform` and `accountId`), or the whole product (all null). Nullable rather than optional, so the schema suits

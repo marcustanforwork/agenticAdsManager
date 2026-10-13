@@ -1,0 +1,56 @@
+{
+  "format": "replay-case-v1",
+  "id": "hand-0003",
+  "product": "snappool",
+  "source": "hand-written",
+  "cycleId": null,
+  "promptVersion": "analyst-v1",
+  "prompt": null,
+  "note": "Two pauses, both approved.",
+  "analystOutput": {
+    "findings": [
+      {
+        "type": "zero_outcome_spend",
+        "target": {
+          "level": "entity",
+          "platform": "meta",
+          "accountId": "act_2220000001",
+          "type": "ad",
+          "externalId": "6"
+        },
+        "fromCandidateId": "candidate-1",
+        "summary": "hand-written",
+        "whyNow": "hand-written",
+        "evidenceRefs": [],
+        "confidence": "high"
+      },
+      {
+        "type": "zero_outcome_spend",
+        "target": {
+          "level": "entity",
+          "platform": "meta",
+          "accountId": "act_2220000001",
+          "type": "ad",
+          "externalId": "7"
+        },
+        "fromCandidateId": "candidate-2",
+        "summary": "hand-written",
+        "whyNow": "hand-written",
+        "evidenceRefs": [],
+        "confidence": "high"
+      }
+    ],
+    "dismissed": []
+  },
+  "expected": [
+    {
+      "type": "zero_outcome_spend",
+      "target": "meta:act_2220000001:ad:6"
+    },
+    {
+      "type": "zero_outcome_spend",
+      "target": "meta:act_2220000001:ad:7"
+    }
+  ],
+  "rejected": []
+}

@@ -123,7 +123,7 @@ describe('the registry and the threshold', () => {
     expect(allowsTarget('tracking_gap', 'account')).toBe(true);
     expect(allowsTarget('wasteful_search_term', 'campaign')).toBe(false);
     expect(FINDING_TYPES.no_delivery.action).toBeNull();
-    expect(FINDING_TYPES.zero_outcome_spend).toMatchObject({ action: 'pause_entity', proposalsFromPhase: 2 });
+    expect(FINDING_TYPES.zero_outcome_spend).toMatchObject({ action: 'pause_entity', proposalsFromPhase: 1 });
   });
 
   it("stretches a window to the pack's minDays", () => {

@@ -1,0 +1,37 @@
+{
+  "format": "replay-case-v1",
+  "id": "hand-0002",
+  "product": "snappool",
+  "source": "hand-written",
+  "cycleId": null,
+  "promptVersion": "analyst-v1",
+  "prompt": null,
+  "note": "Misses a pause Marcus approved; reports a cost spike nobody decided.",
+  "analystOutput": {
+    "findings": [
+      {
+        "type": "cost_spike",
+        "target": {
+          "level": "entity",
+          "platform": "meta",
+          "accountId": "act_2220000001",
+          "type": "campaign",
+          "externalId": "50"
+        },
+        "fromCandidateId": "candidate-1",
+        "summary": "hand-written",
+        "whyNow": "hand-written",
+        "evidenceRefs": [],
+        "confidence": "low"
+      }
+    ],
+    "dismissed": []
+  },
+  "expected": [
+    {
+      "type": "zero_outcome_spend",
+      "target": "meta:act_2220000001:ad:5"
+    }
+  ],
+  "rejected": []
+}

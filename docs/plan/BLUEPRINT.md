@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.19 — 2026-10-12 (M07 build choices: stages per cycle kind, the report stage, the number check, the worker service, D-081) |
+| **Version** | v3.21 — 2026-10-13 (M08 build choices: the phase switch, drafting, planned undo and fingerprint at draft time, eval cases, D-082, D-083) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -100,7 +100,7 @@ These rules are what make "product-agnostic" and "one write path" real. They are
 | `core` | contracts, db, vault, connector-google, connector-meta, pack-sdk |
 | `gateway` | contracts, db, vault, all four connectors |
 | `evals` | contracts, db, core, pack-sdk, packs/* |
-| `apps/worker` | contracts, db, vault, core, pack-sdk, packs/* — **not** gateway, **not** any `*-write` package |
+| `apps/worker` | contracts, db, vault, core, pack-sdk, packs/*, evals (for `ads eval`, M08) — **not** gateway, **not** any `*-write` package |
 | `apps/gateway` | contracts, db, vault, gateway |
 | `apps/web` | contracts, db — **nothing else** |
 
@@ -404,6 +404,8 @@ export const WriteOp = z.discriminatedUnion('action', [
 | `resume_entity` / `remove_negative_keyword` | `pause_entity` / `add_negative_keyword` | same idea | These are undos of undos |
 | `mark_abandoned` | none | — | Terminal |
 
+**At draft time (M08, D-083)** a proposal stores `plannedUndo(op, state)`: the undo as far as it is known before applying. For a negative or a create, what only the platform can tell (the criterion or entity it creates) is the placeholder `SET_AT_APPLY`; the gateway stores the real undo from `undoFor(op, ctx)` when it applies (M11b). The fingerprint is `fingerprintOf(state, fields)` over the synced, normalised state (`status`, `dailyBudgetMicros`, `budgetShared`, `parentStatus` = the status of the entity a negative goes on); fields the sync doesn't hold yet (`negativeListHash`, `budgetType`) are left out of `precondition_fields`, and the gateway hashes exactly the listed fields from its fresh read.
+
 **Fingerprint fields** (`fingerprintFieldsFor(action)` in `contracts/undo.ts`, the single definition, used by the gateway and by anything that stores a precondition hash, such as an undo proposal, D-067). The derived values (`parentStatus`, `negativeListHash`, `criterionExists`, `idempotencyTagUnused`) are computed by `gateway/src/precondition.ts`:
 - `pause_entity`, `resume_entity`, `mark_abandoned`: `status`
 - `adjust_budget`: `status`, `dailyBudgetMicros`, `budgetShared`, `budgetType`
@@ -427,7 +429,8 @@ export const FindingTypeId = z.enum([
   'copy_refresh',              // → create_entity_paused (ad variants, Phase 4)
 ]);
 // The registry in core/findings maps each type to: allowed target types, the action it maps to (or none),
-// required params, and the phase from which it may produce proposals.
+// required params, and the phase from which it may produce proposals (pauses and negatives from Phase 1, applied by
+// the gateway from Phase 2; D-083).
 
 /** What a finding is about (D-080): an ad entity (all four fields), an ad account (platform + accountId) or the
  *  product (all null). Nullable, not optional, so every provider's structured output accepts it; core checks the fit. */
@@ -538,6 +541,7 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('product_doc_put'), productId: z.uuid(),
              doc: z.enum(['strategy', 'playbook', 'learnings']), baseVersion: z.number().int(), markdown: z.string() }),
   z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean(), newInfo: z.boolean() }),
+  z.object({ kind: z.literal('set_phase'), phase: z.number().int().min(0).max(5), note: z.string().min(3) }),   // M08, D-082
   z.object({ kind: z.literal('resolve_attention'), proposalId: z.uuid(),
              resolution: z.enum(['applied', 'not_applied']), note: z.string().min(3) }),
   // M15a adds: source_copy_put
@@ -918,6 +922,29 @@ create table change_log (
 );
 create index on change_log (product_id, applied_at desc);
 
+create table eval_cases (                            -- M08: one row per decision on an agent proposal
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id),
+  cycle_id uuid not null references cycles(id),
+  finding_id uuid not null references findings(id),
+  proposal_id uuid not null unique references proposals(id),   -- a proposal's first decision counts
+  decision text not null check (decision in ('approve','reject')),
+  reason text,
+  finding_type text not null,
+  target text not null,                              -- a ref, platform ids only
+  negative_text text,                                -- a wasteful_search_term finding's term
+  created_at timestamptz not null default now()
+);
+create index on eval_cases (product_id, created_at desc);
+
+create table analyst_runs (                          -- M08: the analyst's prompt (redacted) and answer per cycle
+  cycle_id uuid primary key references cycles(id),
+  product_id uuid not null references products(id),
+  record jsonb not null,                             -- { promptVersion, model, prompt, output }
+  created_at timestamptz not null default now()
+);
+create index on analyst_runs (product_id, created_at desc);
+
 create table briefs (
   id uuid primary key default gen_random_uuid(),
   product_id uuid not null references products(id),
@@ -1168,6 +1195,7 @@ A candidate needs its rule **and** the pack's threshold, applied to evidence com
 - **Negative keywords.** The text must equal a real search-term row that met the threshold, with match type EXACT or PHRASE only. A BROAD negative could block far more than intended.
 - **Fingerprint** = `sha256Hex(canonicalJson(pick(latestSnapshot, fingerprintFieldsFor(action))))`.
 - **Expiry.** `adjust_budget` 72 h; other actions 7 days; operator confirm cards 30 min.
+- **As built (M08, D-083).** The draft stage runs in weekly and manual cycles, between `analysed` and `reported`. It drafts a finding only when it passed its threshold, the analyst confirmed or added it, the registry proposes its type in the current phase (`system_flags.phase`, D-082; nothing at phase 0), the product hasn't disabled the action, and the target can take it (a pause needs an active entity; a budget change needs the entity's own, non-shared budget and the direction its type allows). An open proposal with the same action hash is never drafted twice, and a finding that already has a proposal is skipped (resume). One `drafter` model call writes every new proposal's rationale and expected effect from a DATA block; each text's numbers are checked against that block (the brief's number check), and a failed check or call gives the template text.
 
 ### 5.12 Attribution
 
@@ -1774,7 +1802,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 - SnapPool's digest arrives every morning it spends; property's does not.
 - Both weekly briefs arrive on Monday at 07:00 SGT.
 
-After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does not start until it passes.**
+After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built before it passes (D-082), but its draft stage stays switched off on production until it does.
 
 **Cut first:** the pack's `briefSections`; publishing to GHCR (build on the SER9 instead).
 
@@ -1785,7 +1813,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 ---
 
 ### M08 — Draft stage, proposals, replay eval v0
-**Phase 1 · Size ~500k · Needs:** the Phase 0 gate has passed
+**Phase 1 · Size ~500k · Needs:** M07 (code). Built before the Phase 0 gate (D-082); its live steps and the Phase 1 measuring wait for the gate.
 
 **Goal:** each passing finding with an allowed action becomes a durable proposal with an exact undo and fingerprint, and each of Marcus's decisions becomes eval data.
 
@@ -1804,6 +1832,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
    - every rejection automatically creates a case;
    - `ads eval replay` reports precision and recall per finding type.
 5. A CLI channel, `ads proposals list|show|approve|reject --reason`, going through operator requests. Phase 1 can then start before the Telegram cards exist.
+6. The current phase (D-082): `system_flags.phase` (0–5, default 0), set only through an operator request `set_phase` with a note (CLI `ads phase` / `ads phase set <n> --note "…"`). The draft stage drafts a type only when `proposalsFromPhase` ≤ the phase, so at phase 0 nothing is drafted and a cycle behaves exactly as in M07. Marcus sets phase 1 when he records the Phase 0 gate as passed.
 
 **Tests:**
 - An undo-table property test: for every reversible action, apply-then-undo restores the snapshot, using a fake entity store.
@@ -1812,10 +1841,11 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 - Illegal status transitions.
 - The agree rate, including the handling of expired and operator proposals.
 - Replay over 3 hand-written cases.
+- The phase: 0 → no proposals and an unchanged brief; 1 → proposals for the Phase 1 types only.
 
 **Done when (cloud):** all tests are green.
 
-**Done when (live):**
+**Done when (live)** (after the Phase 0 gate passes and Marcus sets phase 1, D-082):
 - The weekly SnapPool cycle produces proposals, and Marcus reviews them with the CLI.
 - His decisions are recorded.
 - `ads eval replay` runs.
@@ -1823,6 +1853,8 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 **Cut first:** the replay runner (keep automatic case creation; the runner moves to M16a); CLI edit.
 
 **Skills to create:** `eval-replay`.
+
+**As built (D-083):** pauses and negatives are proposed from phase 1 (the registry said 2, the phase the gateway applies them); the draft stage as in §5.11; `approve`, `reject` and `set_phase` requests (every decision on an agent proposal writes an `eval_cases` row; the analyse stage keeps its prompt and answer in `analyst_runs`); the agree rate (last 21 days) in the brief once agent proposals exist; `packages/evals` decision cases (`replay-case-v1`) scored on their recorded answers, 3 hand-written cases; CLI `ads proposals list|show|approve|reject`, `ads phase [set]`, `ads eval replay [--hand-written]`; `apps/worker` may depend on `evals`. **Cut and moved to M09a:** CLI edit (`edit_approve`, with the Telegram edit cards).
 
 ---
 

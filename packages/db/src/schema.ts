@@ -549,6 +549,51 @@ export const approvals = pgTable(
   ],
 );
 
+/** The analyst's prompt (personal data redacted) and answer per cycle (M08): what a replay case is built from when
+ *  Marcus decides a proposal. Its own table, so reads of `cycles` don't carry the prompt. */
+export const analystRuns = pgTable(
+  'analyst_runs',
+  {
+    cycleId: uuid('cycle_id')
+      .primaryKey()
+      .references(() => cycles.id),
+    productId: productId(),
+    record: jsonb('record').notNull(),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [index().on(t.productId, t.createdAt.desc())],
+);
+
+/** Eval data (M08): one row per decision Marcus makes on an agent proposal. `ads eval replay` groups them by
+ *  cycle with the cycle's analyst record into replay cases. */
+export const evalCases = pgTable(
+  'eval_cases',
+  {
+    id: id(),
+    productId: productId(),
+    cycleId: uuid('cycle_id')
+      .notNull()
+      .references(() => cycles.id),
+    findingId: uuid('finding_id')
+      .notNull()
+      .references(() => findings.id),
+    proposalId: uuid('proposal_id')
+      .notNull()
+      .references(() => proposals.id),
+    decision: text('decision', { enum: DECISIONS }).notNull(),
+    reason: text('reason'),
+    findingType: text('finding_type').notNull(),
+    target: text('target').notNull(), // a ref: platform ids only (`google:123:ad_group:9`), never names
+    negativeText: text('negative_text'), // a wasteful_search_term finding's term: several can share an ad group
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.productId, t.createdAt.desc()),
+    unique().on(t.proposalId), // one decision per proposal counts (its first)
+    check('eval_cases_decision_check', oneOf('decision', DECISIONS)),
+  ],
+);
+
 export const changeLog = pgTable(
   'change_log',
   {

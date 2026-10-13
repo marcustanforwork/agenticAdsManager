@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ActionType,
   UNDO_TABLE,
+  SET_AT_APPLY,
   UndoContextError,
   fingerprintFieldsFor,
+  fingerprintOf,
+  plannedUndo,
   undoFor,
   type ApplyContext,
   type EntityRef,
@@ -198,5 +201,84 @@ describe('fingerprintFieldsFor', () => {
     expect(fingerprintFieldsFor('create_entity_paused')).toEqual(['idempotencyTagUnused', 'parentStatus']);
     expect(fingerprintFieldsFor('upload_conversions')).toEqual([]);
     for (const action of ActionType.options) expect(Array.isArray(fingerprintFieldsFor(action))).toBe(true);
+  });
+});
+
+describe('fingerprintOf (property)', () => {
+  const value = fc.oneof(fc.string(), fc.integer(), fc.boolean(), fc.constant(null));
+  const state = fc.dictionary(fc.string({ minLength: 1, maxLength: 12 }), value, { maxKeys: 8 });
+  const action = fc.constantFrom(...ActionType.options.filter((a) => fingerprintFieldsFor(a).length > 0));
+
+  it('unrelated fields do not change it', () => {
+    fc.assert(
+      fc.property(action, state, fc.string({ minLength: 1 }), value, (a, s, key, v) => {
+        const fields = fingerprintFieldsFor(a);
+        fc.pre(!fields.includes(key));
+        expect(fingerprintOf({ ...s, [key]: v }, fields)).toBe(fingerprintOf(s, fields));
+      }),
+    );
+  });
+
+  it('every relevant field changes it', () => {
+    fc.assert(
+      fc.property(action, state, value, value, (a, s, v1, v2) => {
+        fc.pre(v1 !== v2);
+        for (const field of fingerprintFieldsFor(a)) {
+          expect(fingerprintOf({ ...s, [field]: v1 }, fingerprintFieldsFor(a))).not.toBe(
+            fingerprintOf({ ...s, [field]: v2 }, fingerprintFieldsFor(a)),
+          );
+        }
+      }),
+    );
+  });
+
+  it('does not depend on key or field order; a missing field counts as null', () => {
+    expect(fingerprintOf({ a: 1, status: 'paused' }, ['status', 'a'])).toBe(
+      fingerprintOf({ status: 'paused', a: 1 }, ['a', 'status']),
+    );
+    expect(fingerprintOf({}, ['status'])).toBe(fingerprintOf({ status: null }, ['status']));
+    expect(fingerprintOf({}, ['status'])).not.toBe(fingerprintOf({ status: 'active' }, ['status']));
+  });
+});
+
+describe('plannedUndo', () => {
+  it('equals the stored undo for actions whose undo needs nothing from the platform (property)', () => {
+    fc.assert(
+      fc.property(
+        snapshot.chain((s) => fc.tuple(fc.constant(s), reversibleOp(s))),
+        ([before, op]) => {
+          fc.pre(op.action === 'pause_entity' || op.action === 'resume_entity' || op.action === 'adjust_budget');
+          expect(plannedUndo(op, before)).toEqual(undoFor(op, apply(before, op).ctx));
+        },
+      ),
+    );
+  });
+
+  it('marks what only the platform can tell, which the gateway fills in when it applies', () => {
+    expect(plannedUndo({ action: 'add_negative_keyword', target, text: 'free', matchType: 'EXACT' })).toEqual({
+      action: 'remove_negative_keyword',
+      target,
+      criterionId: SET_AT_APPLY,
+    });
+    const create: WriteOp = {
+      action: 'create_entity_paused',
+      parent: target,
+      type: 'ad',
+      spec: {},
+      idempotencyTag: 't',
+    };
+    expect(plannedUndo(create)).toEqual({
+      action: 'mark_abandoned',
+      target: { ...target, type: 'ad', externalId: SET_AT_APPLY },
+    });
+  });
+
+  it('refuses a budget change without the current budget, and undo-only actions', () => {
+    const op: WriteOp = { action: 'adjust_budget', target, newDailyBudgetMicros: '1', netIncrease: false };
+    expect(() => plannedUndo(op, { dailyBudgetMicros: null })).toThrow(UndoContextError);
+    expect(() => plannedUndo({ action: 'remove_negative_keyword', target, criterionId: 'c1' })).toThrow(
+      UndoContextError,
+    );
+    expect(plannedUndo({ action: 'mark_abandoned', target })).toBeNull();
   });
 });

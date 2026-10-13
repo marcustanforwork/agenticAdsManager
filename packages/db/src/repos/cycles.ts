@@ -5,6 +5,7 @@ import type { DbOrTx } from '../client.ts';
 import { DuplicateCycleError, NotFoundError, RefusedError, isUniqueViolation } from '../errors.ts';
 import {
   CYCLE_STAGES,
+  analystRuns,
   cycles,
   findings,
   trustChecks,
@@ -153,6 +154,28 @@ export async function addModelCost(db: DbOrTx, cycleId: string, costMicros: bigi
     .where(eq(cycles.id, cycleId))
     .returning({ id: cycles.id });
   if (rows.length === 0) throw new NotFoundError('cycle', cycleId);
+}
+
+/** What the analyse stage asked and got (M08): replay cases are built from it. Ids in the prompt are the run's own. */
+export interface AnalystRecord {
+  promptVersion: string;
+  model: string;
+  prompt: string;
+  /** The answer as it came (schema-checked, not yet validated by core). */
+  output: unknown;
+}
+
+/** Stores (or, on a rerun of the stage, replaces) the cycle's analyst record; null removes it. */
+export async function setAnalystRecord(db: DbOrTx, cycleId: string, record: AnalystRecord | null): Promise<void> {
+  if (record === null) {
+    await db.delete(analystRuns).where(eq(analystRuns.cycleId, cycleId));
+    return;
+  }
+  const cycle = await getCycle(db, cycleId);
+  await db
+    .insert(analystRuns)
+    .values({ cycleId, productId: cycle.productId, record })
+    .onConflictDoUpdate({ target: analystRuns.cycleId, set: { record, createdAt: sql`now()` } });
 }
 
 /** Cycles that started but never finished, oldest first (worker startup reconciliation, BLUEPRINT §5.5). */
@@ -309,6 +332,12 @@ export async function confirmFinding(
     .where(eq(findings.id, id))
     .returning({ id: findings.id });
   if (rows.length === 0) throw new NotFoundError('finding', id);
+}
+
+export async function getFinding(db: DbOrTx, id: string): Promise<Finding> {
+  const [row] = await db.select().from(findings).where(eq(findings.id, id));
+  if (!row) throw new NotFoundError('finding', id);
+  return row;
 }
 
 export async function listFindings(db: DbOrTx, cycleId: string): Promise<Finding[]> {

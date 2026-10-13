@@ -24,7 +24,8 @@
     "@ads/core": "workspace:*",
     "@ads/pack-sdk": "workspace:*",
     "@ads/pack-saas-snappool": "workspace:*",
-    "@ads/pack-property-sg": "workspace:*"
+    "@ads/pack-property-sg": "workspace:*",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@ai-sdk/provider": "4.0.24",

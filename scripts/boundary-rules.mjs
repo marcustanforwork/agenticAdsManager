@@ -66,7 +66,7 @@ export const PACKAGE_RULES = {
   'packages/evals': { name: '@ads/evals', deps: ['@ads/contracts', '@ads/db', '@ads/core', '@ads/pack-sdk', 'PACKS'] },
   'apps/worker': {
     name: '@ads/app-worker',
-    deps: ['@ads/contracts', '@ads/db', '@ads/vault', '@ads/core', '@ads/pack-sdk', 'PACKS'],
+    deps: ['@ads/contracts', '@ads/db', '@ads/vault', '@ads/core', '@ads/pack-sdk', '@ads/evals', 'PACKS'], // evals: `ads eval` (M08)
   },
   'apps/gateway': { name: '@ads/app-gateway', deps: ['@ads/contracts', '@ads/db', '@ads/vault', '@ads/gateway'] },
   'apps/web': { name: '@ads/app-web', deps: ['@ads/contracts', '@ads/db'] },

@@ -258,6 +258,16 @@ export async function writesEnabled(db: DbOrTx): Promise<boolean> {
   return (await getFlag(db, WRITES_ENABLED)) === true;
 }
 
+export const PHASE = 'phase';
+export const MAX_PHASE = 5;
+
+/** The system's phase (PROPOSAL §12, D-082): 0 until Marcus records the Phase 0 gate as passed. Anything but a
+ *  whole number from 0 to 5 reads as 0, so a broken flag drafts nothing. */
+export async function getPhase(db: DbOrTx): Promise<number> {
+  const value = await getFlag(db, PHASE);
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= MAX_PHASE ? value : 0;
+}
+
 // ── API usage (GLOBAL quota accounting) ───────────────────────────────────────────────────────
 
 /** Adds `operations` to today's count for an account and returns the new total. */

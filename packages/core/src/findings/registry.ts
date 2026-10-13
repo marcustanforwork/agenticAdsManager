@@ -16,7 +16,9 @@ export interface FindingTypeSpec {
   action: ActionType | null;
   /** Parameters the action needs from the finding (all checked by core, never trusted). */
   requiredParams: readonly FindingParam[];
-  /** The phase (PROPOSAL §12) from which the type may produce proposals; null when it never does. */
+  /** The phase (PROPOSAL §12, the stored `system_flags.phase`) from which the draft stage turns the type into
+   *  proposals; null when it never does. Pauses and negatives are proposed from Phase 1 (Marcus applies them by
+   *  hand) and applied by the gateway from Phase 2 (PROPOSAL §6.2). */
   proposalsFromPhase: number | null;
   /** The days of evidence the rule looks at, ending yesterday; at least the pack's `minDays`. */
   windowDays: number;
@@ -29,7 +31,7 @@ export const FINDING_TYPES: Readonly<Record<FindingTypeId, FindingTypeSpec>> = {
     targets: ['campaign', 'ad_group', 'ad'],
     action: 'pause_entity',
     requiredParams: [],
-    proposalsFromPhase: 2,
+    proposalsFromPhase: 1,
     windowDays: 14,
     label: 'Spend without outcomes',
   },
@@ -37,7 +39,7 @@ export const FINDING_TYPES: Readonly<Record<FindingTypeId, FindingTypeSpec>> = {
     targets: ['ad_group'],
     action: 'add_negative_keyword',
     requiredParams: ['negativeText'],
-    proposalsFromPhase: 2,
+    proposalsFromPhase: 1,
     windowDays: 28,
     label: 'Costly search term',
   },

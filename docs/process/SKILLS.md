@@ -28,7 +28,7 @@ Writing these before the code exists would mean guessing. Each is created at the
 | `add-finding-type` | M06b (**created**) | A new detector or finding type | Registry entry; detector rule; per-pack thresholds; type → action mapping; tests (including injection and fake evidence); a replay case |
 | `deploy-worker` | M07 (**created**) | Deploying to the SER9 | Build or pull the image, migrate, `docker compose up`, health and heartbeat checks, the `deploy-…` tag, rollback |
 | `incident` | M07 (**created**) | Something is wrong in production | Halt; read notifications and `ads doctor`; revert; break-glass (revoke tokens); write it up in `LOG.md` |
-| `eval-replay` | M08 | Changing a model, prompt or pack; judging proposal quality | Adding cases; running replay and compare; reading the results; allowing for model randomness |
+| `eval-replay` | M08 (**created**) | Changing a model, prompt or pack; judging proposal quality | Adding cases; running replay and compare; reading the results; allowing for model randomness |
 | `add-telegram-command` | M09b | A new bot command or button | Command grammar; callback data (≤ 64 bytes, versioned); the operator request kind; the user-id check; tests |
 | `add-write-action` | M11b | A new `WriteOp` | The contracts union; undo table; `fieldsFor`; the allowlist flag; guards; both adapters; property tests; card rendering |
 | `add-guard` | M11a | A new gateway guard | Module; its position in the pipeline (BLUEPRINT §6); tighten-only config; property test; docs |
