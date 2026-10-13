@@ -653,8 +653,8 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **When / who / status:** 2026-10-13 · Marcus · adopted. He asked to start M08 while he works through the Phase 0 checklist; of the options offered he chose "build now, gate still counts".
 - **Decision:**
   - M08 is built in the cloud now, ahead of the Phase 0 → 1 gate, the same way D-074 built M04–M07 ahead of their live steps. Later Phase 1 parts (M09a onwards) still wait for the gate unless Marcus says otherwise.
-  - **The gate still counts for going live.** The draft stage runs only when a global switch is on (`system_flags.drafts_enabled`, default `false`, changed only by an operator request). It stays off on production until Marcus records the Phase 0 gate as passed; then he switches it on, M08's live steps run, and the Phase 1 measuring (PROPOSAL §12) starts.
-  - With the switch off, cycles behave exactly as in M07: no proposals, nothing new in the brief.
+  - **The gate still counts for going live.** The system stores its current phase (`system_flags.phase`, 0 to 5, default 0, changed only by an operator request with a note: CLI `ads phase set <n> --note "…"`). The draft stage drafts a finding type only from the phase the registry names for it (`proposalsFromPhase`), so at phase 0 it drafts nothing. The phase stays 0 on production until Marcus records the Phase 0 gate as passed; then he sets it to 1, M08's live steps run, and the Phase 1 measuring (PROPOSAL §12) starts. Later gates raise it the same way.
+  - At phase 0, cycles behave exactly as in M07: no proposals, nothing new in the brief.
 - **Why:** Marcus's live checklist and the 4-week gate take calendar time; building ahead uses it. Phase 1 changes no ad account (no gateway until M11), so the risk is wasted work, not harm.
 - **Risk:** fixes found by the live checklist (D-074's risk) may touch M06b/M07 code that M08 builds on; if the gate fails, M08 may need rework.
 - **Instead of:** waiting for the gate before writing M08 (D-074's last point), or dropping the Phase 0 gate.

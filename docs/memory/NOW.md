@@ -7,7 +7,7 @@
 ## Where we are
 - **Phase:** 0.
 - **Active milestone:** **M07 (digest, brief, services; Phase 0 exit): awaiting live acceptance** (`docs/milestones/M07-digest-brief-services.md`). The cloud part is done: the daily digest, the weekly brief (number check, template fallback, diagnostic variant), Telegram with the feedback buttons, the worker service (schedule, job runner, restart catch-up, heartbeats), the gateway heartbeat stub, `docs/runbook.md`.
-- **M00–M07** are built and merged. All but M01b await live acceptance (below). **D-082 (2026-10-13):** M08 is being built now, ahead of the Phase 0 gate; its draft stage stays off on production (`system_flags.drafts_enabled`) until Marcus records the gate as passed. M09a onwards still wait for the gate.
+- **M00–M07** are built and merged. All but M01b await live acceptance (below). **D-082 (2026-10-13):** M08 is being built now, ahead of the Phase 0 gate; its draft stage drafts nothing on production while the stored phase is 0 (`system_flags.phase`); Marcus sets phase 1 when he records the gate as passed. M09a onwards still wait for the gate.
 - **Status:** BLUEPRINT v3.19, PROPOSAL v3.8. **D-081:** M07 build choices (a daily cycle no longer analyses; reports cover the days before the cycle's date; the brief's AI writes prose only, with every number checked, sign included; the outbox and worker service). **D-080:** M06b build choices (analyst targets as `FindingTargetRef`; the input, look-ups and validation; the analyst may add only `zero_outcome_spend`, `wasteful_search_term`, `no_delivery`, and only when their rule holds; replay case v0). **D-079:** M06a build choices. **D-078:** AI SDK 7 + Langfuse. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). D-069 to D-077: earlier build choices (see DECISIONS).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
@@ -16,13 +16,13 @@
    - answer Q13;
    - do the setup tasks: T1's optional part, then T2–T9 (T7 Telegram and T8 healthchecks are M07's), then the rest as the milestones need them;
    - run the live steps below in milestone order, M00 → M07; M07's live steps deploy to production on the SER9.
-2. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus records it and switches drafts on (D-082); M08's live steps and the Phase 1 measuring start then.
+2. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus records it and sets phase 1 (`ads phase set 1`, D-082); M08's live steps and the Phase 1 measuring start then.
 3. **Claude (next session):** read the checklist's ticks (`ArtifactData` `list`, collection `progress`), record live-step results in the milestone files and fix what they find. M08 is being built in parallel (D-082).
 4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- Nothing. PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (M07) was squash-merged into `main` on 2026-10-12.
+- **M08** on `claude/elegant-goodall-ursfd8` (`docs/milestones/M08-draft-proposals-replay.md`): in progress. Next: Build 1 (contracts, registry fix).
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -125,7 +125,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 | M06a | AI layer, finding registry, detectors | 0 | **awaiting live acceptance** | [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (merged) | Live: model ping + trace, detect on real data (needs T9, `ANTHROPIC_API_KEY`) |
 | M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting live acceptance** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (merged) | Live: analysed cycle, findings, trace, property case with the real model |
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | **awaiting live acceptance** | [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (merged) | Live: deploy on the SER9, 7 days unattended (needs T7, T8) |
-| M08 | Draft stage, proposals, replay v0 | 1 | **building** (D-082) | — | Live steps wait for the Phase 0 gate |
+| M08 | Draft stage, proposals, replay v0 | 1 | **in progress** (D-082) | — | Live steps wait for the Phase 0 gate |
 | M09a | Telegram bot core and proposal cards | 1 | not started | — | |
 | M09b | Telegram operator commands | 1 | not started | — | |
 | M10a | Dashboard: app, sign-in, settings | 1 | not started | — | T10 (Vercel Pro, Cloudflare) |

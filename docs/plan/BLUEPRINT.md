@@ -1804,7 +1804,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built 
    - every rejection automatically creates a case;
    - `ads eval replay` reports precision and recall per finding type.
 5. A CLI channel, `ads proposals list|show|approve|reject --reason`, going through operator requests. Phase 1 can then start before the Telegram cards exist.
-6. The draft switch (D-082): `system_flags.drafts_enabled`, default `false`, set only through an operator request (CLI `ads flags set drafts_enabled on|off`). With it off, a cycle skips the draft stage and behaves exactly as in M07. Marcus switches it on when he records the Phase 0 gate as passed.
+6. The current phase (D-082): `system_flags.phase` (0–5, default 0), set only through an operator request `set_phase` with a note (CLI `ads phase` / `ads phase set <n> --note "…"`). The draft stage drafts a type only when `proposalsFromPhase` ≤ the phase, so at phase 0 nothing is drafted and a cycle behaves exactly as in M07. Marcus sets phase 1 when he records the Phase 0 gate as passed.
 
 **Tests:**
 - An undo-table property test: for every reversible action, apply-then-undo restores the snapshot, using a fake entity store.
@@ -1813,11 +1813,11 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built 
 - Illegal status transitions.
 - The agree rate, including the handling of expired and operator proposals.
 - Replay over 3 hand-written cases.
-- The draft switch: off → no proposals and an unchanged brief; on → proposals.
+- The phase: 0 → no proposals and an unchanged brief; 1 → proposals for the Phase 1 types only.
 
 **Done when (cloud):** all tests are green.
 
-**Done when (live)** (after the Phase 0 gate passes and Marcus switches drafts on, D-082):
+**Done when (live)** (after the Phase 0 gate passes and Marcus sets phase 1, D-082):
 - The weekly SnapPool cycle produces proposals, and Marcus reviews them with the CLI.
 - His decisions are recorded.
 - `ads eval replay` runs.
