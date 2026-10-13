@@ -113,6 +113,10 @@ describe('ads proposals', () => {
     expect(process.exitCode).toBe(1);
     expect(((await run([...p, 'list']).json())['proposals'] as unknown[]).length).toBe(0);
     expect(((await run([...p, 'list', '--all']).json())['proposals'] as unknown[]).length).toBe(2);
+    // The product option may also come after the command, as the runbook writes it.
+    expect(await run(['proposals', 'list', '--all', '--product', 'cli-proposals']).json()).toMatchObject({
+      product: 'cli-proposals',
+    });
   });
 });
 

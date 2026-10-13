@@ -4,6 +4,19 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-13 — M08 built ahead of the Phase 0 gate (draft stage, proposals, replay v0) and code-reviewed
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR PRLINK
+- **Did:**
+  - Marcus asked to start M08 while he works through the Phase 0 checklist; he chose "build now, gate still counts" (D-082). The switch is the stored phase (`system_flags.phase`, 0 by default; `ads phase set`).
+  - Contracts: `fingerprintOf`, `plannedUndo` (`SET_AT_APPLY`), the `set_phase` request. DB: migration `0005` (`eval_cases`, `analyst_runs`), `getPhase`, `agreeRateCounts`, `findOpenProposalByAction`, `getFinding`, a `term` filter on `sumSearchTerms`.
+  - Core: `core/src/draft/` (`budget.ts`, `actions.ts`, `rationale.ts` `drafter-v1`, `stage.ts`, `agreeRate.ts`); the `drafted` stage in `runCycle` (weekly, manual); `approve`/`reject`/`set_phase` handlers writing eval cases; the agree rate in the brief; the analyse stage stores its redacted prompt and answer. The registry now proposes pauses and negatives from phase 1.
+  - Evals: `replay-case-v1`, `scoreReplay`, `decisionCasesFromDb`, 3 hand-written cases. Worker: `ads proposals list|show|approve|reject`, `ads phase [set]`, `ads eval replay`; the leader expires due proposals every 10 minutes. `apps/worker` may depend on `evals`.
+  - Skill `eval-replay`. Code review at high effort: 10 findings, 7 fixed plus one small cleanup, 2 left with reasons (milestone file). 879 tests pass.
+- **Decided:** D-082 (Marcus), D-083; BLUEPRINT v3.21, PROPOSAL v3.9. Cut and moved to M09a: CLI edit.
+- **Learned:** —
+- **Next:** Marcus reviews the PR; Phase 0's checklist; then the gate.
+- **Open:** Q13.
+
 ## 2026-10-12 — PR #13 (M07) merged; Phase 0 checklist published
 - **Where:** cloud · branch `claude/gifted-franklin-hk0fku` · PR [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge"; squash-merged PR #13 on his instruction (D-057). Published the artifact [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f): Q13, the setup tasks, every live step M00 → M07 with commands, and the gate, with ticks saved in its `progress` collection (empty at publish).
