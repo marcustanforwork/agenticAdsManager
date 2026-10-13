@@ -150,6 +150,31 @@ describe('creating and editing proposals', () => {
     await expect(createProposal(t.db, draft({ action: bad }))).rejects.toThrow();
   });
 
+  it('defaults the expiry for every action type: 72 h for budgets, 7 days for the rest', () => {
+    const at = new Date('2026-10-13T00:00:00Z');
+    const ops: WriteOp[] = [
+      pauseOp(target),
+      { action: 'resume_entity', target },
+      { action: 'mark_abandoned', target },
+      { action: 'add_negative_keyword', target, text: 'free', matchType: 'EXACT' },
+      { action: 'remove_negative_keyword', target, criterionId: 'c1' },
+      budgetOp('1000000'),
+      { action: 'create_entity_paused', parent: target, type: 'ad', spec: {}, idempotencyTag: 't' },
+      {
+        action: 'upload_conversions',
+        platform: 'meta',
+        accountId: 'act_1',
+        destinationId: 'd',
+        events: [{ eventId: 's:signup', stage: 'signup', occurredAt: '2026-10-12T00:00:00Z', ids: {} }],
+      },
+    ];
+    expect(new Set(ops.map((o) => o.action)).size).toBe(8); // every WriteOp action
+    for (const op of ops) {
+      const hours = (defaultExpiry(op, at).getTime() - at.getTime()) / 3_600_000;
+      expect(hours, op.action).toBe(op.action === 'adjust_budget' ? 72 : 168);
+    }
+  });
+
   it('defaults the expiry: 72 h for budgets, 7 days otherwise', () => {
     const now = new Date('2026-09-25T00:00:00Z');
     expect(defaultExpiry(budgetOp('1000000'), now).toISOString()).toBe('2026-09-28T00:00:00.000Z');

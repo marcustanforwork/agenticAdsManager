@@ -29,6 +29,7 @@ import {
 } from '@ads/db';
 import { type PackRegistry, thresholdFor } from '@ads/pack-sdk';
 import { DETECTORS } from '../findings/detectors.ts';
+import { redactPersonalData } from '../model/redact.ts';
 import {
   type FindingTarget,
   computeEvidence,
@@ -403,11 +404,11 @@ export async function analyseStage(deps: AnalyseDeps, product: Product, cycleId:
       { db: deps.db, product, manifest: pack.manifest, cycleId, now },
       answer.output,
     );
-    // Kept for replay cases (M08): what was asked and what came back.
+    // Kept for replay cases (M08): what was asked (personal data redacted, as sent) and what came back.
     await setAnalystRecord(deps.db, cycleId, {
       promptVersion: input.version,
       model: answer.model,
-      prompt: input.prompt,
+      prompt: redactPersonalData(input.prompt).text,
       output: answer.output,
     });
     return {

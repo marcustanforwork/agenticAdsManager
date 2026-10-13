@@ -660,3 +660,16 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Instead of:** waiting for the gate before writing M08 (D-074's last point), or dropping the Phase 0 gate.
 - **Supersedes:** D-074's line "M08 can't start before the gate" (only that line).
 - **See:** BLUEPRINT M08 · PROPOSAL §12 · `docs/milestones/M08-*.md`
+
+### D-083 — M08 build choices: phases in the registry, drafting, the undo and fingerprint at draft time, eval cases
+- **When / who / status:** 2026-10-13 · Claude (fix) · adopted
+- **Decision:**
+  - **Registry phases.** `proposalsFromPhase` is the phase from which a type is *proposed*: pauses (`zero_outcome_spend`) and negatives (`wasteful_search_term`) from 1, budgets from 3, copy from 4. The gateway applies pauses and negatives from Phase 2 (PROPOSAL §6.2). The registry said 2, which would have left Phase 1 (whose gate needs ≥ 15 agent proposals) with nothing to propose.
+  - **Drafting** (BLUEPRINT §5.11 "As built"): only passed, confirmed-or-added findings; the stored phase (D-082); disabled actions; target state checks; no second open proposal with the same action hash; one `drafter` call for the words, number-checked, template on failure. Budget amounts: the hint becomes whole basis points (truncated), clamped by the guard, rounded to the platform unit towards the current budget; below the minimum delta, no proposal.
+  - **Undo and fingerprint at draft time** (BLUEPRINT §3.6): `plannedUndo` with the `SET_AT_APPLY` placeholder where the platform's id is needed; the fingerprint over the synced, normalised state, listing only the fields the sync holds.
+  - **Eval data.** `approve` and `reject` are handled now (CLI; Telegram in M09a). Each first decision on an agent proposal writes an `eval_cases` row (type and ref of its finding, the decision, the reason); the analyse stage keeps its prompt (personal data redacted) and answer in `cycles.analyst_record`. A decision case groups one cycle's decisions with that record; `ads eval replay` scores the recorded answers (precision and recall per type). Re-asking a model with the stored prompts stays M16a's `ads eval run`.
+  - **Agree rate**: over the agent proposals created in the 21 days before the cycle; agree = an approve decision on any version (approved proposals expire in Phase 1, since nothing is applied); expired undecided ones are counted apart (> 20% fails the gate). Shown in the brief's checks only once agent proposals exist.
+  - **`apps/worker` may depend on `evals`** (for `ads eval`).
+- **Why:** building M08 needed these choices; the registry's phase numbers contradicted Phase 1's purpose.
+- **Instead of:** drafting from Phase 2 only; deciding the undo only at apply time (Marcus would see no undo on a card); hashing fields the sync doesn't have (every proposal would go stale); a separate `evals` CLI outside `ads`.
+- **See:** `docs/milestones/M08-draft-proposals-replay.md` · BLUEPRINT §3.6, §5.11, M08

@@ -28,6 +28,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   type ModelSpec,
   BUDGET_UNIT_MICROS,
+  STAGES,
   actionForFinding,
   agreeRateOf,
   budgetChange,
@@ -183,6 +184,13 @@ async function world(settings: ProductSettings = TEST_SETTINGS) {
 }
 
 describe('the draft stage', () => {
+  it('runs in weekly and manual cycles, after the analysis and before the report', () => {
+    const order = STAGES.map((s) => s.stage);
+    expect(order.indexOf('drafted')).toBe(order.indexOf('analysed') + 1);
+    expect(order.indexOf('reported')).toBe(order.indexOf('drafted') + 1);
+    expect(STAGES.find((s) => s.stage === 'drafted')?.kinds).toEqual(['weekly', 'manual']);
+  });
+
   it('phase 0: drafts nothing and calls no model, whatever the findings', async () => {
     await setFlag(t.db, 'phase', 0);
     const { w, cycle, product, finding, deps } = await world();
