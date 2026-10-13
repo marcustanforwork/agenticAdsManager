@@ -157,6 +157,11 @@ const setPhase: RequestHandler<RequestOf<'set_phase'>> = async (tx, request, row
   return { phase: request.phase, previous };
 };
 
+const negativeTextOf = (params: unknown): string | null => {
+  const text = (params as { negativeText?: unknown } | null)?.negativeText;
+  return typeof text === 'string' ? text : null;
+};
+
 /** Every decision on an agent proposal becomes eval data (M08): the finding it came from, as a ref. */
 async function recordCase(tx: Tx, proposal: ProposalRecord, decision: 'approve' | 'reject', reason: string | null) {
   if (proposal.origin !== 'agent' || proposal.cycleId === null || proposal.findingId === null) return false;
@@ -174,6 +179,7 @@ async function recordCase(tx: Tx, proposal: ProposalRecord, decision: 'approve' 
     reason,
     findingType: finding.type,
     target: findingRefText(finding, entities, accounts),
+    negativeText: negativeTextOf(finding.params),
   });
 }
 

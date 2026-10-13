@@ -21,6 +21,7 @@ import {
   contendForLeadership,
   enqueueJob,
   databaseNow,
+  expireDue,
   hasPendingJob,
   listProducts,
   startQueueRunner,
@@ -55,6 +56,8 @@ export interface WorkerOptions {
   /** Tests: a fake Telegram API and polling (default: grammY, when TELEGRAM_BOT_TOKEN is set). */
   telegram?: { api: TelegramApi; startPolling: (ctx: BotContext) => Polling } | null;
   leaderRetryMs?: number;
+  /** How often the leader expires proposals past their expiry (default 10 minutes). */
+  expiryMs?: number;
   queuePollMs?: number;
   outboxMs?: number;
   heartbeatMs?: number;
@@ -277,6 +280,16 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
       fire(job).catch((error: unknown) => logger.error({ job, err: error }, 'catch-up failed'));
     }
     const polling = botContext === null ? null : telegram?.startPolling(botContext);
+    // Proposals past their expiry move to `expired` (BLUEPRINT §3.9), so they stop counting as open.
+    const expire = (): void => {
+      expireDue(db, now())
+        .then((ids) => {
+          if (ids.length > 0) logger.info({ expired: ids.length }, 'proposals expired');
+        })
+        .catch((error: unknown) => logger.error({ err: error }, 'expiring proposals failed'));
+    };
+    expire();
+    const expiryTimer = setInterval(expire, opts.expiryMs ?? 600_000);
     let timer: NodeJS.Timeout | null = null;
     if (botContext !== null) {
       const pass = (): void => {
@@ -291,6 +304,7 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
     return {
       async stop() {
         scheduler?.stop();
+        clearInterval(expiryTimer);
         if (timer !== null) clearInterval(timer);
         outboxWake = null;
         await polling?.stop().catch((error: unknown) => logger.error({ err: error }, 'stopping Telegram failed'));

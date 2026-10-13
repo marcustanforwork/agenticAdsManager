@@ -11,6 +11,7 @@ import {
   type Product,
   createProposal,
   defaultExpiry,
+  expireDue,
   findOpenProposalByAction,
   findProposalForFinding,
   getEntity,
@@ -84,6 +85,7 @@ export async function draftStage(deps: DraftDeps, product: Product, cycleId: str
     };
   }
   const now = deps.now();
+  await expireDue(deps.db, now); // an expired proposal no longer counts as open
   const manifest = manifestOf(deps.packs, product.packId);
   const accounts = new Map((await listAccounts(deps.db, product.id)).map((a) => [a.id, a] as const));
   const findings = (await listFindings(deps.db, cycleId)).filter(isDraftable);
@@ -129,8 +131,9 @@ export async function draftStage(deps: DraftDeps, product: Product, cycleId: str
             from: evidence.from,
             to: evidence.to,
             adGroupEntityId,
+            term,
           })
-        ).some((t) => t.term === term),
+        ).length > 0,
     });
     if (!built.ok) {
       if (built.notYet !== true)

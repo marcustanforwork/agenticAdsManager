@@ -74,9 +74,8 @@ export async function actionForFinding(
       return { ok: true, action: { action: 'pause_entity', target }, entity };
 
     case 'add_negative_keyword': {
-      if (entity.platform !== 'google' || (entity.type !== 'ad_group' && entity.type !== 'campaign')) {
-        return no('negative keywords go on a Google ad group or campaign');
-      }
+      // The registry targets ad groups: search terms (and so the real-term check) are per ad group.
+      if (entity.platform !== 'google' || entity.type !== 'ad_group') return no('negatives go on a Google ad group');
       if (entity.status === 'removed') return no(`the ${entity.type} is removed`);
       const text = params.negativeText;
       if (typeof text !== 'string' || text.trim() === '' || text.length > 80) return no('no usable negative text');

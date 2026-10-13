@@ -1,5 +1,5 @@
 {
-  "id": "e94e0933-6a51-4bcd-8133-d87a61de3746",
+  "id": "ff2bc29c-a889-4301-a48d-b7418f29ac9a",
   "prevId": "b9657ef2-8a2b-4dcf-a6ac-ead7da52268a",
   "version": "7",
   "dialect": "postgresql",
@@ -473,6 +473,93 @@
           "tableTo": "ad_entities",
           "columnsFrom": [
             "ad_entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.analyst_runs": {
+      "name": "analyst_runs",
+      "schema": "",
+      "columns": {
+        "cycle_id": {
+          "name": "cycle_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record": {
+          "name": "record",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "analyst_runs_product_id_created_at_index": {
+          "name": "analyst_runs_product_id_created_at_index",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "analyst_runs_cycle_id_cycles_id_fk": {
+          "name": "analyst_runs_cycle_id_cycles_id_fk",
+          "tableFrom": "analyst_runs",
+          "tableTo": "cycles",
+          "columnsFrom": [
+            "cycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "analyst_runs_product_id_products_id_fk": {
+          "name": "analyst_runs_product_id_products_id_fk",
+          "tableFrom": "analyst_runs",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -1217,12 +1304,6 @@
           "notNull": true,
           "default": 0
         },
-        "analyst_record": {
-          "name": "analyst_record",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "error": {
           "name": "error",
           "type": "text",
@@ -1485,6 +1566,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "negative_text": {
+          "name": "negative_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

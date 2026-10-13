@@ -425,6 +425,7 @@ export async function analyseStage(deps: AnalyseDeps, product: Product, cycleId:
   } catch (error) {
     // The cycle goes on: the brief still reports the detector candidates, marked unreviewed.
     await resetAnalysis(deps.db, cycleId);
+    await setAnalystRecord(deps.db, cycleId, null);
     return {
       status: 'failed',
       detail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),

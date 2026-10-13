@@ -100,13 +100,16 @@ describe('ads proposals', () => {
       versions: [{ version: 1, actionHash: a.actionHash }],
     });
 
-    expect(await run([...p, 'approve', a.shortId]).json()).toMatchObject({ status: 'done', decision: 'approve' });
+    expect(await run([...p, 'approve', a.shortId, '--version', '1']).json()).toMatchObject({
+      status: 'done',
+      decision: 'approve',
+    });
     expect(await run([...p, 'reject', b.shortId, '--reason', 'not this week']).json()).toMatchObject({
       status: 'done',
       decision: 'reject',
       evalCase: false, // Marcus's own proposals are not eval data
     });
-    expect(await run([...p, 'approve', b.shortId]).json()).toMatchObject({ status: 'refused' });
+    expect(await run([...p, 'approve', b.shortId, '--version', '1']).json()).toMatchObject({ status: 'refused' });
     expect(process.exitCode).toBe(1);
     expect(((await run([...p, 'list']).json())['proposals'] as unknown[]).length).toBe(0);
     expect(((await run([...p, 'list', '--all']).json())['proposals'] as unknown[]).length).toBe(2);

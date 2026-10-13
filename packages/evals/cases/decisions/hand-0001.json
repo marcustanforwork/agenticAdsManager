@@ -71,7 +71,8 @@
     {
       "type": "wasteful_search_term",
       "target": "google:1110000001:ad_group:11",
-      "reason": "that is our own brand search"
+      "reason": "that is our own brand search",
+      "term": "snappool login"
     }
   ]
 }

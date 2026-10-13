@@ -24,7 +24,7 @@ import { z } from 'zod';
 import { accountRefText, findingRefText, findingTargetOf, microsToDecimal } from '../analyst/refs.ts';
 import { FINDING_TYPES } from '../findings/registry.ts';
 import type { ComputedEvidence, FindingTypeId } from '@ads/contracts';
-import { type AgreeRate, agreeRate } from '../draft/agreeRate.ts';
+import { type AgreeRate, MAX_EXPIRED_PCT, agreeRate } from '../draft/agreeRate.ts';
 import { costPer, countOf, formatMoney, percentOf, plainText } from './format.ts';
 
 export const BRIEF_WEEK_DAYS = 7;
@@ -462,7 +462,9 @@ function checkLines(numbers: BriefNumbers): string[] {
         `(${a.approved} approved, ${a.rejected} rejected, ${a.expired} expired undecided, ${a.pending} waiting)`,
     );
     if (a.tooManyExpired) {
-      out.push(`- ${a.expiredPct}% of the settled proposals expired undecided: more than 20% fails the Phase 1 gate.`);
+      out.push(
+        `- ${a.expiredPct}% of the settled proposals expired undecided: more than ${MAX_EXPIRED_PCT}% fails the Phase 1 gate.`,
+      );
     }
   }
   return out;

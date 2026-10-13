@@ -314,6 +314,27 @@ describe('the draft stage', () => {
     expect(later.drafted).toEqual([]);
     expect(later.notDrafted[0]?.reason).toBe(`already proposed (${first.drafted[0]?.shortId})`);
     expect(await listProposals(t.db, w.productId)).toHaveLength(1);
+
+    // Once the first one is past its expiry (7 days), the stage expires it and the change is proposed afresh.
+    const week = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-16' });
+    await insertFinding(t.db, {
+      productId: w.productId,
+      cycleId: week.id,
+      type: 'zero_outcome_spend',
+      source: 'detector',
+      targetEntityId: campaign.id,
+      analystVerdict: 'confirmed',
+      summary: 's',
+      evidence: evidence(),
+      passedThreshold: true,
+    });
+    const afterExpiry = await draftStage(
+      { ...deps(model), now: () => new Date(NOW.getTime() + 8 * 24 * HOUR) },
+      product,
+      week.id,
+    );
+    expect(afterExpiry.drafted.map((d) => d.writer)).toEqual(['ai']);
+    expect((await getProposal(t.db, first.drafted[0]?.proposalId ?? '')).status).toBe('expired');
   });
 
   it('the AI writes the words only: a made-up number or a failed call gives the template', async () => {

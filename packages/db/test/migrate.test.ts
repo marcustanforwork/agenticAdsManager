@@ -18,6 +18,7 @@ describe('migration and roles', () => {
       'accounts',
       'ad_entities',
       'ad_entity_snapshots',
+      'analyst_runs',
       'api_usage',
       'approvals',
       'briefs',

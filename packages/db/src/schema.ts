@@ -393,8 +393,6 @@ export const cycles = pgTable(
       .notNull()
       .default(sql`0`),
     lookups: integer('lookups').notNull().default(0),
-    // The analyst's prompt and answer (M08): what a replay case is built from when Marcus decides a proposal.
-    analystRecord: jsonb('analyst_record'),
     error: text('error'),
   },
   (t) => [
@@ -551,6 +549,21 @@ export const approvals = pgTable(
   ],
 );
 
+/** The analyst's prompt (personal data redacted) and answer per cycle (M08): what a replay case is built from when
+ *  Marcus decides a proposal. Its own table, so reads of `cycles` don't carry the prompt. */
+export const analystRuns = pgTable(
+  'analyst_runs',
+  {
+    cycleId: uuid('cycle_id')
+      .primaryKey()
+      .references(() => cycles.id),
+    productId: productId(),
+    record: jsonb('record').notNull(),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [index().on(t.productId, t.createdAt.desc())],
+);
+
 /** Eval data (M08): one row per decision Marcus makes on an agent proposal. `ads eval replay` groups them by
  *  cycle with the cycle's analyst record into replay cases. */
 export const evalCases = pgTable(
@@ -571,6 +584,7 @@ export const evalCases = pgTable(
     reason: text('reason'),
     findingType: text('finding_type').notNull(),
     target: text('target').notNull(), // a ref: platform ids only (`google:123:ad_group:9`), never names
+    negativeText: text('negative_text'), // a wasteful_search_term finding's term: several can share an ad group
     createdAt: tstz('created_at').notNull().defaultNow(),
   },
   (t) => [

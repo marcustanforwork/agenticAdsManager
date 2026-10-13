@@ -5,6 +5,7 @@ import type { DbOrTx } from '../client.ts';
 import { DuplicateCycleError, NotFoundError, RefusedError, isUniqueViolation } from '../errors.ts';
 import {
   CYCLE_STAGES,
+  analystRuns,
   cycles,
   findings,
   trustChecks,
@@ -164,13 +165,17 @@ export interface AnalystRecord {
   output: unknown;
 }
 
+/** Stores (or, on a rerun of the stage, replaces) the cycle's analyst record; null removes it. */
 export async function setAnalystRecord(db: DbOrTx, cycleId: string, record: AnalystRecord | null): Promise<void> {
-  const rows = await db
-    .update(cycles)
-    .set({ analystRecord: record })
-    .where(eq(cycles.id, cycleId))
-    .returning({ id: cycles.id });
-  if (rows.length === 0) throw new NotFoundError('cycle', cycleId);
+  if (record === null) {
+    await db.delete(analystRuns).where(eq(analystRuns.cycleId, cycleId));
+    return;
+  }
+  const cycle = await getCycle(db, cycleId);
+  await db
+    .insert(analystRuns)
+    .values({ cycleId, productId: cycle.productId, record })
+    .onConflictDoUpdate({ target: analystRuns.cycleId, set: { record, createdAt: sql`now()` } });
 }
 
 /** Cycles that started but never finished, oldest first (worker startup reconciliation, BLUEPRINT §5.5). */

@@ -11,11 +11,13 @@ import { analystRefText } from '@ads/core';
 import { type DbOrTx, listEvalCases } from '@ads/db';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 export const DECISION_CASE_FORMAT = 'replay-case-v1';
 
-const Judged = z.object({ type: z.string(), target: z.string() });
+/** A finding by type and ref; a wasteful_search_term finding also by its term (several can share an ad group). */
+const Judged = z.object({ type: z.string(), target: z.string(), term: z.string().optional() });
 
 export const DecisionCase = z.object({
   format: z.literal(DECISION_CASE_FORMAT),
@@ -57,12 +59,18 @@ export interface ReplayReport {
   overall: Omit<TypeScore, 'type'>;
 }
 
-const key = (f: { type: string; target: string }): string => `${f.type}|${f.target}`;
+const key = (f: { type: string; target: string; term?: string | undefined }): string =>
+  JSON.stringify([f.type, f.target, f.term ?? null]);
+const typeOfKey = (k: string): string => (JSON.parse(k) as [string])[0];
 const pct = (part: number, whole: number): number | null => (whole === 0 ? null : Math.floor((part * 100) / whole));
 
 /** The findings in an answer, as type and ref (confirmations and additions alike). */
-export const answerFindings = (output: AnalystOutput): { type: string; target: string }[] =>
-  output.findings.map((f) => ({ type: f.type, target: analystRefText(f.target) }));
+export const answerFindings = (output: AnalystOutput): { type: string; target: string; term?: string }[] =>
+  output.findings.map((f) => ({
+    type: f.type,
+    target: analystRefText(f.target),
+    ...(f.params?.negativeText === undefined ? {} : { term: f.params.negativeText }),
+  }));
 
 /** Scores each case's answer against its decisions. `answerFor` replaces the recorded answer (M16a: a model's). */
 export function scoreReplay(
@@ -80,13 +88,13 @@ export function scoreReplay(
     const produced = new Set(answerFindings(answerFor(c)).map(key));
     const expected = new Set(c.expected.map(key));
     const rejected = new Set(c.rejected.map(key));
-    for (const f of new Set(produced)) {
-      const type = f.split('|')[0] ?? '';
+    for (const f of produced) {
+      const type = typeOfKey(f);
       if (expected.has(f)) bump(type, 'tp');
       else if (rejected.has(f)) bump(type, 'fp');
       else unjudged += 1;
     }
-    for (const f of expected) if (!produced.has(f)) bump(f.split('|')[0] ?? '', 'fn');
+    for (const f of expected) if (!produced.has(f)) bump(typeOfKey(f), 'fn');
   }
   const score = (t: { tp: number; fp: number; fn: number }): Omit<TypeScore, 'type'> => ({
     truePositives: t.tp,
@@ -109,6 +117,12 @@ export function scoreReplay(
   };
 }
 
+const judged = (c: { findingType: string; target: string; negativeText: string | null }) => ({
+  type: c.findingType,
+  target: c.target,
+  ...(c.negativeText === null ? {} : { term: c.negativeText }),
+});
+
 /** The product's decision cases from the database: one per analysed cycle with at least one decision. A cycle
  *  without a stored analyst record (analysed before M08) is skipped. */
 export async function decisionCasesFromDb(db: DbOrTx, product: { id: string; slug: string }): Promise<DecisionCase[]> {
@@ -130,12 +144,10 @@ export async function decisionCasesFromDb(db: DbOrTx, product: { id: string; slu
       promptVersion: record.data.promptVersion,
       prompt: record.data.prompt,
       analystOutput: record.data.output,
-      expected: group
-        .filter((r) => r.evalCase.decision === 'approve')
-        .map((r) => ({ type: r.evalCase.findingType, target: r.evalCase.target })),
+      expected: group.filter((r) => r.evalCase.decision === 'approve').map((r) => judged(r.evalCase)),
       rejected: group
         .filter((r) => r.evalCase.decision === 'reject')
-        .map((r) => ({ type: r.evalCase.findingType, target: r.evalCase.target, reason: r.evalCase.reason })),
+        .map((r) => ({ ...judged(r.evalCase), reason: r.evalCase.reason })),
     });
   }
   return cases;
@@ -149,5 +161,5 @@ export async function loadDecisionCases(dir: string): Promise<DecisionCase[]> {
   );
 }
 
-/** Where the repository keeps the hand-written decision cases. */
-export const DECISION_CASES_DIR = new URL('../cases/decisions/', import.meta.url).pathname;
+/** Where the repository keeps the hand-written decision cases (a checkout only: the package ships `dist`). */
+export const DECISION_CASES_DIR = fileURLToPath(new URL('../cases/decisions/', import.meta.url));

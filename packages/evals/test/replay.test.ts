@@ -59,6 +59,44 @@ describe('scoring the hand-written cases', () => {
   });
 });
 
+describe('search terms on one ad group', () => {
+  it('keeps each term apart: an approved and a rejected negative on the same ad group both count', () => {
+    const negative = (term: string) => ({
+      type: 'wasteful_search_term' as const,
+      target: {
+        level: 'entity' as const,
+        platform: 'google' as const,
+        accountId: '1',
+        type: 'ad_group' as const,
+        externalId: '11',
+      },
+      fromCandidateId: null,
+      summary: 's',
+      whyNow: 'w',
+      evidenceRefs: [],
+      params: { negativeText: term, negativeMatchType: 'EXACT' as const },
+      confidence: 'high' as const,
+    });
+    const report = scoreReplay([
+      {
+        format: 'replay-case-v1',
+        id: 'terms',
+        product: 'x',
+        source: 'hand-written',
+        cycleId: null,
+        promptVersion: 'analyst-v1',
+        prompt: null,
+        analystOutput: { findings: [negative('free pool app'), negative('pool cleaning')], dismissed: [] },
+        expected: [{ type: 'wasteful_search_term', target: 'google:1:ad_group:11', term: 'free pool app' }],
+        rejected: [
+          { type: 'wasteful_search_term', target: 'google:1:ad_group:11', term: 'pool cleaning', reason: 'no' },
+        ],
+      },
+    ]);
+    expect(report.overall).toMatchObject({ truePositives: 1, falsePositives: 1, precisionPct: 50 });
+  });
+});
+
 describe('decision cases from the database', () => {
   let t: TestDatabase;
   beforeAll(async () => {

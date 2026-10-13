@@ -164,12 +164,20 @@ export function proposalsCommand(withDb: WithDb, requireProduct: () => string, d
 
   cmd
     .command('approve')
-    .description('approve a proposal: the version shown by `show` (default: its current one) and its exact action')
+    .description(
+      'approve a proposal at the version `list` or `show` printed (refused if it changed since): its exact action',
+    )
     .argument('<id>', 'the proposal id', shortId)
-    .option('--version <n>', 'refuse unless this is still the current version', versionNumber)
-    .action(async (id: string, opts: { version?: number }) => {
+    .requiredOption('--version <n>', 'the version you reviewed', versionNumber)
+    .action(async (id: string, opts: { version: number }) => {
       await decide(
-        (p) => ({ kind: 'approve', proposalId: p.id, version: opts.version ?? p.version, actionHash: p.actionHash }),
+        (p) => ({
+          kind: 'approve',
+          proposalId: p.id,
+          version: opts.version,
+          // The hash of the version reviewed: a newer version's action is never approved by mistake.
+          actionHash: p.version === opts.version ? p.actionHash : '(changed since reviewed)',
+        }),
         requireProduct(),
         id,
       );
@@ -236,7 +244,7 @@ export function evalCommand(
     .command('replay')
     .description(
       "score the analyst's recorded answers against your decisions: precision and recall per finding type. With " +
-        '--product: the decisions in the database (needs DATABASE_URL); with --hand-written: the cases in the repo',
+        '--product: the decisions in the database (needs DATABASE_URL); with --hand-written: the cases in a checkout',
     )
     .option('--hand-written [dir]', 'score the hand-written cases (default: packages/evals/cases/decisions)')
     .action(async (opts: { handWritten?: string | boolean }) => {

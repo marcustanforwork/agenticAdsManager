@@ -23,7 +23,7 @@ Each passing finding with an allowed action becomes a durable proposal with an e
 ## Session plan (one session = one PR, 400–600k tokens incl. tests, review, fixes)
 - Build order:
   1. Contracts: `fingerprintOf` (+ stability test), the planned undo at draft time, `set_phase` request; registry fix (pause and negatives draft from phase 1).
-  2. DB: migration `0005` (`eval_cases`; `cycles.analyst_record`); the phase flag repo; agree-rate query.
+  2. DB: migration `0005` (`eval_cases`, `analyst_runs`); the phase flag repo; agree-rate query.
   3. Core: budget amounts (`budgetChange`), the action builder, `core/draft` (stage, AI rationale with template fallback and number check), wired into the cycle between `analysed` and `reported`.
   4. Requests: `set_phase`, `approve`, `reject` handlers (reject and approve create eval cases).
   5. Agree rate in the weekly brief (only when agent proposals exist).

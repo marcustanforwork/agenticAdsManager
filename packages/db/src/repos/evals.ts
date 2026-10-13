@@ -1,7 +1,7 @@
 // Eval data (M08): every decision Marcus makes on an agent proposal is kept as a replay case row.
 import { asc, eq } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
-import { cycles, evalCases, type DECISIONS } from '../schema.ts';
+import { analystRuns, evalCases, type DECISIONS } from '../schema.ts';
 
 export type EvalCase = typeof evalCases.$inferSelect;
 
@@ -15,6 +15,8 @@ export interface NewEvalCase {
   findingType: string;
   /** A ref, platform ids only. */
   target: string;
+  /** A wasteful_search_term finding's term (several can share an ad group). */
+  negativeText?: string | null;
 }
 
 /** Records a decision. Only a proposal's first decision counts; a later one (an edit's new version) is ignored. */
@@ -30,9 +32,9 @@ export async function recordEvalCase(db: DbOrTx, input: NewEvalCase): Promise<bo
 /** The product's cases with their cycle's analyst record, oldest first. */
 export async function listEvalCases(db: DbOrTx, productId: string) {
   return db
-    .select({ evalCase: evalCases, analystRecord: cycles.analystRecord })
+    .select({ evalCase: evalCases, analystRecord: analystRuns.record })
     .from(evalCases)
-    .innerJoin(cycles, eq(cycles.id, evalCases.cycleId))
+    .leftJoin(analystRuns, eq(analystRuns.cycleId, evalCases.cycleId))
     .where(eq(evalCases.productId, productId))
     .orderBy(asc(evalCases.createdAt));
 }

@@ -812,7 +812,6 @@ create table cycles (
   trust_result text check (trust_result in ('ok','degraded','fail')),
   model_cost_micros bigint not null default 0,
   lookups int not null default 0,
-  analyst_record jsonb,                              -- the analyst's prompt and answer (M08, replay cases)
   error text
 );
 create index on cycles (product_id, started_at desc);
@@ -933,9 +932,18 @@ create table eval_cases (                            -- M08: one row per decisio
   reason text,
   finding_type text not null,
   target text not null,                              -- a ref, platform ids only
+  negative_text text,                                -- a wasteful_search_term finding's term
   created_at timestamptz not null default now()
 );
 create index on eval_cases (product_id, created_at desc);
+
+create table analyst_runs (                          -- M08: the analyst's prompt (redacted) and answer per cycle
+  cycle_id uuid primary key references cycles(id),
+  product_id uuid not null references products(id),
+  record jsonb not null,                             -- { promptVersion, model, prompt, output }
+  created_at timestamptz not null default now()
+);
+create index on analyst_runs (product_id, created_at desc);
 
 create table briefs (
   id uuid primary key default gen_random_uuid(),
@@ -1846,7 +1854,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built 
 
 **Skills to create:** `eval-replay`.
 
-**As built (D-083):** pauses and negatives are proposed from phase 1 (the registry said 2, the phase the gateway applies them); the draft stage as in §5.11; `approve`, `reject` and `set_phase` requests (every decision on an agent proposal writes an `eval_cases` row; the cycle keeps its analyst prompt and answer in `cycles.analyst_record`); the agree rate (last 21 days) in the brief once agent proposals exist; `packages/evals` decision cases (`replay-case-v1`) scored on their recorded answers, 3 hand-written cases; CLI `ads proposals list|show|approve|reject`, `ads phase [set]`, `ads eval replay [--hand-written]`; `apps/worker` may depend on `evals`. **Cut and moved to M09a:** CLI edit (`edit_approve`, with the Telegram edit cards).
+**As built (D-083):** pauses and negatives are proposed from phase 1 (the registry said 2, the phase the gateway applies them); the draft stage as in §5.11; `approve`, `reject` and `set_phase` requests (every decision on an agent proposal writes an `eval_cases` row; the analyse stage keeps its prompt and answer in `analyst_runs`); the agree rate (last 21 days) in the brief once agent proposals exist; `packages/evals` decision cases (`replay-case-v1`) scored on their recorded answers, 3 hand-written cases; CLI `ads proposals list|show|approve|reject`, `ads phase [set]`, `ads eval replay [--hand-written]`; `apps/worker` may depend on `evals`. **Cut and moved to M09a:** CLI edit (`edit_approve`, with the Telegram edit cards).
 
 ---
 
