@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-13 — PR #14 (M08) merged
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "we can merge"; squash-merged PR #14 on his instruction (D-057).
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus works through the Phase 0 checklist; the next session records live-step results. M09a waits for the Phase 0 gate (D-082).
+- **Open:** Q13.
+
 ## 2026-10-13 — M08 built ahead of the Phase 0 gate (draft stage, proposals, replay v0) and code-reviewed
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)
 - **Did:**
