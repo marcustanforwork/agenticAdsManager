@@ -155,6 +155,24 @@ export async function addModelCost(db: DbOrTx, cycleId: string, costMicros: bigi
   if (rows.length === 0) throw new NotFoundError('cycle', cycleId);
 }
 
+/** What the analyse stage asked and got (M08): replay cases are built from it. Ids in the prompt are the run's own. */
+export interface AnalystRecord {
+  promptVersion: string;
+  model: string;
+  prompt: string;
+  /** The answer as it came (schema-checked, not yet validated by core). */
+  output: unknown;
+}
+
+export async function setAnalystRecord(db: DbOrTx, cycleId: string, record: AnalystRecord | null): Promise<void> {
+  const rows = await db
+    .update(cycles)
+    .set({ analystRecord: record })
+    .where(eq(cycles.id, cycleId))
+    .returning({ id: cycles.id });
+  if (rows.length === 0) throw new NotFoundError('cycle', cycleId);
+}
+
 /** Cycles that started but never finished, oldest first (worker startup reconciliation, BLUEPRINT §5.5). */
 export async function listUnfinishedCycles(db: DbOrTx): Promise<Cycle[]> {
   return db.select().from(cycles).where(isNull(cycles.finishedAt)).orderBy(asc(cycles.startedAt));

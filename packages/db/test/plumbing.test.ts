@@ -9,6 +9,7 @@ import {
   sumApiUsage,
   getBrief,
   getFlag,
+  getPhase,
   getOperatorRequest,
   insertBrief,
   listBriefs,
@@ -124,6 +125,17 @@ describe('system flags', () => {
     expect(await writesEnabled(t.db)).toBe(true);
     await setFlag(t.db, 'writes_enabled', false);
     expect(await getFlag(t.db, 'writes_enabled')).toBe(false);
+  });
+
+  it('the phase is 0 unless the flag holds a whole number from 0 to 5', async () => {
+    expect(await getPhase(t.db)).toBe(0); // missing
+    for (const bad of ['1', 1.5, -1, 6, true, { phase: 1 }]) {
+      await setFlag(t.db, 'phase', bad);
+      expect(await getPhase(t.db), JSON.stringify(bad)).toBe(0);
+    }
+    await setFlag(t.db, 'phase', 1);
+    expect(await getPhase(t.db)).toBe(1);
+    await setFlag(t.db, 'phase', 0);
   });
 });
 

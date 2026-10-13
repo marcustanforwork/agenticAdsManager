@@ -26,6 +26,7 @@ describe('migration and roles', () => {
       'credentials',
       'cycles',
       'drift_events',
+      'eval_cases',
       'findings',
       'google_clicks',
       'jobs',

@@ -808,6 +808,7 @@ create table cycles (
   trust_result text check (trust_result in ('ok','degraded','fail')),
   model_cost_micros bigint not null default 0,
   lookups int not null default 0,
+  analyst_record jsonb,                              -- the analyst's prompt and answer (M08, replay cases)
   error text
 );
 create index on cycles (product_id, started_at desc);
@@ -917,6 +918,20 @@ create table change_log (
   reverted_by_revision_id text references change_log(revision_id)
 );
 create index on change_log (product_id, applied_at desc);
+
+create table eval_cases (                            -- M08: one row per decision on an agent proposal
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id),
+  cycle_id uuid not null references cycles(id),
+  finding_id uuid not null references findings(id),
+  proposal_id uuid not null unique references proposals(id),   -- a proposal's first decision counts
+  decision text not null check (decision in ('approve','reject')),
+  reason text,
+  finding_type text not null,
+  target text not null,                              -- a ref, platform ids only
+  created_at timestamptz not null default now()
+);
+create index on eval_cases (product_id, created_at desc);
 
 create table briefs (
   id uuid primary key default gen_random_uuid(),

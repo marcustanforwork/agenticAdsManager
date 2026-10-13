@@ -105,6 +105,8 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
     resolution: z.enum(['applied', 'not_applied']),
     note: z.string().min(3),
   }),
+  // The system's phase (PROPOSAL §12, D-082): Marcus raises it when he records a gate as passed.
+  z.object({ kind: z.literal('set_phase'), phase: z.number().int().min(0).max(5), note: z.string().min(3) }),
   // M15a adds: source_copy_put
 ]);
 export type OperatorRequest = z.infer<typeof OperatorRequest>;

@@ -240,6 +240,7 @@ const samples: Record<string, unknown[]> = {
     { kind: 'settings_patch', productId: uuid, baseVersion: 3, patch: { notifications: { digest: 'off' } } },
     { kind: 'product_doc_put', productId: uuid, doc: 'learnings', baseVersion: 1, markdown: '# L' },
     { kind: 'resolve_attention', proposalId: uuid, resolution: 'not_applied', note: 'checked by hand' },
+    { kind: 'set_phase', phase: 1, note: 'Phase 0 gate passed' },
   ],
 };
 

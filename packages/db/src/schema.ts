@@ -393,6 +393,8 @@ export const cycles = pgTable(
       .notNull()
       .default(sql`0`),
     lookups: integer('lookups').notNull().default(0),
+    // The analyst's prompt and answer (M08): what a replay case is built from when Marcus decides a proposal.
+    analystRecord: jsonb('analyst_record'),
     error: text('error'),
   },
   (t) => [
@@ -546,6 +548,35 @@ export const approvals = pgTable(
     check('approvals_decision_check', oneOf('decision', DECISIONS)),
     check('approvals_channel_check', oneOf('channel', APPROVAL_CHANNELS)),
     check('approvals_reject_reason_check', sql`${t.decision} <> 'reject' or ${t.reason} is not null`),
+  ],
+);
+
+/** Eval data (M08): one row per decision Marcus makes on an agent proposal. `ads eval replay` groups them by
+ *  cycle with the cycle's analyst record into replay cases. */
+export const evalCases = pgTable(
+  'eval_cases',
+  {
+    id: id(),
+    productId: productId(),
+    cycleId: uuid('cycle_id')
+      .notNull()
+      .references(() => cycles.id),
+    findingId: uuid('finding_id')
+      .notNull()
+      .references(() => findings.id),
+    proposalId: uuid('proposal_id')
+      .notNull()
+      .references(() => proposals.id),
+    decision: text('decision', { enum: DECISIONS }).notNull(),
+    reason: text('reason'),
+    findingType: text('finding_type').notNull(),
+    target: text('target').notNull(), // a ref: platform ids only (`google:123:ad_group:9`), never names
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.productId, t.createdAt.desc()),
+    unique().on(t.proposalId), // one decision per proposal counts (its first)
+    check('eval_cases_decision_check', oneOf('decision', DECISIONS)),
   ],
 );
 
