@@ -93,7 +93,7 @@ Daily digests and weekly briefs arrive unattended from containers that survive r
 - [ ] SnapPool's digest arrives every morning it spends; property's does not.
 - [ ] Both weekly briefs arrive on Monday at 07:00 SGT.
 
-After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does not start until it passes.**
+After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built before it passes (D-082), but its draft stage stays off on production until it does.
 
 ### Live steps for Marcus
 _At the end of Phase 0 (D-074), after the M00–M06b steps. This one runs on **production** (compose project `ads-agent`, the Doppler `worker` and `gateway` configs, the Neon **prod** branch): only Marcus runs it._

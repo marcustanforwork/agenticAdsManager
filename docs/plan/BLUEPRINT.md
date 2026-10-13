@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.19 — 2026-10-12 (M07 build choices: stages per cycle kind, the report stage, the number check, the worker service, D-081) |
+| **Version** | v3.20 — 2026-10-13 (M08 is built before the Phase 0 gate; the draft stage stays off live until the gate passes, D-082) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1774,7 +1774,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 - SnapPool's digest arrives every morning it spends; property's does not.
 - Both weekly briefs arrive on Monday at 07:00 SGT.
 
-After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does not start until it passes.**
+After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built before it passes (D-082), but its draft stage stays switched off on production until it does.
 
 **Cut first:** the pack's `briefSections`; publishing to GHCR (build on the SER9 instead).
 
@@ -1785,7 +1785,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 ---
 
 ### M08 — Draft stage, proposals, replay eval v0
-**Phase 1 · Size ~500k · Needs:** the Phase 0 gate has passed
+**Phase 1 · Size ~500k · Needs:** M07 (code). Built before the Phase 0 gate (D-082); its live steps and the Phase 1 measuring wait for the gate.
 
 **Goal:** each passing finding with an allowed action becomes a durable proposal with an exact undo and fingerprint, and each of Marcus's decisions becomes eval data.
 
@@ -1804,6 +1804,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
    - every rejection automatically creates a case;
    - `ads eval replay` reports precision and recall per finding type.
 5. A CLI channel, `ads proposals list|show|approve|reject --reason`, going through operator requests. Phase 1 can then start before the Telegram cards exist.
+6. The draft switch (D-082): `system_flags.drafts_enabled`, default `false`, set only through an operator request (CLI `ads flags set drafts_enabled on|off`). With it off, a cycle skips the draft stage and behaves exactly as in M07. Marcus switches it on when he records the Phase 0 gate as passed.
 
 **Tests:**
 - An undo-table property test: for every reversible action, apply-then-undo restores the snapshot, using a fake entity store.
@@ -1812,10 +1813,11 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). **M08 does no
 - Illegal status transitions.
 - The agree rate, including the handling of expired and operator proposals.
 - Replay over 3 hand-written cases.
+- The draft switch: off → no proposals and an unchanged brief; on → proposals.
 
 **Done when (cloud):** all tests are green.
 
-**Done when (live):**
+**Done when (live)** (after the Phase 0 gate passes and Marcus switches drafts on, D-082):
 - The weekly SnapPool cycle produces proposals, and Marcus reviews them with the CLI.
 - His decisions are recorded.
 - `ads eval replay` runs.
