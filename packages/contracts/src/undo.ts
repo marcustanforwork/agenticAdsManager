@@ -156,7 +156,8 @@ export function plannedUndo(op: WriteOp, state: { dailyBudgetMicros?: string | n
       return undoFor(op, { createdRef: { ...op.parent, type: op.type, externalId: SET_AT_APPLY } });
     case 'adjust_budget': {
       const previous = state.dailyBudgetMicros;
-      if (previous === undefined || previous === null) throw new UndoContextError(op.action, 'previousDailyBudgetMicros');
+      if (previous === undefined || previous === null)
+        throw new UndoContextError(op.action, 'previousDailyBudgetMicros');
       return undoFor(op, { previousDailyBudgetMicros: previous });
     }
     case 'remove_negative_keyword':

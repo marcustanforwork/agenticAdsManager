@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { accountRefText, findingRefText, findingTargetOf, microsToDecimal } from '../analyst/refs.ts';
 import { FINDING_TYPES } from '../findings/registry.ts';
 import type { ComputedEvidence, FindingTypeId } from '@ads/contracts';
+import { type AgreeRate, agreeRate } from '../draft/agreeRate.ts';
 import { costPer, countOf, formatMoney, percentOf, plainText } from './format.ts';
 
 export const BRIEF_WEEK_DAYS = 7;
@@ -101,6 +102,9 @@ export interface BriefNumbers {
   trust: { result: string | null; flagged: { check: string; result: string; account: string | null }[] };
   drift: number;
   openProposals: number;
+  /** The agree rate over the last 3 weeks (M08, PROPOSAL §12); absent or null when there were no agent proposals,
+   *  as before Phase 1. */
+  agreeRate?: AgreeRate | null;
   /** What the cycle's model calls cost so far, in US dollars (the providers bill in USD, D-078). */
   modelCostUsd: string;
 }
@@ -201,6 +205,7 @@ export async function buildBriefNumbers(
   ]);
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const entitiesById = new Map(entities.map((e) => [e.id, e]));
+  const agree = await agreeRate(db, { productId: product.id, now: cycle.startedAt });
 
   // Top campaigns by spend this week, with their KPI outcomes (attribution works at campaign level, M05b).
   const campaignRows = byEntity
@@ -306,6 +311,7 @@ export async function buildBriefNumbers(
     },
     drift: drift.length,
     openProposals: proposals.length,
+    agreeRate: agree.proposals === 0 ? null : agree,
     modelCostUsd: microsToDecimal(cycle.modelCostMicros),
   };
 }
@@ -449,6 +455,16 @@ function checkLines(numbers: BriefNumbers): string[] {
       `- ${numbers.drift} change${numbers.drift === 1 ? '' : 's'} made outside the agent, not yet acknowledged.`,
     );
   out.push(`- Open proposals: ${numbers.openProposals}`);
+  const a = numbers.agreeRate;
+  if (a != null) {
+    out.push(
+      `- Agree rate, last ${a.windowDays} days: ${a.agreePct === null ? 'no decisions yet' : `${a.agreePct}%`} ` +
+        `(${a.approved} approved, ${a.rejected} rejected, ${a.expired} expired undecided, ${a.pending} waiting)`,
+    );
+    if (a.tooManyExpired) {
+      out.push(`- ${a.expiredPct}% of the settled proposals expired undecided: more than 20% fails the Phase 1 gate.`);
+    }
+  }
   return out;
 }
 

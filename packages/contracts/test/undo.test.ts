@@ -260,7 +260,13 @@ describe('plannedUndo', () => {
       target,
       criterionId: SET_AT_APPLY,
     });
-    const create: WriteOp = { action: 'create_entity_paused', parent: target, type: 'ad', spec: {}, idempotencyTag: 't' };
+    const create: WriteOp = {
+      action: 'create_entity_paused',
+      parent: target,
+      type: 'ad',
+      spec: {},
+      idempotencyTag: 't',
+    };
     expect(plannedUndo(create)).toEqual({
       action: 'mark_abandoned',
       target: { ...target, type: 'ad', externalId: SET_AT_APPLY },

@@ -4,20 +4,31 @@
 // in test/requests.test.ts (the milestone file's "Leave behind" has the checklist).
 import type { OperatorRequest } from '@ads/contracts';
 import {
+  PHASE,
   RefusedError,
   StaleVersionError,
+  getEntity,
+  getPhase,
+  getProposal,
   getStoredSettings,
+  listAccounts,
+  recordDecision,
+  recordEvalCase,
+  setFlag,
   putOfferingFacts,
   putProductDoc,
   schema,
   setBriefFeedback,
   updateSettings,
+  type AdEntity,
   type OperatorRequestRow,
   type ProductStatus,
+  type ProposalRecord,
   type Tx,
 } from '@ads/db';
 import { and, eq } from 'drizzle-orm';
 import type { PackRegistry } from '@ads/pack-sdk';
+import { findingRefText } from '../analyst/refs.ts';
 import { manifestOf, packGuardLayer } from '../settings/settings.ts';
 import { validateFacts } from './facts.ts';
 import { applySettingsPatch } from './settingsPatch.ts';
@@ -43,8 +54,6 @@ export interface HandlerContext {
 
 /** Which milestone adds the kinds this processor doesn't handle yet. */
 export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
-  approve: 'M09a',
-  reject: 'M09a',
   edit_approve: 'M09a',
   pause: 'M09b',
   pause_all: 'M09b',
@@ -139,7 +148,75 @@ const briefFeedback: RequestHandler<RequestOf<'brief_feedback'>> = async (tx, re
   return { briefId: request.briefId, useful: request.useful, newInfo: request.newInfo };
 };
 
+/** set_phase (D-082): the system's phase, raised by Marcus when he records a gate as passed. The note is kept
+ *  with the request. */
+const setPhase: RequestHandler<RequestOf<'set_phase'>> = async (tx, request, row) => {
+  const previous = await getPhase(tx);
+  await setFlag(tx, PHASE, request.phase, row.id);
+  return { phase: request.phase, previous };
+};
+
+/** Every decision on an agent proposal becomes eval data (M08): the finding it came from, as a ref. */
+async function recordCase(tx: Tx, proposal: ProposalRecord, decision: 'approve' | 'reject', reason: string | null) {
+  if (proposal.origin !== 'agent' || proposal.cycleId === null || proposal.findingId === null) return false;
+  const [finding] = await tx.select().from(schema.findings).where(eq(schema.findings.id, proposal.findingId));
+  if (finding === undefined) return false;
+  const entities = new Map<string, AdEntity>();
+  if (finding.targetEntityId !== null)
+    entities.set(finding.targetEntityId, await getEntity(tx, finding.targetEntityId));
+  const accounts = new Map((await listAccounts(tx, proposal.productId)).map((a) => [a.id, a] as const));
+  return recordEvalCase(tx, {
+    productId: proposal.productId,
+    cycleId: proposal.cycleId,
+    findingId: finding.id,
+    proposalId: proposal.id,
+    decision,
+    reason,
+    findingType: finding.type,
+    target: findingRefText(finding, entities, accounts),
+  });
+}
+
+/** approve / reject (M08 through the CLI; M09a adds the Telegram cards): bound to the version and, for an
+ *  approval, the action hash Marcus saw. A repeated identical decision is harmless. Phase 1 applies nothing:
+ *  Marcus makes an approved change by hand. */
+async function decide(
+  tx: Tx,
+  row: OperatorRequestRow,
+  input: { proposalId: string; version: number; actionHash?: string; decision: 'approve' | 'reject'; reason?: string },
+) {
+  const proposal = await getProposal(tx, input.proposalId);
+  const { approval, duplicate } = await recordDecision(tx, {
+    proposalId: proposal.id,
+    version: input.version,
+    // A rejection doesn't need the hash: the version alone pins what was rejected.
+    actionHash: input.actionHash ?? proposal.actionHash,
+    decision: input.decision,
+    reason: input.reason ?? null,
+    actor: row.actor,
+    channel: row.channel,
+    requestId: row.id,
+  });
+  const evalCase = duplicate ? false : await recordCase(tx, proposal, input.decision, approval.reason);
+  return {
+    proposal: proposal.shortId,
+    version: approval.proposalVersion,
+    decision: approval.decision,
+    duplicate,
+    evalCase,
+  };
+}
+
+const approve: RequestHandler<RequestOf<'approve'>> = (tx, request, row) =>
+  decide(tx, row, { ...request, decision: 'approve' });
+
+const reject: RequestHandler<RequestOf<'reject'>> = (tx, request, row) =>
+  decide(tx, row, { ...request, decision: 'reject' });
+
 export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
+  set_phase: setPhase,
+  approve,
+  reject,
   halt,
   resume_agent: resumeAgent,
   settings_patch: settingsPatch,

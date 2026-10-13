@@ -23,6 +23,7 @@ import {
   listFindings,
   listRejectedFindings,
   resetAnalysis,
+  setAnalystRecord,
   setAnalystVerdict,
   sumSearchTerms,
 } from '@ads/db';
@@ -402,6 +403,13 @@ export async function analyseStage(deps: AnalyseDeps, product: Product, cycleId:
       { db: deps.db, product, manifest: pack.manifest, cycleId, now },
       answer.output,
     );
+    // Kept for replay cases (M08): what was asked and what came back.
+    await setAnalystRecord(deps.db, cycleId, {
+      promptVersion: input.version,
+      model: answer.model,
+      prompt: input.prompt,
+      output: answer.output,
+    });
     return {
       status: 'analysed',
       model: answer.model,
