@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-10-13 — M08 built ahead of the Phase 0 gate (draft stage, proposals, replay v0) and code-reviewed
-- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR PRLINK
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)
 - **Did:**
   - Marcus asked to start M08 while he works through the Phase 0 checklist; he chose "build now, gate still counts" (D-082). The switch is the stored phase (`system_flags.phase`, 0 by default; `ads phase set`).
   - Contracts: `fingerprintOf`, `plannedUndo` (`SET_AT_APPLY`), the `set_phase` request. DB: migration `0005` (`eval_cases`, `analyst_runs`), `getPhase`, `agreeRateCounts`, `findOpenProposalByAction`, `getFinding`, a `term` filter on `sumSearchTerms`.

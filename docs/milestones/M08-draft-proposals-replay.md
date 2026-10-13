@@ -6,7 +6,7 @@
 | **Phase** | 1 |
 | **Started** | 2026-10-13 |
 | **Finished** | 2026-10-13 (cloud part) |
-| **PRs** | — |
+| **PRs** | [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14) |
 
 ## Goal
 Each passing finding with an allowed action becomes a durable proposal with an exact undo and fingerprint, and each of Marcus's decisions becomes eval data.
