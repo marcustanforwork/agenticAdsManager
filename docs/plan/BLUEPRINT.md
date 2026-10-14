@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.21 — 2026-10-13 (M08 build choices: the phase switch, drafting, planned undo and fingerprint at draft time, eval cases, D-082, D-083) |
+| **Version** | v3.22 — 2026-10-14 (M09a build choices: proposal cards, `edit_approve`, the conversation table, alerts; D-084, D-085) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -600,7 +600,7 @@ M01a creates everything below except `source_copy` (M15a), using Drizzle plus mi
 - money is `bigint` micros;
 - **every product-scoped table has `product_id` plus an index on it**.
 
-Global tables, which are exempt from the `product_id` rule: `pack_manifests`, `credential_access`, `jobs` (nullable `product_id`), `system_flags`, `api_usage`.
+Global tables, which are exempt from the `product_id` rule: `pack_manifests`, `credential_access`, `jobs` (nullable `product_id`), `system_flags`, `api_usage`, `telegram_conversations` (M09a).
 
 ```sql
 -- ── Products, settings, documents ─────────────────────────────────────────────
@@ -1005,6 +1005,13 @@ create table jobs (                                  -- GLOBAL queue
 );
 create index on jobs (queue, status, priority desc, run_at);
 
+create table telegram_conversations (                -- GLOBAL (M09a, D-085): the bot's state per chat, 10 minutes
+  chat_id bigint primary key,
+  state jsonb not null,                                -- e.g. {awaiting: 'reject_reason', proposalId, version, …}
+  expires_at timestamptz not null,
+  updated_at timestamptz not null default now()
+);                                                     -- agent_dashboard may not read it
+
 create table system_flags (                          -- GLOBAL, e.g. writes_enabled
   key text primary key,
   value jsonb not null,
@@ -1043,7 +1050,7 @@ create index on source_copy (product_id);
 |---|---|---|
 | `agent_worker` | worker | Read and write on everything; `change_log` is read-only. Optional hardening in M16b. |
 | `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066); insert/update `credentials` (`ads-gw credentials put`, rotation; D-068) |
-| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access` and `outcomes`; outcomes through the view `dashboard_outcomes` (no `hashed_contact`, no `web`); `INSERT` on `operator_requests` only |
+| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access`, `outcomes` and `telegram_conversations` (M09a); outcomes through the view `dashboard_outcomes` (no `hashed_contact`, no `web`); `INSERT` on `operator_requests` only |
 
 The grants are `packages/db/sql/roles.sql`, applied by `db:migrate` after the migrations.
 
@@ -1258,6 +1265,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
   - `gateway-alive`: the same;
   - `daily-sync`: once a day, alert after 3 h of lateness.
 - **Alerts** go through the `notifications` outbox and are sent by the worker's bot. The gateway therefore never needs the Telegram token.
+- **As built (M09a, D-085):** `core/src/alerts.ts`. A routing table (`routeCycleEvent`) maps cycle events to alerts: a trust result of `fail` → `trust_check_failed` (degraded is only in the brief); drift recorded during the cycle's sync on an entity that an open proposal targets → `drift_on_open_proposal` (one alert listing each entity, its changed fields and the open proposals); a stage of a **daily or weekly** cycle throwing (not an interruption) → `cycle_failed` (a manual run's failure is seen by whoever ran it). Each is one `alert` notification per `(alert, cycle)` (`payload.key`), so a resumed stage or a retried job never repeats it.
 - **As built (M07):** check URLs in `HEALTHCHECK_WORKER_URL`, `HEALTHCHECK_GATEWAY_URL`, `HEALTHCHECK_DAILY_SYNC_URL` (secrets: never logged). A beat pings only after a database round trip, else `/fail`. The worker's heartbeat starts before the startup reconciliation; `daily-sync` is pinged after the daily job (`/fail` if a product's cycle failed). The schedule (croner, `Asia/Singapore`) runs on the leader only; it queues a `daily` or `weekly` job (not if one is already waiting), and a new leader catches up a run missed earlier the same Singapore day.
 
 ### 5.17 Model routing and tracing
@@ -1897,6 +1905,8 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built 
 **Cut first:** edit grammar beyond `budget` and `keyword`. **Never cut:** version re-checks, the user-id check.
 
 **Leave behind:** the callback-data encoding, which must stay stable, or old cards break.
+
+**As built (D-085):** cards are a `proposal` notification queued by the draft stage in the same transaction as the proposal; the bot renders them from the database (target with its name escaped and its ref, before → after, the evidence window and totals, the drafter's words, the expiry in the product's timezone, the status) with `v1:approve|reject|edit:<shortId>:<version>`. Approve submits at once (the card's version and, if still current, its action hash); Reject and Edit ask for a reply (Telegram's force-reply), held in `telegram_conversations` for 10 minutes (`/cancel` ends it). After each decision the card is re-rendered in place. `edit_approve` makes a new version (the precondition kept: what it was based on hasn't changed; the planned undo recomputed) and approves it in one transaction; a budget edit must stay within the product's `maxBudgetChangePct` of the budget before the change, in 0.01 steps. The grammar: `budget 45` (up to 2 decimals, `S$` and commas allowed), `keyword "…"` (quotes optional), `match exact|phrase`. Polling now also fetches `message` updates; anything not from Marcus's private chat is ignored. Nothing was cut.
 
 ---
 

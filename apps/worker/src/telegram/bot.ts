@@ -233,7 +233,7 @@ function alertLines(payload: Record<string, unknown>): string[] {
       const fields = Array.isArray(e.fields) ? e.fields.join(', ') : '';
       const proposals = Array.isArray(e.proposals) ? e.proposals.join(', ') : '';
       lines.push(
-        `• <code>${escapeHtml(String(e.target))}</code>: ${escapeHtml(fields)} changed; open: ${escapeHtml(proposals)}`,
+        `• <code>${escapeHtml(String(e.target))}</code>: ${escapeHtml(fields)} changed; pending: ${escapeHtml(proposals)}`,
       );
     }
     lines.push('Check those proposals before deciding them; the next cycle drafts from the new state.');

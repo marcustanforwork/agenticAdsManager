@@ -115,6 +115,9 @@ describe('raising alerts', () => {
     const open = await pause('77');
     const done = await pause('79');
     await transitionProposal(t.db, { proposalId: done.id, to: 'rejected' });
+    // Approved: in Phase 1 Marcus makes it by hand, and the sync sees that as drift. No alert for it.
+    const approved = await pause('78');
+    await transitionProposal(t.db, { proposalId: approved.id, to: 'approved' });
     for (const [entity, field] of [
       [watched, 'status'],
       [watched, 'dailyBudgetMicros'],
@@ -149,8 +152,12 @@ describe('a failed cycle', () => {
     stages: [failing],
   });
 
-  it('alerts once for a scheduled cycle, even when the job retries it; never for a manual one', async () => {
+  it('alerts once for a scheduled cycle, on its last attempt; never for a manual one', async () => {
     const w = await makeAdWorld(t.db, { slug: `cf-${randomBytes(3).toString('hex')}` });
+    await expect(
+      runCycle({ ...deps(), alertOnFailure: false }, { productId: w.productId, kind: 'daily' }),
+    ).rejects.toThrow('the platform is down');
+    expect(await alertsOf(w.productId)).toEqual([]); // the job will retry: no alert yet
     await expect(runCycle(deps(), { productId: w.productId, kind: 'daily' })).rejects.toThrow('the platform is down');
     await expect(runCycle(deps(), { productId: w.productId, kind: 'daily' })).rejects.toThrow('the platform is down');
     const alerts = await alertsOf(w.productId);

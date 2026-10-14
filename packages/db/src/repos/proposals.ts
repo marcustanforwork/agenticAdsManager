@@ -264,19 +264,22 @@ export async function findProposalForFinding(db: DbOrTx, findingId: string): Pro
 /** Statuses in which a proposal is still waiting on Marcus or the gateway. */
 export const OPEN_STATUSES: readonly ProposalStatus[] = ['pending', 'approved', 'applying', 'needs_attention'];
 
-/** An open proposal of the product with exactly this action (the draft stage proposes each change once). */
+/** An open proposal of the product with exactly this action, in its current version or an earlier one (the draft
+ *  stage proposes each change once, and a change Marcus edited before approving counts as proposed, M09a). */
 export async function findOpenProposalByAction(
   db: DbOrTx,
   input: { productId: string; actionHash: string },
 ): Promise<ProposalRecord | null> {
+  const anyVersion = sql`exists (select 1 from ${proposalVersions} where ${proposalVersions.proposalId} = ${proposals.id}
+    and ${proposalVersions.actionHash} = ${input.actionHash})`;
   const [row] = await db
     .select()
     .from(proposals)
     .where(
       and(
         eq(proposals.productId, input.productId),
-        eq(proposals.actionHash, input.actionHash),
         inArray(proposals.status, [...OPEN_STATUSES]),
+        sql`(${proposals.actionHash} = ${input.actionHash} or ${anyVersion})`,
       ),
     )
     .limit(1);

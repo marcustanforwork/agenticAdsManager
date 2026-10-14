@@ -55,6 +55,9 @@ export interface CycleDeps extends SyncDeps {
   tracing?: ModelTracing | null;
   /** Tests supply the analyst's model instead of building one from the environment. */
   model?: ModelDeps['model'];
+  /** False while a failure will be retried (a scheduled job before its last attempt): a failed stage then raises no
+   *  `cycle_failed` alert, so a passing glitch doesn't alert Marcus (M09a). Default true. */
+  alertOnFailure?: boolean;
   /** Aborted at shutdown (M07): the run stops before its next stage, leaving `stage_reached` at the last finished
    *  one, and throws `CycleInterruptedError`; the next run resumes from there. */
   signal?: AbortSignal;
@@ -378,12 +381,13 @@ export async function resumeCycle(deps: CycleDeps, cycleId: string, until?: Cycl
   return continueCycle(deps, product, cycle, until);
 }
 
-/** Runs one stage; a failure alerts Marcus (a scheduled cycle's, M09a) and is rethrown, so the job is retried. */
+/** Runs one stage; a failure alerts Marcus (a scheduled cycle's, on its last attempt, M09a) and is rethrown, so the
+ *  job is retried. */
 async function runStage(step: StageStep, ctx: StageContext): ReturnType<StageStep['run']> {
   try {
     return await step.run(ctx);
   } catch (error) {
-    if (!(error instanceof CycleInterruptedError)) {
+    if (!(error instanceof CycleInterruptedError) && ctx.deps.alertOnFailure !== false) {
       await alertOnCycleEvent(ctx.deps.db, {
         productId: ctx.product.id,
         cycleId: ctx.cycle.id,

@@ -2,8 +2,9 @@
 // throws RefusedError / StaleVersionError / NotFoundError / a settings or facts error to refuse.
 // To add a kind: write its handler here, add it to HANDLERS, remove it from NOT_AVAILABLE_UNTIL, and test it
 // in test/requests.test.ts (the milestone file's "Leave behind" has the checklist).
-import { type OperatorRequest, plannedUndo } from '@ads/contracts';
+import { type OperatorRequest, plannedUndo, platformOfOp } from '@ads/contracts';
 import {
+  IllegalTransitionError,
   PHASE,
   RefusedError,
   StaleVersionError,
@@ -256,20 +257,28 @@ const editApprove: RequestHandler<RequestOf<'edit_approve'>> = async (tx, reques
   try {
     action = applyEdit(proposal.action, request.edit, {
       previousDailyBudgetMicros: previous,
-      guards: effectiveGuards(product.settings, manifestOf(ctx.packs, product.packId), platformOf(proposal.action)),
+      guards: effectiveGuards(product.settings, manifestOf(ctx.packs, product.packId), platformOfOp(proposal.action)),
     });
   } catch (error) {
     if (error instanceof EditError) throw new RefusedError(error.message);
     throw error;
   }
-  const edited = await newVersion(tx, {
-    proposalId: proposal.id,
-    baseVersion: proposal.version,
-    action,
-    undo: plannedUndo(action, { dailyBudgetMicros: previous === null ? null : previous.toString() }),
-    preconditionHash: proposal.preconditionHash,
-    requestId: row.id,
-  });
+  let edited;
+  try {
+    edited = await newVersion(tx, {
+      proposalId: proposal.id,
+      baseVersion: proposal.version,
+      action,
+      undo: plannedUndo(action, { dailyBudgetMicros: previous === null ? null : previous.toString() }),
+      preconditionHash: proposal.preconditionHash,
+      requestId: row.id,
+    });
+  } catch (error) {
+    // Decided or expired since it was read above (newVersion re-checks under the row lock): a refusal, not a fault.
+    if (error instanceof IllegalTransitionError)
+      throw new RefusedError(`proposal ${proposal.shortId} is no longer pending`);
+    throw error;
+  }
   const decided = await decide(tx, row, {
     proposalId: edited.id,
     version: edited.version,
@@ -279,13 +288,6 @@ const editApprove: RequestHandler<RequestOf<'edit_approve'>> = async (tx, reques
   });
   return { ...decided, edited: request.edit.field, previousVersion: proposal.version };
 };
-
-const platformOf = (action: ProposalRecord['action']) =>
-  action.action === 'upload_conversions'
-    ? action.platform
-    : action.action === 'create_entity_paused'
-      ? action.parent.platform
-      : action.target.platform;
 
 export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
   set_phase: setPhase,

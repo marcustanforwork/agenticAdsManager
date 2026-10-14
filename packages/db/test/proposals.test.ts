@@ -393,4 +393,28 @@ describe('the agree rate counts (PROPOSAL §12)', () => {
     });
     expect(await findOpenProposalByAction(t.db, query)).toBeNull();
   });
+
+  it('still finds an open proposal by the action of an earlier version (an edit before approval, M09a)', async () => {
+    const own = await makeCampaign(t.db);
+    const first = {
+      action: 'adjust_budget' as const,
+      target: own.ref,
+      newDailyBudgetMicros: '80000000',
+      netIncrease: false,
+    };
+    const p = await createProposal(t.db, { ...draft(), productId: own.product.id, action: first, undo: null });
+    const edited = await newVersion(t.db, {
+      proposalId: p.id,
+      baseVersion: 1,
+      action: { ...first, newDailyBudgetMicros: '90000000' },
+      undo: null,
+      preconditionHash: null,
+    });
+    expect(edited.actionHash).not.toBe(p.actionHash);
+    for (const actionHash of [p.actionHash, edited.actionHash]) {
+      expect((await findOpenProposalByAction(t.db, { productId: own.product.id, actionHash }))?.id).toBe(p.id);
+    }
+    await transitionProposal(t.db, { proposalId: p.id, to: 'expired' });
+    expect(await findOpenProposalByAction(t.db, { productId: own.product.id, actionHash: p.actionHash })).toBeNull();
+  });
 });

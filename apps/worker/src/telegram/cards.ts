@@ -4,7 +4,7 @@
 // refuses it if the proposal changed, was decided or expired since (PROPOSAL §6.3). Every figure on a card comes
 // from the database; the words (rationale, expected effect) are the drafter's, already number-checked (M08).
 // Platform text (entity names, a negative keyword) is escaped: it is shown, never interpreted.
-import { type ComputedEvidence, ComputedEvidence as EvidenceSchema, type WriteOp } from '@ads/contracts';
+import { type ComputedEvidence, ComputedEvidence as EvidenceSchema, type WriteOp, targetRefOf } from '@ads/contracts';
 import { countOf, entityRefText, formatMoney } from '@ads/core';
 import {
   type AdEntity,
@@ -42,13 +42,16 @@ export function parseCardData(data: string): { verb: CardVerb; shortId: string; 
   return { verb: m[1] as CardVerb, shortId: m[2] as string, version: Number(m[3]) };
 }
 
-export function cardKeyboard(p: Pick<ProposalRecord, 'shortId' | 'version'>): InlineKeyboard {
+/** Approve / Reject, and Edit when the action has something to edit (not a pause). */
+export function cardKeyboard(p: Pick<ProposalRecord, 'shortId' | 'version' | 'action'>): InlineKeyboard {
   return {
     inline_keyboard: [
       [
         { text: '✅ Approve', callback_data: cardData('approve', p.shortId, p.version) },
         { text: '❌ Reject', callback_data: cardData('reject', p.shortId, p.version) },
-        { text: '✏️ Edit', callback_data: cardData('edit', p.shortId, p.version) },
+        ...(editHint(p.action) === null
+          ? []
+          : [{ text: '✏️ Edit', callback_data: cardData('edit', p.shortId, p.version) }]),
       ],
     ],
   };
@@ -182,12 +185,7 @@ export async function loadCard(db: Db, proposalId: string, now: Date = new Date(
   const product = await getProduct(db, proposal.productId);
   const finding = proposal.findingId === null ? null : await getFinding(db, proposal.findingId);
   const evidence = finding === null ? null : EvidenceSchema.safeParse(finding.evidence);
-  const ref =
-    proposal.action.action === 'upload_conversions'
-      ? null
-      : proposal.action.action === 'create_entity_paused'
-        ? proposal.action.parent
-        : proposal.action.target;
+  const ref = targetRefOf(proposal.action);
   const entity = ref === null ? null : await findEntityByRef(db, proposal.productId, ref);
   return {
     proposal,

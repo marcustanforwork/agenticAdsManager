@@ -82,6 +82,11 @@ export async function handleCardPress(
       },
       query.from.id,
     );
+    // A question still open about this proposal (Reject or Edit pressed first) is answered by the approval: the
+    // next message must not be taken as its reply.
+    const now = ctx.now?.() ?? new Date();
+    const open = ConversationState.safeParse(await getConversation(ctx.db, ctx.ownerId, now));
+    if (open.success && open.data.proposalId === proposal.id) await clearConversation(ctx.db, ctx.ownerId, now);
     await ctx.api.answerCallbackQuery(query.id, {
       text: outcome.status === 'done' ? `Approved v${parsed.version}` : `Not approved: ${reasonOf(outcome.result)}`,
     });

@@ -330,12 +330,12 @@ describe('the card in the outbox', () => {
     expect(card?.text).toContain('<b>Why:</b> No signups in 14 days &lt;despite&gt; spend.');
     expect(card?.text).toContain('<b>Expected:</b> The spend stops.');
     expect(card?.text).toContain(`Expires ${localTime(p.expiresAt, 'Asia/Singapore')} (Asia/Singapore)`);
+    // A pause has nothing to edit: no Edit button.
     expect(card?.other?.reply_markup).toEqual({
       inline_keyboard: [
         [
           { text: '✅ Approve', callback_data: `v1:approve:${p.shortId}:1` },
           { text: '❌ Reject', callback_data: `v1:reject:${p.shortId}:1` },
-          { text: '✏️ Edit', callback_data: `v1:edit:${p.shortId}:1` },
         ],
       ],
     });
@@ -355,6 +355,10 @@ describe('the card in the outbox', () => {
     expect(text).toContain('Before → after: S$100.00 → S$80.00 a day');
     expect(text).toContain('<b>Add a negative keyword</b> to ad group “Weddings”');
     expect(text).toContain('Before → after: + “free photos” (exact match) blocked');
+    for (const p of [b, n]) {
+      const card = sent.find((s) => s.text.includes(`<b>Proposal ${p.shortId}</b>`));
+      expect(JSON.stringify(card?.other?.reply_markup)).toContain(`v1:edit:${p.shortId}:1`);
+    }
   });
 });
 
@@ -412,6 +416,20 @@ describe('Approve', () => {
     expect((await getProposal(t.db, p.id)).status).toBe('pending');
     expect(await handleCallback(bot, press('v1:approve:aaaaaaaa:1'))).toBe('unknown');
     expect(answers).toEqual(['That proposal no longer exists.']);
+  });
+});
+
+describe('Reject, then Approve instead', () => {
+  it('the approval ends the open question, so the next message is not taken as a reason', async () => {
+    const w = await world();
+    const p = await w.pause();
+    const { api } = fakeApi();
+    const bot = botFor(api);
+    expect(await handleCallback(bot, press(`v1:reject:${p.shortId}:1`))).toBe('asked');
+    expect(await handleCallback(bot, press(`v1:approve:${p.shortId}:1`))).toBe('recorded');
+    expect(await getConversation(t.db, OWNER, NOW)).toBeNull();
+    expect(await handleMessage(bot, say('thanks!'))).toBe('no_conversation');
+    expect((await getProposal(t.db, p.id)).status).toBe('approved');
   });
 });
 
@@ -560,8 +578,8 @@ describe('alerts in Telegram', () => {
     const texts = sent.map((s) => s.text);
     expect(texts).toContainEqual(
       [
-        `<b>⚠️ Alert (${w.product.slug}): Someone changed an ad entity that has an open proposal</b>`,
-        '• <code>google:1:campaign:&lt;8&gt;</code>: status changed; open: abcdefgh',
+        `<b>⚠️ Alert (${w.product.slug}): Someone changed an ad entity that a pending proposal is about</b>`,
+        '• <code>google:1:campaign:&lt;8&gt;</code>: status changed; pending: abcdefgh',
         'Check those proposals before deciding them; the next cycle drafts from the new state.',
         'cycleId: c1',
       ].join('\n'),

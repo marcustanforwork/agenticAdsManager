@@ -102,6 +102,7 @@ These come from the v3 review. The ones marked *(training knowledge)* weren't re
 - **Manager-owned Google conversion actions** (cross-account conversion tracking) are `customers/<manager>/conversionActions/<id>`; the connector matches KPI conversions by action id for that reason. **UNVERIFIED:** whether a client account's `conversion_action` listing includes the manager's actions (if not, `conversionActionsMissing` names them wrongly). T11 creates the actions in the client account, which avoids it. *(M03)*
 - **Telegram `callback_data` is limited to 1–64 bytes.** *(confirmed 2026-10-12 in `@grammyjs/types` 5.0.0, M07; see External facts)*
 - **Telegram allows one `getUpdates` consumer per bot.** Only the leader replica polls. *(training knowledge; M09)*
+- **Telegram: editing a message to identical text and buttons fails with 400 "message is not modified".** The card refresh logs and ignores a failed edit; it never retries. `editMessageText` and `ForceReply` (`force_reply`, `input_field_placeholder`) confirmed in `@grammyjs/types` shipped with grammY 1.46.0 *(2026-10-14, M09a; the 400 case is training knowledge)*
 - **Google `click_view`** can be queried for only one day at a time, and only for the last ~90 days. *(training knowledge; M03)*
 - **A Meta ad account's timezone and currency** can't simply be changed after creation. *(training knowledge; M02)*
 - **Google can spend up to 2× a campaign's daily budget on a single day,** so daily budgets aren't hard caps. *(training knowledge; M14)*
