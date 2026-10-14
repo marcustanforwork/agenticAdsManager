@@ -9,7 +9,7 @@ import { clearConversation, findProposalByShortId, getConversation, setConversat
 import { z } from 'zod';
 import type { BotContext } from './bot.ts';
 import { editHint, loadCard, parseCardData, renderCard } from './cards.ts';
-import { EDIT_HELP, parseEdit } from './edit.ts';
+import { EDIT_HELP, parseEdit } from '../editGrammar.ts';
 import { escapeHtml } from './format.ts';
 
 /** What the bot is waiting for in a chat. Read back through this schema: a row from an older build that doesn't

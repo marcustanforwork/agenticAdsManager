@@ -35,7 +35,7 @@ import {
 } from '../src/telegram/bot.ts';
 import { CARD_VERBS, cardData, localTime, parseCardData } from '../src/telegram/cards.ts';
 import { type ChatMessage, handleMessage } from '../src/telegram/decide.ts';
-import { parseEdit } from '../src/telegram/edit.ts';
+import { parseEdit } from '../src/editGrammar.ts';
 
 // ── Without a database ──────────────────────────────────────────────────────────────────────
 

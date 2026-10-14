@@ -1,4 +1,5 @@
-// The edit grammar Marcus types after pressing Edit on a proposal card (BLUEPRINT M09a). Tiny on purpose:
+// The edit grammar for a pending proposal (BLUEPRINT M09a), typed after pressing Edit on a Telegram card or given to
+// `ads proposals edit`. Tiny on purpose:
 //   budget 45          → the new daily budget, in the account's currency (up to 2 decimals)
 //   keyword "free photos"  (quotes optional) → the negative keyword's text
 //   match exact | match phrase → the negative keyword's match type
