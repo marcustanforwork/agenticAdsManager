@@ -1,9 +1,10 @@
-import type { OperatorRequest } from '@ads/contracts';
+import type { EditSpec, EntityRef, OperatorRequest, WriteOp } from '@ads/contracts';
 import {
   claimJob,
   createProduct,
   createProposal,
   getCurrentApproval,
+  listProposalVersions,
   getPhase,
   getProposal,
   insertFinding,
@@ -114,10 +115,6 @@ describe('actor and schema checks', () => {
   it('refuses kinds that later milestones add, naming the milestone', async () => {
     const p = await makeProduct();
     const cases: [OperatorRequest, string][] = [
-      [
-        { kind: 'edit_approve', proposalId: randomUUID(), version: 1, edit: { field: 'negative_text', text: 'x' } },
-        'M09a',
-      ],
       [{ kind: 'pause_all', productId: p.id }, 'M09b'],
       [
         {
@@ -541,20 +538,27 @@ describe('approve and reject (M08)', () => {
       passedThreshold: true,
     });
     const target = { platform: 'google' as const, accountId: '1', type: 'campaign' as const, externalId: '77' };
-    const make = (origin: 'agent' | 'operator' = 'agent') =>
+    const make = (
+      origin: 'agent' | 'operator' = 'agent',
+      change: { action: WriteOp; undo: WriteOp | null; expiresAt?: Date } = {
+        action: { action: 'pause_entity', target },
+        undo: { action: 'resume_entity', target },
+      },
+    ) =>
       createProposal(t.db, {
         productId: w.productId,
         cycleId: origin === 'agent' ? cycle.id : null,
         findingId: origin === 'agent' ? finding.id : null,
         origin,
-        action: { action: 'pause_entity', target },
-        undo: { action: 'resume_entity', target },
+        action: change.action,
+        undo: change.undo,
+        ...(change.expiresAt === undefined ? {} : { expiresAt: change.expiresAt }),
         preconditionHash: 'h',
         preconditionFields: ['status'],
         rationale: 'r',
         expectedEffect: 'e',
       });
-    return { w, make, cycle, finding };
+    return { w, make, cycle, finding, target };
   }
 
   it('approves the version and hash Marcus saw, records an eval case, and a double tap is harmless', async () => {
@@ -615,6 +619,124 @@ describe('approve and reject (M08)', () => {
     await submit({ kind: 'reject', proposalId: p.id, version: 1, reason: 'no thanks' });
     expect(await reasons({ kind: 'approve', proposalId: p.id, version: 1, actionHash: p.actionHash })).toMatchObject({
       status: 'refused',
+    });
+  });
+
+  describe('edit_approve (M09a)', () => {
+    const negative = (target: EntityRef) => ({
+      action: {
+        action: 'add_negative_keyword' as const,
+        target: { ...target, type: 'ad_group' as const },
+        text: 'free photos',
+        matchType: 'EXACT' as const,
+      },
+      undo: {
+        action: 'remove_negative_keyword' as const,
+        target: { ...target, type: 'ad_group' as const },
+        criterionId: 'set-at-apply',
+      },
+    });
+    const budget = (target: EntityRef) => ({
+      action: { action: 'adjust_budget' as const, target, newDailyBudgetMicros: '80000000', netIncrease: false },
+      undo: { action: 'adjust_budget' as const, target, newDailyBudgetMicros: '100000000', netIncrease: true },
+    });
+
+    it('makes a new version from the edit and approves that version, with its own undo and an eval case', async () => {
+      const { w, make, target } = await proposalWorld();
+      const p = await make('agent', budget(target));
+      const { outcome } = await submit({
+        kind: 'edit_approve',
+        proposalId: p.id,
+        version: 1,
+        edit: { field: 'budget', newDailyBudgetMicros: '90000000' },
+      });
+      expect(outcome).toMatchObject({
+        status: 'done',
+        result: {
+          proposal: p.shortId,
+          version: 2,
+          decision: 'approve',
+          evalCase: true,
+          edited: 'budget',
+          previousVersion: 1,
+        },
+      });
+      const after = await getProposal(t.db, p.id);
+      expect(after).toMatchObject({ status: 'approved', version: 2, preconditionHash: 'h' });
+      expect(after.action).toEqual({ ...budget(target).action, newDailyBudgetMicros: '90000000', netIncrease: false });
+      expect(after.undo).toEqual(budget(target).undo); // back to the budget before the change
+      expect(await getCurrentApproval(t.db, p.id)).toMatchObject({ proposalVersion: 2, actionHash: after.actionHash });
+      expect((await listProposalVersions(t.db, p.id)).map((v) => v.version)).toEqual([1, 2]);
+      const cases = await listEvalCases(t.db, w.productId);
+      expect(cases.map((c) => [c.evalCase.decision, c.evalCase.reason])).toEqual([
+        ['approve', 'edited (budget) and approved'],
+      ]);
+    });
+
+    it('edits a negative keyword text and match type', async () => {
+      const { make, target } = await proposalWorld();
+      const text = await make('operator', negative(target));
+      expect(
+        (
+          await submit({
+            kind: 'edit_approve',
+            proposalId: text.id,
+            version: 1,
+            edit: { field: 'negative_text', text: '  free   pics ' },
+          })
+        ).outcome.status,
+      ).toBe('done');
+      expect((await getProposal(t.db, text.id)).action).toMatchObject({ text: 'free pics', matchType: 'EXACT' });
+      const match = await make('operator', negative(target));
+      expect(
+        (
+          await submit({
+            kind: 'edit_approve',
+            proposalId: match.id,
+            version: 1,
+            edit: { field: 'match_type', matchType: 'PHRASE' },
+          })
+        ).outcome.status,
+      ).toBe('done');
+      expect((await getProposal(t.db, match.id)).action).toMatchObject({ text: 'free photos', matchType: 'PHRASE' });
+    });
+
+    it('refuses an edit that does not fit, breaks the guard, changes nothing, or comes too late, changing nothing', async () => {
+      const { make, target } = await proposalWorld();
+      const refusal = async (p: { id: string }, edit: EditSpec, version = 1) =>
+        (await submit({ kind: 'edit_approve', proposalId: p.id, version, edit })).outcome;
+      const pause = await make('operator');
+      expect(await refusal(pause, { field: 'budget', newDailyBudgetMicros: '1000000' })).toMatchObject({
+        status: 'refused',
+        result: { reason: 'a budget edit needs a budget change, not pause_entity' },
+      });
+      const b = await make('operator', budget(target));
+      for (const [edit, reason] of [
+        [{ field: 'budget', newDailyBudgetMicros: '131000000' }, 'a budget may change by at most 30% at a time'],
+        [
+          { field: 'budget', newDailyBudgetMicros: '90005000' },
+          'the new budget must be in steps of 10000 micros (0.01)',
+        ],
+        [{ field: 'budget', newDailyBudgetMicros: '100000000' }, 'the new budget is the current budget'],
+        [{ field: 'budget', newDailyBudgetMicros: '80000000' }, 'the edit changes nothing'],
+        [{ field: 'negative_text', text: 'x' }, 'a keyword edit needs a negative keyword, not adjust_budget'],
+      ] as const) {
+        expect(await refusal(b, edit)).toEqual({ status: 'refused', result: { reason } });
+      }
+      expect(await refusal(b, { field: 'budget', newDailyBudgetMicros: '90000000' }, 2)).toMatchObject({
+        status: 'refused',
+      });
+      expect(await getProposal(t.db, b.id)).toMatchObject({ status: 'pending', version: 1 });
+      const expired = await make('operator', { ...budget(target), expiresAt: new Date(Date.now() - 1000) });
+      expect(await refusal(expired, { field: 'budget', newDailyBudgetMicros: '90000000' })).toEqual({
+        status: 'refused',
+        result: { reason: `proposal ${expired.shortId} has expired` },
+      });
+      await submit({ kind: 'reject', proposalId: b.id, version: 1, reason: 'not now' });
+      expect(await refusal(b, { field: 'budget', newDailyBudgetMicros: '90000000' })).toEqual({
+        status: 'refused',
+        result: { reason: `proposal ${b.shortId} is rejected, not pending` },
+      });
     });
   });
 });

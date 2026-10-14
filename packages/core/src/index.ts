@@ -3,6 +3,7 @@
 export * from './requests/processor.ts';
 export * from './requests/settingsPatch.ts';
 export * from './requests/facts.ts';
+export * from './requests/edit.ts';
 export {
   HANDLERS,
   NOT_AVAILABLE_UNTIL,
@@ -11,6 +12,7 @@ export {
   type RequestHandler,
 } from './requests/handlers.ts';
 export * from './recovery.ts';
+export * from './alerts.ts';
 export * from './sync/clients.ts';
 export * from './sync/dryRun.ts';
 export * from './sync/quota.ts';

@@ -15,6 +15,7 @@ import {
   recordDecision,
   insertFinding,
   listProposals,
+  listUnsentNotifications,
   schema,
   setFlag,
   startManual,
@@ -296,6 +297,11 @@ describe('the draft stage', () => {
     const again = await draftStage(deps(model), product, cycle.id);
     expect(again.drafted).toEqual([{ ...first.drafted[0], writer: 'existing' }]);
     expect(prompts).toHaveLength(1);
+    // One card per proposal, queued with it (M09a); the resumed run queues no second card.
+    const cards = (await listUnsentNotifications(t.db, 500)).filter(
+      (n) => n.kind === 'proposal' && (n.payload as { cycleId?: string }).cycleId === cycle.id,
+    );
+    expect(cards.map((n) => n.payload)).toEqual([{ cycleId: cycle.id, proposalId: first.drafted[0]?.proposalId }]);
 
     // The next cycle finds the same thing while the first proposal is still pending: no second proposal.
     const next = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-09' });

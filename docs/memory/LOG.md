@@ -4,6 +4,28 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-14 — M09a built ahead of the Phase 0 gate (Telegram proposal cards, edit_approve, alerts) and code-reviewed
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)
+- **Did:**
+  - Marcus asked for M09a; asked about the gate, he chose to build it now (D-084).
+  - Migration `0006` `telegram_conversations` (bot state per chat, 10 minutes).
+  - `edit_approve` in the processor (`applyEdit`: a new version, approved at once, with the eval case).
+  - Proposal cards: queued by the draft stage, rendered from the DB, Approve / Reject (reason) / Edit (grammar), re-rendered after each decision; message polling; `ads proposals edit` (moved here from M08).
+  - Alerts: trust check failed, drift on a pending proposal's entity, a scheduled cycle failed on its last attempt; one per alert and cycle.
+  - Code review (high): 10 points, 8 fixed (see the milestone file's Notes).
+- **Decided:** D-084 (Marcus), D-085 (build choices). BLUEPRINT v3.22.
+- **Learned:** GOTCHAS: Telegram refuses an edit to identical content (400 "message is not modified"); the card refresh only logs it.
+- **Next:** Marcus reviews PR #15 (merge when he says, after CI). Then the Phase 0 live checklist; M09b waits for the gate unless Marcus says otherwise.
+- **Open:** Q13; setup tasks; live steps M00–M08 and now M09a's (after M07's deploy and the gate).
+
+## 2026-10-13 — PR #14 (M08) merged
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "we can merge"; squash-merged PR #14 on his instruction (D-057).
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus works through the Phase 0 checklist; the next session records live-step results. M09a waits for the Phase 0 gate (D-082).
+- **Open:** Q13.
+
 ## 2026-10-13 — M08 built ahead of the Phase 0 gate (draft stage, proposals, replay v0) and code-reviewed
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)
 - **Did:**

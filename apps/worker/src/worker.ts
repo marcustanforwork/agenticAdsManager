@@ -16,6 +16,7 @@ import {
 import {
   type Database,
   type Db,
+  type Job,
   type QueueRunner,
   connect,
   contendForLeadership,
@@ -215,8 +216,13 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
 
   // 3. The job runner (every replica).
   let outboxWake: (() => void) | null = null;
-  const scheduled = (kind: ScheduledJob) => async (_job: unknown, ctx: { signal: AbortSignal }) => {
-    const run = await runScheduledCycles(cycleDeps, kind, ctx.signal);
+  const scheduled = (kind: ScheduledJob) => async (job: Job, ctx: { signal: AbortSignal }) => {
+    // A failed cycle alerts on the job's last attempt only (`attempts` counts this one).
+    const run = await runScheduledCycles(
+      { ...cycleDeps, alertOnFailure: job.attempts >= job.maxAttempts },
+      kind,
+      ctx.signal,
+    );
     logger.info({ ...run }, `${kind} cycles done`);
     outboxWake?.();
     if (kind === 'daily') await ping(env['HEALTHCHECK_DAILY_SYNC_URL'], { ...pingOpts, fail: run.errors.length > 0 });

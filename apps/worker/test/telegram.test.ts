@@ -7,6 +7,7 @@ import { createRegistry } from '@ads/pack-sdk';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   type BotContext,
+  type EditOptions,
   type SendOptions,
   type TelegramApi,
   feedbackData,
@@ -83,6 +84,7 @@ function fakeApi(fail?: (text: string, other?: SendOptions) => Error | undefined
   const sent: Sent[] = [];
   const answers: (string | undefined)[] = [];
   const edits: unknown[] = [];
+  const texts: { messageId: number; text: string; other?: EditOptions }[] = [];
   const api: TelegramApi = {
     sendMessage(chatId, text, other) {
       const error = fail?.(text, other);
@@ -98,8 +100,12 @@ function fakeApi(fail?: (text: string, other?: SendOptions) => Error | undefined
       edits.push(other?.reply_markup);
       return Promise.resolve(true);
     },
+    editMessageText(_chat, messageId, text, other) {
+      texts.push({ messageId, text, ...(other === undefined ? {} : { other }) });
+      return Promise.resolve(true);
+    },
   };
-  return { api, sent, answers, edits };
+  return { api, sent, answers, edits, texts };
 }
 
 const context = (api: TelegramApi): BotContext => ({

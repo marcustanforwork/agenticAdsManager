@@ -37,6 +37,7 @@ import { type OutcomeReadSummary, syncOutcomes } from '../outcomes/sync.ts';
 import { alertInvalidSettings, assertSettingsUsable } from '../settings/settings.ts';
 import { type SyncDeps, type SyncStageResult, syncStage } from '../sync/stage.ts';
 import { type CheckResult, type TrustResult, trustStage } from './trust.ts';
+import { alertOnCycleEvent, driftOnOpenProposals } from '../alerts.ts';
 
 export interface CycleDeps extends SyncDeps {
   /** The installed packs: the sync reads each product's outcomes through its pack (M05a), and settings are
@@ -54,6 +55,9 @@ export interface CycleDeps extends SyncDeps {
   tracing?: ModelTracing | null;
   /** Tests supply the analyst's model instead of building one from the environment. */
   model?: ModelDeps['model'];
+  /** False while a failure will be retried (a scheduled job before its last attempt): a failed stage then raises no
+   *  `cycle_failed` alert, so a passing glitch doesn't alert Marcus (M09a). Default true. */
+  alertOnFailure?: boolean;
   /** Aborted at shutdown (M07): the run stops before its next stage, leaving `stage_reached` at the last finished
    *  one, and throws `CycleInterruptedError`; the next run resumes from there. */
   signal?: AbortSignal;
@@ -140,6 +144,15 @@ export const STAGES: readonly StageStep[] = [
       }
       // After both reads: the entities and click ids just synced are what outcomes are matched against.
       summary.attribution = await attributeOutcomes(deps.db, { productId: product.id, now: deps.now() });
+      // Someone changed an entity a proposal is about: the proposal may no longer make sense (M09a).
+      await alertOnCycleEvent(deps.db, {
+        productId: product.id,
+        cycleId: cycle.id,
+        event: {
+          event: 'drift',
+          onOpenProposals: await driftOnOpenProposals(deps.db, { productId: product.id, since: cycle.startedAt }),
+        },
+      });
       return {};
     },
   },
@@ -160,6 +173,17 @@ export const STAGES: readonly StageStep[] = [
           detail: c.detail,
         })),
       };
+      await alertOnCycleEvent(deps.db, {
+        productId: product.id,
+        cycleId: cycle.id,
+        event: {
+          event: 'trust_checked',
+          result,
+          failed: summary.trust.checks
+            .filter((c) => c.result === 'fail')
+            .map((c) => ({ check: c.check, account: c.account })),
+        },
+      });
       return { trustResult: result };
     },
   },
@@ -357,6 +381,28 @@ export async function resumeCycle(deps: CycleDeps, cycleId: string, until?: Cycl
   return continueCycle(deps, product, cycle, until);
 }
 
+/** Runs one stage; a failure alerts Marcus (a scheduled cycle's, on its last attempt, M09a) and is rethrown, so the
+ *  job is retried. */
+async function runStage(step: StageStep, ctx: StageContext): ReturnType<StageStep['run']> {
+  try {
+    return await step.run(ctx);
+  } catch (error) {
+    if (!(error instanceof CycleInterruptedError) && ctx.deps.alertOnFailure !== false) {
+      await alertOnCycleEvent(ctx.deps.db, {
+        productId: ctx.product.id,
+        cycleId: ctx.cycle.id,
+        event: {
+          event: 'failed',
+          kind: ctx.cycle.kind,
+          stage: step.stage,
+          error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+        },
+      }).catch(() => undefined); // the stage's own error is the one to report
+    }
+    throw error;
+  }
+}
+
 async function continueCycle(
   deps: CycleDeps,
   product: Product,
@@ -390,7 +436,7 @@ async function continueCycle(
         break;
       }
       if (deps.signal?.aborted === true) throw new CycleInterruptedError(cycle.id, cycle.stageReached);
-      const out = await next.run({ deps, product, cycle, summary });
+      const out = await runStage(next, { deps, product, cycle, summary });
       cycle = await advance(
         db,
         cycle.id,

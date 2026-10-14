@@ -1,4 +1,4 @@
-// `ads proposals …`, `ads phase …` and `ads eval replay` (M08). Reading is direct; a decision or a phase change is
+// `ads proposals …`, `ads phase …` and `ads eval replay` (M08; `ads proposals edit`, M09a). Reading is direct; a decision or a phase change is
 // an operator request (approve, reject, set_phase), recorded and processed by the one processor (invariant 9), as
 // from Telegram (M09a) or the dashboard (M10b). Phase 1 applies nothing: Marcus makes an approved change by hand.
 // Targets are shown as refs (platform ids), never names.
@@ -18,6 +18,7 @@ import { DECISION_CASES_DIR, decisionCasesFromDb, loadDecisionCases, scoreReplay
 import type { OperatorRequest, ProposalStatus, WriteOp } from '@ads/contracts';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { Command, InvalidArgumentError } from 'commander';
+import { EDIT_HELP, parseEdit } from './editGrammar.ts';
 import { cliActor } from './settings.ts';
 
 type WithDb = <T>(run: (db: Db) => Promise<T>) => Promise<T>;
@@ -98,7 +99,7 @@ async function proposalOf(db: Db, productId: string, id: string): Promise<Propos
 
 export function proposalsCommand(withDb: WithDb, requireProduct: () => string, deps: ProposalsCliDeps): Command {
   const cmd = new Command('proposals').description(
-    "list, show, approve or reject the agent's proposals (Phase 1 applies nothing: you make an approved change by " +
+    "list, show, approve, edit or reject the agent's proposals (Phase 1 applies nothing: you make an approved change by " +
       'hand in Google Ads or Meta Ads Manager). Needs DATABASE_URL',
   );
 
@@ -178,6 +179,24 @@ export function proposalsCommand(withDb: WithDb, requireProduct: () => string, d
           // The hash of the version reviewed: a newer version's action is never approved by mistake.
           actionHash: p.version === opts.version ? p.actionHash : '(changed since reviewed)',
         }),
+        requireProduct(),
+        id,
+      );
+    });
+
+  cmd
+    .command('edit')
+    .description(
+      'edit one field of a pending proposal and approve the result in one step (a new version): ' + EDIT_HELP,
+    )
+    .argument('<id>', 'the proposal id', shortId)
+    .argument('<edit...>', 'the edit, e.g. budget 45, keyword "free photos", match phrase')
+    .requiredOption('--version <n>', 'the version you reviewed', versionNumber)
+    .action(async (id: string, words: string[], opts: { version: number }) => {
+      const parsed = parseEdit(words.join(' '));
+      if (!parsed.ok) throw new InvalidArgumentError(parsed.reason);
+      await decide(
+        (p) => ({ kind: 'edit_approve', proposalId: p.id, version: opts.version, edit: parsed.edit }),
         requireProduct(),
         id,
       );

@@ -65,6 +65,7 @@ describe('the worker service', () => {
       },
       answerCallbackQuery: () => Promise.resolve(true),
       editMessageReplyMarkup: () => Promise.resolve(true),
+      editMessageText: () => Promise.resolve(true),
     };
     let polling = 0;
     const pings: string[] = [];
@@ -119,11 +120,12 @@ describe('the worker service', () => {
         ['weekly', 'done'],
       ]);
       // Telegram got the recovery note, the digest (a failed check is always sent) and the diagnostic brief, with
-      // its feedback buttons.
-      await vi.waitFor(() => expect(sent).toHaveLength(3), { timeout: 5_000, interval: 50 });
+      // its feedback buttons, and an alert for each cycle whose trust check failed (M09a).
+      await vi.waitFor(() => expect(sent).toHaveLength(5), { timeout: 5_000, interval: 50 });
       const texts = sent.map((m) => m.text).join('\n---\n');
       expect(texts).toContain('<b>The worker restarted and recovered its work</b>');
       expect(texts).toContain('cyclesResumed: 1');
+      expect(texts.split('A trust check failed: this cycle stopped before the analysis')).toHaveLength(3);
       expect(texts).toContain('<b>Service · 2026-10-11</b>');
       expect(texts).toContain('<b>Service: diagnostic brief, 2026-10-05 to 2026-10-11</b>');
       expect(sent.some((m) => m.other?.reply_markup !== undefined)).toBe(true);

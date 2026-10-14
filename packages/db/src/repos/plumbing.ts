@@ -1,6 +1,6 @@
 // Briefs, operator requests, notifications, drift events, system flags and API usage.
 import { OperatorRequest, type Platform } from '@ads/contracts';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError, RefusedError } from '../errors.ts';
 import {
@@ -165,6 +165,16 @@ export async function findCycleNotification(
   return row ?? null;
 }
 
+/** The alert queued under `key` (its payload's `key`), sent or not: an alert is raised once per key (M09a). */
+export async function findAlertNotification(db: DbOrTx, key: string): Promise<Notification | null> {
+  const [row] = await db
+    .select()
+    .from(notifications)
+    .where(and(eq(notifications.kind, 'alert'), sql`${notifications.payload} ->> 'key' = ${key}`))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function listUnsentNotifications(db: DbOrTx, limit = 50): Promise<Notification[]> {
   return db
     .select()
@@ -214,6 +224,15 @@ export async function listUnacknowledgedDrift(db: DbOrTx, productId: string): Pr
     .from(driftEvents)
     .where(and(eq(driftEvents.productId, productId), isNull(driftEvents.acknowledgedAt)))
     .orderBy(desc(driftEvents.detectedAt));
+}
+
+/** The product's drift detected at or after `since` (a cycle's sync), oldest first. */
+export async function listDriftSince(db: DbOrTx, input: { productId: string; since: Date }): Promise<DriftEvent[]> {
+  return db
+    .select()
+    .from(driftEvents)
+    .where(and(eq(driftEvents.productId, input.productId), gte(driftEvents.detectedAt, input.since)))
+    .orderBy(asc(driftEvents.detectedAt));
 }
 
 export async function acknowledgeDrift(db: DbOrTx, id: string, at: Date = new Date()): Promise<void> {

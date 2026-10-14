@@ -120,6 +120,38 @@ describe('ads proposals', () => {
   });
 });
 
+describe('ads proposals edit (M09a)', () => {
+  it('edits and approves in one step through an edit_approve request; a bad edit is refused before it is sent', async () => {
+    const product = await createProduct(t.db, {
+      slug: 'cli-edit',
+      name: 'E',
+      packId: 'test-pack',
+      settings: TEST_SETTINGS,
+    });
+    const target = { platform: 'google' as const, accountId: '5550002', type: 'campaign' as const, externalId: '9' };
+    const p = await createProposal(t.db, {
+      productId: product.id,
+      origin: 'operator',
+      action: { action: 'adjust_budget', target, newDailyBudgetMicros: '80000000', netIncrease: false },
+      undo: { action: 'adjust_budget', target, newDailyBudgetMicros: '100000000', netIncrease: true },
+      preconditionHash: 'h',
+      preconditionFields: ['dailyBudgetMicros'],
+      rationale: 'r',
+      expectedEffect: 'e',
+    });
+    const cmd = ['--product', 'cli-edit', 'proposals', 'edit', p.shortId];
+    await expect(run([...cmd, 'budget', 'lots', '--version', '1']).json()).rejects.toThrow();
+    expect(await run([...cmd, 'budget', '90', '--version', '1']).json()).toMatchObject({
+      status: 'done',
+      decision: 'approve',
+      version: 2,
+      edited: 'budget',
+    });
+    expect(await run([...cmd, 'budget', '95', '--version', '1']).json()).toMatchObject({ status: 'refused' });
+    expect(process.exitCode).toBe(1);
+  });
+});
+
 describe('ads eval replay', () => {
   it('scores the hand-written cases without a database, and the decisions in it with --product', async () => {
     expect(await run(['eval', 'replay', '--hand-written']).json()).toMatchObject({

@@ -1,8 +1,16 @@
-// The worker's Telegram bot, minimal for M07 (BLUEPRINT §5.15): it sends the notifications outbox (digests, briefs,
-// alerts) to Marcus's private chat, and handles one kind of button: the brief feedback (👍 useful / 💡 new to me),
-// recorded as a `brief_feedback` operator request through the one processor. Updates are accepted only from
-// Marcus's user id in a private chat; everything else is ignored. Only the leader polls and sends (§5.2).
-import { type RequestContext, submitRequest } from '@ads/core';
+// The worker's Telegram bot (BLUEPRINT §5.15): it sends the notifications outbox (digests, briefs, alerts, proposal
+// cards) to Marcus's private chat, and handles the buttons and replies: the brief feedback (👍 useful / 💡 new to me,
+// M07) and the proposal cards' Approve / Reject / Edit (M09a, decide.ts). Each is an operator request through the
+// one processor. Updates are accepted only from Marcus's user id in a private chat; everything else is ignored.
+// Only the leader polls and sends (§5.2).
+import {
+  ALERT_NOTIFICATION,
+  ALERT_TITLES,
+  type AlertKind,
+  PROPOSAL_NOTIFICATION,
+  type RequestContext,
+  submitRequest,
+} from '@ads/core';
 import {
   type Db,
   type Notification,
@@ -13,6 +21,8 @@ import {
   markNotificationSent,
   setNotificationProgress,
 } from '@ads/db';
+import { loadCard, parseCardData, renderCard } from './cards.ts';
+import { handleCardPress } from './decide.ts';
 import { chunkHtml, escapeHtml, markdownLiteToHtml } from './format.ts';
 
 export interface InlineButton {
@@ -22,7 +32,17 @@ export interface InlineButton {
 export interface InlineKeyboard {
   inline_keyboard: InlineButton[][];
 }
+/** Opens Telegram's reply box, so Marcus's next message answers the bot's question. */
+export interface ForceReply {
+  force_reply: true;
+  input_field_placeholder?: string;
+}
 export interface SendOptions {
+  parse_mode?: 'HTML';
+  reply_markup?: InlineKeyboard | ForceReply;
+  link_preview_options?: { is_disabled: boolean };
+}
+export interface EditOptions {
   parse_mode?: 'HTML';
   reply_markup?: InlineKeyboard;
   link_preview_options?: { is_disabled: boolean };
@@ -37,6 +57,7 @@ export interface TelegramApi {
     messageId: number,
     other?: { reply_markup?: InlineKeyboard },
   ): Promise<unknown>;
+  editMessageText(chatId: number, messageId: number, text: string, other?: EditOptions): Promise<unknown>;
 }
 
 export interface BotLogger {
@@ -87,15 +108,26 @@ export interface BotContext {
   ownerId: number;
   requests: RequestContext;
   logger?: BotLogger;
+  /** Tests: the clock for expiries and conversation states. */
+  now?: () => Date;
 }
 
-/** Handles a button press. Each press toggles that answer; the latest answer wins (`setBriefFeedback`). Returns what
- *  happened, for logs and tests. */
+/** Handles a button press: a proposal card's (decide.ts) or a brief's feedback. Returns what happened, for logs and
+ *  tests. */
 export async function handleCallback(
   ctx: BotContext,
   query: CallbackQuery,
-): Promise<'ignored' | 'unknown' | 'recorded' | 'refused'> {
+): Promise<'ignored' | 'unknown' | 'recorded' | 'refused' | 'asked'> {
   if (query.from.id !== ctx.ownerId || query.message?.chat.type !== 'private') return 'ignored';
+  if (parseCardData(query.data ?? '') !== null) return handleCardPress(ctx, query);
+  return handleFeedback(ctx, { ...query, message: query.message });
+}
+
+/** A brief's feedback button. Each press toggles that answer; the latest answer wins (`setBriefFeedback`). */
+async function handleFeedback(
+  ctx: BotContext,
+  query: CallbackQuery & { message: NonNullable<CallbackQuery['message']> },
+): Promise<'unknown' | 'recorded' | 'refused'> {
   const parsed = parseFeedbackData(query.data ?? '');
   if (parsed === null) {
     await ctx.api.answerCallbackQuery(query.id, { text: 'This button is not available any more.' });
@@ -159,6 +191,10 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
   if (n.kind === 'digest' && typeof payload['text'] === 'string') {
     return { chunks: chunkHtml(markdownLiteToHtml(payload['text'])) };
   }
+  if (n.kind === PROPOSAL_NOTIFICATION && typeof payload['proposalId'] === 'string') {
+    const { html, keyboard } = renderCard(await loadCard(db, payload['proposalId']));
+    return { chunks: chunkHtml(html), ...(keyboard === null ? {} : { keyboard }) };
+  }
   if (n.kind === 'brief' && typeof payload['briefId'] === 'string') {
     const brief = await getBrief(db, payload['briefId']);
     return {
@@ -168,14 +204,41 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
     };
   }
   const product = n.productId === null ? null : await getStoredSettings(db, n.productId);
-  const title =
-    n.kind === 'alert'
-      ? `⚠️ Alert${product === null ? '' : ` (${product.slug})`}: ${typeof payload['alert'] === 'string' ? payload['alert'] : 'unknown'}`
-      : n.kind === 'worker_recovered'
-        ? 'The worker restarted and recovered its work'
-        : `${n.kind}${product === null ? '' : ` (${product.slug})`}`;
-  const rest = Object.fromEntries(Object.entries(payload).filter(([k]) => !(n.kind === 'alert' && k === 'alert')));
-  return { chunks: chunkHtml([`<b>${escapeHtml(title)}</b>`, ...genericLines(rest)].join('\n')) };
+  const where = product === null ? '' : ` (${product.slug})`;
+  if (n.kind === ALERT_NOTIFICATION) {
+    const alert = typeof payload['alert'] === 'string' ? payload['alert'] : 'unknown';
+    const title = alert in ALERT_TITLES ? ALERT_TITLES[alert as AlertKind] : alert;
+    return {
+      chunks: chunkHtml([`<b>${escapeHtml(`⚠️ Alert${where}: ${title}`)}</b>`, ...alertLines(payload)].join('\n')),
+    };
+  }
+  const title = n.kind === 'worker_recovered' ? 'The worker restarted and recovered its work' : `${n.kind}${where}`;
+  return { chunks: chunkHtml([`<b>${escapeHtml(title)}</b>`, ...genericLines(payload)].join('\n')) };
+}
+
+/** An alert's details: the known shapes (M09a) as plain lines, anything else generically. The dedupe key is left
+ *  out. */
+function alertLines(payload: Record<string, unknown>): string[] {
+  const { alert: _alert, key: _key, failed, entities, ...rest } = payload;
+  const lines: string[] = [];
+  if (Array.isArray(failed)) {
+    for (const f of failed as { check?: unknown; account?: unknown }[]) {
+      lines.push(
+        `• ${escapeHtml(String(f.check))}${typeof f.account === 'string' ? ` (${escapeHtml(f.account)})` : ''}`,
+      );
+    }
+  }
+  if (Array.isArray(entities)) {
+    for (const e of entities as { target?: unknown; fields?: unknown; proposals?: unknown }[]) {
+      const fields = Array.isArray(e.fields) ? e.fields.join(', ') : '';
+      const proposals = Array.isArray(e.proposals) ? e.proposals.join(', ') : '';
+      lines.push(
+        `• <code>${escapeHtml(String(e.target))}</code>: ${escapeHtml(fields)} changed; pending: ${escapeHtml(proposals)}`,
+      );
+    }
+    lines.push('Check those proposals before deciding them; the next cycle drafts from the new state.');
+  }
+  return [...lines, ...genericLines(rest)];
 }
 
 /** Telegram refused the message itself (bad markup, too long): retrying the same text won't help. */

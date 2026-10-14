@@ -673,3 +673,27 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M08 needed these choices; the registry's phase numbers contradicted Phase 1's purpose.
 - **Instead of:** drafting from Phase 2 only; deciding the undo only at apply time (Marcus would see no undo on a card); hashing fields the sync doesn't have (every proposal would go stale); a separate `evals` CLI outside `ads`.
 - **See:** `docs/milestones/M08-draft-proposals-replay.md` · BLUEPRINT §3.6, §5.11, M08
+
+### D-084 — Build M09a before the Phase 0 gate
+- **When / who / status:** 2026-10-14 · Marcus · adopted. He asked to start M09a; asked whether to build it now (like M08, D-082) or wait for the gate, he chose "build it now".
+- **Decision:**
+  - M09a (Telegram bot core and proposal cards) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082 did for M08. M09b onwards still wait for the gate unless Marcus says otherwise.
+  - The gate still counts for going live: the stored phase stays 0 on production until Marcus records the gate, so nothing is drafted and no proposal cards are sent. The new alerts (a trust check failed, drift on an entity with an open proposal, a cycle failed) do go to Telegram once M07 is live; they are useful in Phase 0 too.
+- **Why:** the live checklist and the 4-week gate take calendar time; building ahead uses it. M09a changes no ad account.
+- **Risk:** as D-082: live-step fixes may touch code M09a builds on; if the gate fails, M09a may need rework.
+- **Supersedes:** D-082's line "Later Phase 1 parts (M09a onwards) still wait for the gate" (only for M09a).
+- **See:** BLUEPRINT M09a · `docs/milestones/M09a-telegram-bot-cards.md`
+
+### D-085 — M09a build choices: proposal cards, edit_approve, the conversation table, alerts
+- **When / who / status:** 2026-10-14 · Claude (build choices within the plan) · adopted
+- **Decision:**
+  - **Cards.** The draft stage queues a `proposal` notification with each new proposal, in one transaction (a resumed stage leaves no proposal without its card). The bot renders the card from the database when it sends it, and again after each decision: the target (its name, escaped, plus its ref), before → after, the evidence window and totals, the drafter's number-checked words, the expiry in the product's timezone and the status. Buttons only while it is pending and unexpired.
+  - **Callback data** `v1:approve|reject|edit:<shortId>:<version>` (at most 30 bytes). A press on an older version's card is refused by the processor (approve) or answered "out of date" (reject, edit), and the card is refreshed to the current version.
+  - **Conversations.** Reject and Edit ask for a reply with Telegram's force-reply. The state lives in a new global table `telegram_conversations` (migration `0006`), one row per chat, 10 minutes; `/cancel` ends it; a reply that doesn't parse asks again. The dashboard role may not read it.
+  - **`edit_approve`** is edit-and-approve in one transaction: a new version (the old one stays in `proposal_versions`) with a recomputed planned undo and the **same precondition** (the edit doesn't change the state the change was based on), then an approval bound to the new version and hash, and the eval case (`approve`, reason "edited (<field>) and approved"). Refused: an edit that doesn't fit the action, changes nothing, or (budget) isn't in 0.01 steps or moves the budget more than the product's `maxBudgetChangePct` from the budget before the change.
+  - **Edit grammar:** `budget 45` (≤ 2 decimals; `S$` and thousands commas allowed; at most 1,000,000), `keyword "free photos"` (quotes optional, ≤ 80 characters, spaces collapsed), `match exact|phrase`. The CLI `ads proposals edit <id> --version <n> <edit…>` (moved from M08) uses the same grammar and request. Nothing was cut.
+  - **Alerts** (`core/src/alerts.ts`): a routing table maps cycle events to alerts: trust result `fail` → `trust_check_failed`; drift recorded during the cycle's sync on an entity a **pending** proposal targets → `drift_on_open_proposal` (approved ones excluded: in Phase 1 Marcus makes them by hand, which is drift); a daily or weekly cycle's stage throwing on the job's **last attempt** → `cycle_failed` (not a manual run's, nor an interruption). One alert per (alert, cycle), keyed in its payload.
+  - **From the code review:** the draft stage's "already proposed" check matches any version's action hash (an edited proposal isn't drafted again); no Edit button on a pause; an approval ends an open Reject/Edit question about the same proposal; an edit racing a decision or expiry is refused, not a fault. Not changed: a budget edit isn't re-checked against the product's daily ceiling or the finding's direction (Marcus's edit is his own choice; the gateway's guards check ceilings at apply, M11a; budget proposals start in Phase 3).
+- **Why:** each is the simplest way to meet M09a's builds and tests without a new mechanism; keeping the precondition on edit keeps the fingerprint meaning "the state Marcus's decision was based on".
+- **Instead of:** separate edit and approve steps (two taps, and a window where an edited version sits unapproved); a precondition re-taken at edit time (would hide drift between drafting and the edit); alerting every degraded trust check or every drift (noise; both are in the brief).
+- **See:** BLUEPRINT M09a "As built", §4, §5.16 · `docs/milestones/M09a-telegram-bot-cards.md`

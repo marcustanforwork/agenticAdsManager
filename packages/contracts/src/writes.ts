@@ -88,6 +88,22 @@ export const WriteOp = z.discriminatedUnion('action', [
 ]);
 export type WriteOp = z.infer<typeof WriteOp>;
 
+/** The entity an action is about: its target, a create's parent; none for a conversion upload. */
+export function targetRefOf(op: WriteOp): EntityRef | null {
+  switch (op.action) {
+    case 'upload_conversions':
+      return null;
+    case 'create_entity_paused':
+      return op.parent;
+    default:
+      return op.target;
+  }
+}
+
+/** The platform an action runs on. */
+export const platformOfOp = (op: WriteOp): Platform =>
+  targetRefOf(op)?.platform ?? (op as { platform: Platform }).platform;
+
 /** Implemented only in connector-*-write packages; only the gateway depends on them. */
 export interface PlatformWriteClient {
   platform: Platform;
