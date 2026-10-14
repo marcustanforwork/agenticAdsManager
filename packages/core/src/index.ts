@@ -3,6 +3,7 @@
 export * from './requests/processor.ts';
 export * from './requests/settingsPatch.ts';
 export * from './requests/facts.ts';
+export * from './requests/edit.ts';
 export {
   HANDLERS,
   NOT_AVAILABLE_UNTIL,

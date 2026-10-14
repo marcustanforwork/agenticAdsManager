@@ -2,17 +2,19 @@
 // throws RefusedError / StaleVersionError / NotFoundError / a settings or facts error to refuse.
 // To add a kind: write its handler here, add it to HANDLERS, remove it from NOT_AVAILABLE_UNTIL, and test it
 // in test/requests.test.ts (the milestone file's "Leave behind" has the checklist).
-import type { OperatorRequest } from '@ads/contracts';
+import { type OperatorRequest, plannedUndo } from '@ads/contracts';
 import {
   PHASE,
   RefusedError,
   StaleVersionError,
   getEntity,
   getFinding,
+  getProduct,
   getPhase,
   getProposal,
   getStoredSettings,
   listAccounts,
+  newVersion,
   recordDecision,
   recordEvalCase,
   setFlag,
@@ -30,7 +32,8 @@ import {
 import { and, eq } from 'drizzle-orm';
 import type { PackRegistry } from '@ads/pack-sdk';
 import { findingRefText } from '../analyst/refs.ts';
-import { manifestOf, packGuardLayer } from '../settings/settings.ts';
+import { effectiveGuards, manifestOf, packGuardLayer } from '../settings/settings.ts';
+import { EditError, applyEdit } from './edit.ts';
 import { validateFacts } from './facts.ts';
 import { applySettingsPatch } from './settingsPatch.ts';
 
@@ -55,7 +58,6 @@ export interface HandlerContext {
 
 /** Which milestone adds the kinds this processor doesn't handle yet. */
 export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
-  edit_approve: 'M09a',
   pause: 'M09b',
   pause_all: 'M09b',
   undo: 'M09b',
@@ -163,7 +165,12 @@ const negativeTextOf = (params: unknown): string | null => {
 };
 
 /** Every decision on an agent proposal becomes eval data (M08): the finding it came from, as a ref. */
-async function recordCase(tx: Tx, proposal: ProposalRecord, decision: 'approve' | 'reject', reason: string | null) {
+async function recordCase(
+  tx: Tx,
+  proposal: ProposalRecord,
+  decision: 'approve' | 'reject',
+  reason: string | null,
+): Promise<boolean> {
   if (proposal.origin !== 'agent' || proposal.cycleId === null || proposal.findingId === null) return false;
   const finding = await getFinding(tx, proposal.findingId);
   const entities = new Map<string, AdEntity>();
@@ -189,7 +196,15 @@ async function recordCase(tx: Tx, proposal: ProposalRecord, decision: 'approve' 
 async function decide(
   tx: Tx,
   row: OperatorRequestRow,
-  input: { proposalId: string; version: number; actionHash?: string; decision: 'approve' | 'reject'; reason?: string },
+  input: {
+    proposalId: string;
+    version: number;
+    actionHash?: string;
+    decision: 'approve' | 'reject';
+    reason?: string;
+    /** The eval case's reason for an approval (an edit says what changed); a rejection's is its reason. */
+    caseReason?: string;
+  },
 ) {
   const proposal = await getProposal(tx, input.proposalId);
   const { approval, duplicate } = await recordDecision(tx, {
@@ -203,7 +218,9 @@ async function decide(
     channel: row.channel,
     requestId: row.id,
   });
-  const evalCase = duplicate ? false : await recordCase(tx, proposal, input.decision, approval.reason);
+  const evalCase = duplicate
+    ? false
+    : await recordCase(tx, proposal, input.decision, input.caseReason ?? approval.reason);
   return {
     proposal: proposal.shortId,
     version: approval.proposalVersion,
@@ -219,10 +236,62 @@ const approve: RequestHandler<RequestOf<'approve'>> = (tx, request, row) =>
 const reject: RequestHandler<RequestOf<'reject'>> = (tx, request, row) =>
   decide(tx, row, { ...request, decision: 'reject' });
 
+/** The budget the planned undo restores: the one before the change. */
+const previousBudgetOf = (proposal: ProposalRecord): bigint | null =>
+  proposal.undo?.action === 'adjust_budget' ? BigInt(proposal.undo.newDailyBudgetMicros) : null;
+
+/** edit_approve (M09a): Marcus changes one field of a pending proposal and approves the result, in one step. The
+ *  edit becomes a new version (the old one stays in proposal_versions) with its own planned undo; the approval binds
+ *  to the new version and its action hash. The precondition is the target's state when it was drafted, unchanged:
+ *  the edit doesn't change what the change was based on. */
+const editApprove: RequestHandler<RequestOf<'edit_approve'>> = async (tx, request, row, ctx) => {
+  const proposal = await getProposal(tx, request.proposalId);
+  if (proposal.status !== 'pending')
+    throw new RefusedError(`proposal ${proposal.shortId} is ${proposal.status}, not pending`);
+  if (proposal.version !== request.version) throw new StaleVersionError('proposal', request.version, proposal.version);
+  if (proposal.expiresAt.getTime() <= Date.now()) throw new RefusedError(`proposal ${proposal.shortId} has expired`);
+  const product = await getProduct(tx, proposal.productId);
+  const previous = previousBudgetOf(proposal);
+  let action;
+  try {
+    action = applyEdit(proposal.action, request.edit, {
+      previousDailyBudgetMicros: previous,
+      guards: effectiveGuards(product.settings, manifestOf(ctx.packs, product.packId), platformOf(proposal.action)),
+    });
+  } catch (error) {
+    if (error instanceof EditError) throw new RefusedError(error.message);
+    throw error;
+  }
+  const edited = await newVersion(tx, {
+    proposalId: proposal.id,
+    baseVersion: proposal.version,
+    action,
+    undo: plannedUndo(action, { dailyBudgetMicros: previous === null ? null : previous.toString() }),
+    preconditionHash: proposal.preconditionHash,
+    requestId: row.id,
+  });
+  const decided = await decide(tx, row, {
+    proposalId: edited.id,
+    version: edited.version,
+    actionHash: edited.actionHash,
+    decision: 'approve',
+    caseReason: `edited (${request.edit.field}) and approved`,
+  });
+  return { ...decided, edited: request.edit.field, previousVersion: proposal.version };
+};
+
+const platformOf = (action: ProposalRecord['action']) =>
+  action.action === 'upload_conversions'
+    ? action.platform
+    : action.action === 'create_entity_paused'
+      ? action.parent.platform
+      : action.target.platform;
+
 export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
   set_phase: setPhase,
   approve,
   reject,
+  edit_approve: editApprove,
   halt,
   resume_agent: resumeAgent,
   settings_patch: settingsPatch,
