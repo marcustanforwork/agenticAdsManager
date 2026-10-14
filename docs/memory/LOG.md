@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-14 — PR #15 (M09a) merged
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge the PR once CI passes"; squash-merged PR #15 on his instruction (D-057).
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus works through the Phase 0 checklist; the next session records live-step results. M09b waits for the Phase 0 gate (D-084).
+- **Open:** Q13.
+
 ## 2026-10-14 — M09a built ahead of the Phase 0 gate (Telegram proposal cards, edit_approve, alerts) and code-reviewed
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)
 - **Did:**

@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-14 · cloud session · **M09a built and code-reviewed, awaiting Marcus's review** in PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (built before the Phase 0 gate, D-084). Earlier: **M08 squash-merged into `main` through PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)** on Marcus's instruction, after every check passed (D-057). M08 was built ahead of the Phase 0 gate (D-082). Marcus's Phase 0 to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (his ticks are in its `progress` collection: read them with `ArtifactData` `list`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
+**Last updated:** 2026-10-14 · cloud session · **M09a squash-merged into `main` through PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)** on Marcus's instruction, after every check passed (D-057). M08 (PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)) and M09a were both built ahead of the Phase 0 gate (D-082, D-084). Marcus's Phase 0 to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (his ticks are in its `progress` collection: read them with `ArtifactData` `list`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
 
 ## Where we are
 - **Phase:** 0.
@@ -18,13 +18,12 @@
    - do the setup tasks: T1's optional part, then T2–T9 (T7 Telegram and T8 healthchecks are M07's), then the rest as the milestones need them;
    - run the live steps below in milestone order, M00 → M07, then M08's step 1 (migration `0005`; nothing visible changes); M07's live steps deploy to production on the SER9.
 2. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus records it and sets phase 1 (`ads phase set 1`, D-082); M08's live steps and the Phase 1 measuring start then.
-3. **Marcus:** review PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (M09a) and say when to merge (after CI, D-057).
-4. **Claude (next session):** read the checklist's ticks (`ArtifactData` `list`, collection `progress`), record live-step results in the milestone files and fix what they find. No new milestone until the gate passes (M09b needs it), unless Marcus says otherwise.
-5. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
-6. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
+3. **Claude (next session):** read the checklist's ticks (`ArtifactData` `list`, collection `progress`), record live-step results in the milestone files and fix what they find. No new milestone until the gate passes (M09b needs it), unless Marcus says otherwise.
+4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
+5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- **M09a** on `claude/elegant-goodall-ursfd8`, PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15): built, all checks green locally; waiting for Marcus's review.
+- Nothing. PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (M09a) was squash-merged into `main` on 2026-10-14.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -140,7 +139,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 | M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting live acceptance** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (merged) | Live: analysed cycle, findings, trace, property case with the real model |
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | **awaiting live acceptance** | [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (merged) | Live: deploy on the SER9, 7 days unattended (needs T7, T8) |
 | M08 | Draft stage, proposals, replay v0 | 1 | **awaiting live acceptance** | [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14) (merged) | Built before the gate (D-082); live: migrate now, the rest after the gate |
-| M09a | Telegram bot core and proposal cards | 1 | **awaiting live acceptance** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) | Built before the gate (D-084); live: migrate now, cards after the gate |
+| M09a | Telegram bot core and proposal cards | 1 | **awaiting live acceptance** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (merged) | Built before the gate (D-084); live: migrate now, cards after the gate |
 | M09b | Telegram operator commands | 1 | not started | — | |
 | M10a | Dashboard: app, sign-in, settings | 1 | not started | — | T10 (Vercel Pro, Cloudflare) |
 | M10b | Dashboard: review views | 1 | not started | — | |
