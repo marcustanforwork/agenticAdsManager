@@ -673,3 +673,13 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** building M08 needed these choices; the registry's phase numbers contradicted Phase 1's purpose.
 - **Instead of:** drafting from Phase 2 only; deciding the undo only at apply time (Marcus would see no undo on a card); hashing fields the sync doesn't have (every proposal would go stale); a separate `evals` CLI outside `ads`.
 - **See:** `docs/milestones/M08-draft-proposals-replay.md` · BLUEPRINT §3.6, §5.11, M08
+
+### D-084 — Build M09a before the Phase 0 gate
+- **When / who / status:** 2026-10-14 · Marcus · adopted. He asked to start M09a; asked whether to build it now (like M08, D-082) or wait for the gate, he chose "build it now".
+- **Decision:**
+  - M09a (Telegram bot core and proposal cards) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082 did for M08. M09b onwards still wait for the gate unless Marcus says otherwise.
+  - The gate still counts for going live: the stored phase stays 0 on production until Marcus records the gate, so nothing is drafted and no proposal cards are sent. The new alerts (a trust check failed, drift on an entity with an open proposal, a cycle failed) do go to Telegram once M07 is live; they are useful in Phase 0 too.
+- **Why:** the live checklist and the 4-week gate take calendar time; building ahead uses it. M09a changes no ad account.
+- **Risk:** as D-082: live-step fixes may touch code M09a builds on; if the gate fails, M09a may need rework.
+- **Supersedes:** D-082's line "Later Phase 1 parts (M09a onwards) still wait for the gate" (only for M09a).
+- **See:** BLUEPRINT M09a · `docs/milestones/M09a-telegram-bot-cards.md`
