@@ -3,7 +3,14 @@
 // M07) and the proposal cards' Approve / Reject / Edit (M09a, decide.ts). Each is an operator request through the
 // one processor. Updates are accepted only from Marcus's user id in a private chat; everything else is ignored.
 // Only the leader polls and sends (§5.2).
-import { PROPOSAL_NOTIFICATION, type RequestContext, submitRequest } from '@ads/core';
+import {
+  ALERT_NOTIFICATION,
+  ALERT_TITLES,
+  type AlertKind,
+  PROPOSAL_NOTIFICATION,
+  type RequestContext,
+  submitRequest,
+} from '@ads/core';
 import {
   type Db,
   type Notification,
@@ -197,14 +204,41 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
     };
   }
   const product = n.productId === null ? null : await getStoredSettings(db, n.productId);
-  const title =
-    n.kind === 'alert'
-      ? `⚠️ Alert${product === null ? '' : ` (${product.slug})`}: ${typeof payload['alert'] === 'string' ? payload['alert'] : 'unknown'}`
-      : n.kind === 'worker_recovered'
-        ? 'The worker restarted and recovered its work'
-        : `${n.kind}${product === null ? '' : ` (${product.slug})`}`;
-  const rest = Object.fromEntries(Object.entries(payload).filter(([k]) => !(n.kind === 'alert' && k === 'alert')));
-  return { chunks: chunkHtml([`<b>${escapeHtml(title)}</b>`, ...genericLines(rest)].join('\n')) };
+  const where = product === null ? '' : ` (${product.slug})`;
+  if (n.kind === ALERT_NOTIFICATION) {
+    const alert = typeof payload['alert'] === 'string' ? payload['alert'] : 'unknown';
+    const title = alert in ALERT_TITLES ? ALERT_TITLES[alert as AlertKind] : alert;
+    return {
+      chunks: chunkHtml([`<b>${escapeHtml(`⚠️ Alert${where}: ${title}`)}</b>`, ...alertLines(payload)].join('\n')),
+    };
+  }
+  const title = n.kind === 'worker_recovered' ? 'The worker restarted and recovered its work' : `${n.kind}${where}`;
+  return { chunks: chunkHtml([`<b>${escapeHtml(title)}</b>`, ...genericLines(payload)].join('\n')) };
+}
+
+/** An alert's details: the known shapes (M09a) as plain lines, anything else generically. The dedupe key is left
+ *  out. */
+function alertLines(payload: Record<string, unknown>): string[] {
+  const { alert: _alert, key: _key, failed, entities, ...rest } = payload;
+  const lines: string[] = [];
+  if (Array.isArray(failed)) {
+    for (const f of failed as { check?: unknown; account?: unknown }[]) {
+      lines.push(
+        `• ${escapeHtml(String(f.check))}${typeof f.account === 'string' ? ` (${escapeHtml(f.account)})` : ''}`,
+      );
+    }
+  }
+  if (Array.isArray(entities)) {
+    for (const e of entities as { target?: unknown; fields?: unknown; proposals?: unknown }[]) {
+      const fields = Array.isArray(e.fields) ? e.fields.join(', ') : '';
+      const proposals = Array.isArray(e.proposals) ? e.proposals.join(', ') : '';
+      lines.push(
+        `• <code>${escapeHtml(String(e.target))}</code>: ${escapeHtml(fields)} changed; open: ${escapeHtml(proposals)}`,
+      );
+    }
+    lines.push('Check those proposals before deciding them; the next cycle drafts from the new state.');
+  }
+  return [...lines, ...genericLines(rest)];
 }
 
 /** Telegram refused the message itself (bad markup, too long): retrying the same text won't help. */

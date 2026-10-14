@@ -531,3 +531,47 @@ describe('messages without a conversation', () => {
     expect(sent.at(-1)?.text).toBe('Nothing to cancel.');
   });
 });
+
+describe('alerts in Telegram', () => {
+  it('show the alert title and its details as plain lines', async () => {
+    const w = await world();
+    await enqueueNotification(t.db, {
+      productId: w.product.id,
+      kind: 'alert',
+      payload: {
+        alert: 'drift_on_open_proposal',
+        key: 'drift_on_open_proposal:c1',
+        cycleId: 'c1',
+        entities: [{ target: 'google:1:campaign:<8>', fields: ['status'], proposals: ['abcdefgh'] }],
+      },
+    });
+    await enqueueNotification(t.db, {
+      productId: w.product.id,
+      kind: 'alert',
+      payload: {
+        alert: 'trust_check_failed',
+        key: 'k2',
+        cycleId: 'c2',
+        failed: [{ check: 'data_fresh', account: 'meta:act_1' }],
+      },
+    });
+    const { api, sent } = fakeApi();
+    await sendOutbox(botFor(api));
+    const texts = sent.map((s) => s.text);
+    expect(texts).toContainEqual(
+      [
+        `<b>⚠️ Alert (${w.product.slug}): Someone changed an ad entity that has an open proposal</b>`,
+        '• <code>google:1:campaign:&lt;8&gt;</code>: status changed; open: abcdefgh',
+        'Check those proposals before deciding them; the next cycle drafts from the new state.',
+        'cycleId: c1',
+      ].join('\n'),
+    );
+    expect(texts).toContainEqual(
+      [
+        `<b>⚠️ Alert (${w.product.slug}): A trust check failed: this cycle stopped before the analysis</b>`,
+        '• data_fresh (meta:act_1)',
+        'cycleId: c2',
+      ].join('\n'),
+    );
+  });
+});
