@@ -3,6 +3,7 @@
 // consumer per bot).
 import { Api, Bot } from 'grammy';
 import { type BotContext, type TelegramApi, handleCallback } from './bot.ts';
+import { handleMessage } from './decide.ts';
 
 export function grammyApi(token: string): TelegramApi {
   const api = new Api(token);
@@ -10,19 +11,25 @@ export function grammyApi(token: string): TelegramApi {
     sendMessage: (chatId, text, other) => api.sendMessage(chatId, text, other),
     answerCallbackQuery: (id, other) => api.answerCallbackQuery(id, other),
     editMessageReplyMarkup: (chatId, messageId, other) => api.editMessageReplyMarkup(chatId, messageId, other),
+    editMessageText: (chatId, messageId, text, other) => api.editMessageText(chatId, messageId, text, other),
   };
 }
 
-/** Starts long polling for button presses only. Other updates (messages, commands) arrive in M09. */
+/** Starts long polling for button presses and text messages (the replies a card asks for). Anything else is not
+ *  even fetched (`allowed_updates`). */
 export function startGrammyPolling(token: string, ctx: BotContext): { stop(): Promise<void> } {
   const bot = new Bot(token);
   bot.on('callback_query:data', async (c) => {
     const outcome = await handleCallback(ctx, c.callbackQuery);
     ctx.logger?.info({ outcome }, 'button press handled');
   });
+  bot.on('message:text', async (c) => {
+    const outcome = await handleMessage(ctx, c.message);
+    ctx.logger?.info({ outcome }, 'message handled');
+  });
   bot.catch((err) => ctx.logger?.error({ err: err.error }, 'Telegram update failed'));
   bot
-    .start({ allowed_updates: ['callback_query'] })
+    .start({ allowed_updates: ['callback_query', 'message'] })
     .catch((err: unknown) => ctx.logger?.error({ err }, 'Telegram polling stopped with an error'));
   return { stop: () => bot.stop() };
 }

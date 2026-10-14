@@ -10,6 +10,7 @@ import {
   type Finding,
   type Product,
   createProposal,
+  enqueueNotification,
   defaultExpiry,
   expireDue,
   findOpenProposalByAction,
@@ -37,6 +38,9 @@ import {
   drafterPrompt,
   templateWords,
 } from './rationale.ts';
+
+/** The outbox kind of a proposal card (the worker's bot renders it with buttons, M09a). */
+export const PROPOSAL_NOTIFICATION = 'proposal';
 
 export interface DraftDeps {
   db: DbOrTx;
@@ -190,20 +194,30 @@ export async function draftStage(deps: DraftDeps, product: Product, cycleId: str
     const ai = words.get(p.words.key);
     const text = ai ?? templateWords(p.words, ctx);
     const precondition = preconditionOf(p.action, p.entity);
-    const proposal = await createProposal(deps.db, {
-      productId: product.id,
-      cycleId,
-      findingId: p.finding.id,
-      origin: 'agent',
-      action: p.action,
-      undo: plannedUndo(p.action, {
-        dailyBudgetMicros: p.entity.dailyBudgetMicros === null ? null : p.entity.dailyBudgetMicros.toString(),
-      }),
-      preconditionHash: precondition.hash,
-      preconditionFields: precondition.fields,
-      rationale: text.rationale,
-      expectedEffect: text.expectedEffect,
-      expiresAt: defaultExpiry(p.action, now),
+    // The proposal and its card notification together: a resumed stage skips a drafted finding, so the card must
+    // not be left behind.
+    const proposal = await deps.db.transaction(async (tx) => {
+      const created = await createProposal(tx, {
+        productId: product.id,
+        cycleId,
+        findingId: p.finding.id,
+        origin: 'agent',
+        action: p.action,
+        undo: plannedUndo(p.action, {
+          dailyBudgetMicros: p.entity.dailyBudgetMicros === null ? null : p.entity.dailyBudgetMicros.toString(),
+        }),
+        preconditionHash: precondition.hash,
+        preconditionFields: precondition.fields,
+        rationale: text.rationale,
+        expectedEffect: text.expectedEffect,
+        expiresAt: defaultExpiry(p.action, now),
+      });
+      await enqueueNotification(tx, {
+        productId: product.id,
+        kind: PROPOSAL_NOTIFICATION,
+        payload: { cycleId, proposalId: created.id },
+      });
+      return created;
     });
     summary.drafted.push({
       proposalId: proposal.id,

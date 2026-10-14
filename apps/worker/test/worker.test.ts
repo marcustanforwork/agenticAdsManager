@@ -65,6 +65,7 @@ describe('the worker service', () => {
       },
       answerCallbackQuery: () => Promise.resolve(true),
       editMessageReplyMarkup: () => Promise.resolve(true),
+      editMessageText: () => Promise.resolve(true),
     };
     let polling = 0;
     const pings: string[] = [];
