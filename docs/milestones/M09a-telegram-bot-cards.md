@@ -6,7 +6,7 @@
 | **Phase** | 1 |
 | **Started** | 2026-10-14 |
 | **Finished** | 2026-10-14 (cloud part) |
-| **PRs** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) |
+| **PRs** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (merged 2026-10-14) |
 
 ## Goal
 Marcus can decide proposals from his phone, safely.
