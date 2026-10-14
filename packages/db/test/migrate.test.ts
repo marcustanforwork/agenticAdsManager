@@ -44,6 +44,7 @@ describe('migration and roles', () => {
       'search_terms',
       'settings_history',
       'system_flags',
+      'telegram_conversations',
       'trust_checks',
     ]);
   });

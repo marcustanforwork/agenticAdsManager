@@ -92,6 +92,7 @@ describe('agent_dashboard', () => {
   it('cannot read credentials, their audit, or hashed contacts, and cannot change anything else', async () => {
     expect(await as('agent_dashboard', 'select * from credentials')).toBe('denied');
     expect(await as('agent_dashboard', 'select * from credential_access')).toBe('denied');
+    expect(await as('agent_dashboard', 'select * from telegram_conversations')).toBe('denied');
     expect(await as('agent_dashboard', 'select hashed_contact from outcomes')).toBe('denied');
     expect(await as('agent_dashboard', `update proposals set status = 'approved'`)).toBe('denied');
     expect(await as('agent_dashboard', `update operator_requests set status = 'done'`)).toBe('denied');

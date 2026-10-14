@@ -717,6 +717,15 @@ export const systemFlags = pgTable('system_flags', {
   requestId: uuid('request_id'),
 });
 
+/** GLOBAL. The Telegram bot's conversation state, one row per chat (BLUEPRINT §5.15), e.g. waiting for a reject
+ *  reason. A state past `expires_at` (10 minutes after it was set) counts as no state. */
+export const telegramConversations = pgTable('telegram_conversations', {
+  chatId: bigint('chat_id', { mode: 'number' }).primaryKey(),
+  state: jsonb('state').notNull(),
+  expiresAt: tstz('expires_at').notNull(),
+  updatedAt: tstz('updated_at').notNull().defaultNow(),
+});
+
 /** GLOBAL quota accounting. */
 export const apiUsage = pgTable(
   'api_usage',

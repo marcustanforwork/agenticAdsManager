@@ -41,3 +41,4 @@ grant insert, update on api_usage to agent_gateway;                    -- counts
 grant select on all tables in schema public to agent_dashboard;
 revoke select on credentials, credential_access, outcomes from agent_dashboard;
 grant insert on operator_requests to agent_dashboard;
+revoke select on telegram_conversations from agent_dashboard;   -- the bot's own state (M09a)
