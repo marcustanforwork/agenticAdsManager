@@ -8,17 +8,17 @@ None of these block milestone **M00**. Each question says what it blocks.
 
 ## Open
 
-### Q13 — Google sign-in for the agent: two service accounts, or two Google logins? · asked 2026-10-02
+None.
+
+## Answered
+
+### Q13 — Google sign-in for the agent: two service accounts, or two Google logins? · asked 2026-10-02 · answered 2026-10-19
 **Why now:** Google changed API access in September 2026 (D-070), and your T5 setup depends on this. Nothing else is blocked: M03 built both sign-in types (D-073). Since the setup waits until the end of Phase 0 (D-074), you can answer this then.
 **Options:**
 - **A. Two service accounts (recommended, D-071).** Robot identities you create in the Google Cloud project and add to the manager account as users: `ads-agent-read` (Read only) and `ads-agent-write` (Standard). No passwords, passkeys or expiring sign-ins. You download a key file for each and load it into the agent's vault in the M03 live steps.
 - **B. Two Google logins (D-046 as written).** Two normal Google accounts, each with a passkey, given Read only and Standard access; the agent keeps a sign-in (refresh token) for each. The Cloud project also needs an OAuth app published "In production", or the sign-ins expire after 7 days.
 **Recommendation:** A. It's simpler, and nothing expires. If Google's upload API (M13) turns out not to accept service accounts, we add one Google login for uploads only, then.
-**Answer:** _waiting_
-
----
-
-## Answered
+**Answer (Marcus, 2026-10-19):** "A". → **D-071 adopted**: two service accounts, `ads-agent-read` (Read only) and `ads-agent-write` (Standard), each with a key file loaded into the vault.
 
 ### Q1 — Do you accept the v3 recommendations? · answered 2026-09-25
 **Answer (Marcus):** "looks okay to me". → D-039 to D-053 **adopted**. D-050 was already replaced by D-054, and D-047 was then replaced by D-060 after Q3.

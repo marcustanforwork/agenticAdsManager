@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.26 — 2026-10-19 (M10a built before the Phase 0 gate, D-088; as built, D-089) |
+| **Version** | v3.28 — 2026-10-19 (M10b is built before the Phase 0 gate, D-090; Q13 answered: service accounts, D-071) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1526,7 +1526,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 **Builds:**
 1. Transport and sign-in (D-070, D-071, D-072):
    - a small REST client on `fetch`, like M02's `GraphClient`: `googleAds:searchStream` for reads; the API version pinned in one constant; **no developer token**;
-   - one token-provider interface; the credential comes from the vault (`read` role): the **Read only** service account's key file (D-071, if Q13 approves it), or the read-only Google login's refresh token plus the OAuth client from Doppler (D-046). The token exchange happens outside the recorded `fetch`;
+   - one token-provider interface; the credential comes from the vault (`read` role): the **Read only** service account's key file (D-071, adopted in Q13), or (kept as a fallback, D-073) a Google login's refresh token plus the OAuth client from Doppler (D-046). The token exchange happens outside the recorded `fetch`;
    - the manager account's id in the `login-customer-id` header (decide where it's stored, e.g. a nullable `accounts` column via the `db-migration` skill);
    - resolution from manager account to client account.
 2. Read methods:
@@ -2021,7 +2021,7 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
 ---
 
 ### M10b — Dashboard: review views
-**Phase 1 · Size ~400k · Needs:** M10a
+**Phase 1 · Size ~400k · Needs:** M10a. Built before the Phase 0 gate (D-090); its live steps wait for M07's deploy and the gate.
 
 **Goal:** review everything the agent has done, and act on proposals, from a screen.
 
