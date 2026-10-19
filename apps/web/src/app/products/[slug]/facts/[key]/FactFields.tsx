@@ -43,7 +43,12 @@ export function FactFields({
         return (
           <label>
             {caption}, one per line
-            <textarea name={field} defaultValue={items.map(asText).join('\n')} />
+            <textarea
+              name={field}
+              defaultValue={items
+                .map((v) => (node.item.kind === 'text' && node.item.money ? microsToInput(asText(v)) : asText(v)))
+                .join('\n')}
+            />
           </label>
         );
       }
@@ -97,6 +102,7 @@ export function FactFields({
     case 'boolean':
       return (
         <label>
+          <input type="hidden" name={`${field}.__shown`} value="1" />
           <input type="checkbox" name={field} defaultChecked={value === true} /> {caption}
         </label>
       );

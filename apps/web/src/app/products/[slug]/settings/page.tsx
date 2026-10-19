@@ -254,10 +254,7 @@ function Status({ product }: { product: ProductView }) {
           ['dormant', 'Make dormant (no scheduled cycles)'],
         ]
       : product.status === 'halted'
-        ? [
-            ['resume', 'Resume the agent'],
-            ['dormant', 'Make dormant'],
-          ]
+        ? [['resume', 'Resume the agent']] // only resume un-halts (a halt may be the gateway's)
         : [['active', 'Make active (scheduled cycles start)']];
   return (
     <section className="card">

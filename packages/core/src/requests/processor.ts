@@ -63,12 +63,14 @@ const refused = (reason: string, extra: RequestResult = {}): RequestOutcome => (
 });
 
 /** Binds the actor to who inserted the row (D-068, M10a). A role that can update requests (the worker, the owner
- *  running a CLI) may record any channel; any other role (the dashboard's, which can only insert the request
- *  columns, roles.sql) may record only web requests. `inserted_by` is set by the database (`current_user`), never
- *  by the dashboard. An inserting role that no longer exists counts as untrusted. */
+ *  running a CLI) may record any channel; any other role may record only web requests. A role that has the
+ *  dashboard's privileges (inherits agent_dashboard) is never trusted, even if it can do more (a login created with
+ *  extra privileges), unless it's a superuser. `inserted_by` is set by the database (`current_user`), never by the
+ *  dashboard (roles.sql). An inserting role that no longer exists counts as untrusted. */
 async function insertedByTrustedRole(tx: Tx, insertedBy: string): Promise<boolean> {
   const { rows } = await tx.execute<{ trusted: boolean }>(
     sql`select coalesce((select has_table_privilege(r.oid, 'operator_requests', 'UPDATE')
+                                and (r.rolsuper or not pg_has_role(r.oid, 'agent_dashboard', 'USAGE'))
                            from pg_roles r where r.rolname = ${insertedBy}), false) as trusted`,
   );
   return rows[0]?.trusted === true;

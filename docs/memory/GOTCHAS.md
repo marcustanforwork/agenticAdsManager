@@ -23,6 +23,9 @@ Things that surprised us, and external facts the plan depends on.
 - **Project hooks load at session start.** Edits to `.claude/settings.json` take effect in the *next* session. *(2026-09-25)*
 - **Vercel functions are short-lived and reach Neon through the pooler,** so they can't use LISTEN. The dashboard polls `operator_requests` for results instead (BLUEPRINT M10a). *(design note, 2026-09-25)*
 - **Postgres row locks need UPDATE rights:** `SELECT … FOR UPDATE` (and `FOR SHARE`) fails with 42501 for a role that may only SELECT the table. Use `pg_advisory_xact_lock` to serialise work on a read-only table (e.g. the worker on `change_log`). *(2026-09-25, D-067)*
+- **Next.js (Turbopack) bundles workspace packages even when listed in `serverExternalPackages`, and resolves `new URL('../x', import.meta.url)` as an asset** (a directory fails the build). `@ads/db` builds its migration paths with `path.join` for that reason (M10a). *(2026-10-19)*
+- **React 19 resets a form after its action runs,** so a refused form loses what was typed unless the action returns the values and the fields re-mount from them (the fact editor does this). *(M10a, 2026-10-19)*
+- **The dashboard's database login must be created with SQL** (`create role … login password …; grant agent_dashboard to …`), so that it has `agent_dashboard`'s privileges only. **UNVERIFIED:** whether a role created in the Neon console gets extra privileges through `neon_superuser`. The processor refuses non-web rows from any role that inherits `agent_dashboard`, but extra write privileges would get around the column grants. Check with `\du` in the M10a live steps. *(2026-10-19)*
 - **drizzle-kit resolves imports with Node's resolver,** without our `@ads/source` condition, so `db:generate` sets `NODE_OPTIONS=--conditions=@ads/source` (schema.ts imports contracts). *(2026-09-25)*
 
 ## External facts (checked 2026-09-25)

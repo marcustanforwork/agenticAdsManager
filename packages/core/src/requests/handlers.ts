@@ -89,9 +89,13 @@ const resumeAgent: RequestHandler<RequestOf<'resume_agent'>> = async (tx, reques
   return { resumed };
 };
 
-/** set_product_status (M10a): any status → active or dormant. Returns the status before and after. */
+/** set_product_status (M10a): active ↔ dormant. A halted product is refused: only resume_agent un-halts it (a
+ *  halt may be the gateway's, on a change that needs attention). Returns the status before and after. */
 const setProductStatusHandler: RequestHandler<RequestOf<'set_product_status'>> = async (tx, request) => {
   const stored = await getStoredSettings(tx, request.productId); // unknown product → refused
+  if (stored.status === 'halted') {
+    throw new RefusedError(`${stored.slug} is halted: resume the agent first (resume_agent)`);
+  }
   if (stored.status !== request.status) await setProductStatus(tx, request.productId, request.status);
   return { product: stored.slug, from: stored.status, to: request.status };
 };

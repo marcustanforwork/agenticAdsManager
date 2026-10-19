@@ -12,11 +12,15 @@ const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typ
  *  lists are compared item by item. */
 function unknownKeys(schema: unknown, value: unknown, path: string[]): string[] {
   if (!isObject(schema)) return [];
+  // A nullable part (anyOf with null): check against the option that matches the value's shape.
+  const anyOf = schema['anyOf'];
+  if (Array.isArray(anyOf)) {
+    const want = Array.isArray(value) ? 'array' : isObject(value) ? 'object' : null;
+    const option: unknown = (anyOf as unknown[]).find((o) => isObject(o) && o['type'] === want);
+    return option === undefined ? [] : unknownKeys(option, value, path);
+  }
   if (Array.isArray(value)) {
     return value.flatMap((item, i) => unknownKeys(schema['items'], item, [...path, String(i)]));
-  }
-  for (const option of (schema['anyOf'] as unknown[] | undefined) ?? []) {
-    if (isObject(option) && option['type'] === 'object') return unknownKeys(option, value, path);
   }
   if (!isObject(value) || !isObject(schema['properties'])) return [];
   const properties = schema['properties'];

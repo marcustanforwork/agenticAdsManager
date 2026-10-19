@@ -212,6 +212,25 @@ describe('actor binding (D-068)', () => {
     expect(await getRequestStatus(t.db, viaWorker)).toMatchObject({ status: 'done' });
   });
 
+  it('a role with the dashboard’s privileges is never trusted, even if it can also update requests', async () => {
+    await t.db.execute(sql`drop role if exists ads_test_broad`);
+    await t.db.execute(sql`create role ads_test_broad nologin in role agent_dashboard, agent_worker`);
+    const p = await makeProduct();
+    const id = await t.db.transaction(async (tx) => {
+      await tx.execute(sql`set local role ads_test_broad`);
+      const r = await tx.execute<{ id: string }>(
+        sql`insert into operator_requests (kind, payload, actor, channel)
+            values ('halt', ${JSON.stringify({ kind: 'halt', productId: p.id })}::jsonb, 'telegram:1001', 'telegram')
+            returning id`,
+      );
+      return r.rows[0]?.id ?? '';
+    });
+    await processRequest(t.db, id, ctx);
+    expect(await getRequestStatus(t.db, id)).toMatchObject({ status: 'refused', result: { reason: refusedReason } });
+    await t.db.execute(sql`delete from operator_requests where inserted_by = 'ads_test_broad'`);
+    await t.db.execute(sql`drop role ads_test_broad`);
+  });
+
   it('a row whose inserting role no longer exists is treated as the dashboard', async () => {
     const p = await makeProduct();
     const { rows } = await t.db.execute<{ id: string }>(
@@ -237,6 +256,15 @@ describe('set_product_status (M10a)', () => {
       status: 'done',
       result: { from: 'dormant', to: 'active' },
     });
+    // A halted product is refused: only resume_agent un-halts it.
+    await roundTrip({ kind: 'halt', productId: p.id });
+    for (const status of ['active', 'dormant'] as const) {
+      expect(await roundTrip({ kind: 'set_product_status', productId: p.id, status })).toMatchObject({
+        status: 'refused',
+        result: { reason: `${p.slug} is halted: resume the agent first (resume_agent)` },
+      });
+    }
+    expect((await getProduct(t.db, p.id)).status).toBe('halted');
     const unknown = await t.db.transaction(async (tx) => {
       const r = await tx.execute<{ id: string }>(
         sql`insert into operator_requests (kind, payload, actor, channel) values ('set_product_status',

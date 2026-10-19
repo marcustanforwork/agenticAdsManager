@@ -265,6 +265,41 @@ describe('the fact editor', () => {
     }
   });
 
+  it('a required yes/no can be saved as no; amounts in lists are money too', () => {
+    const Flags = z.object({ freeTrial: z.boolean(), pricesMicros: z.array(z.string().regex(/^\d+$/)).optional() });
+    const schema = z.toJSONSchema(Flags, { io: 'input' }) as Record<string, unknown>;
+    const node = nodeOf(schema);
+    expect(
+      factsFromForm(
+        node,
+        form([
+          ['f:freeTrial.__shown', '1'],
+          ['f:pricesMicros', '25\nS$1,000'],
+        ]),
+      ),
+    ).toEqual({
+      freeTrial: false,
+      pricesMicros: ['25000000', '1000000000'],
+    });
+    expect(
+      factsFromForm(
+        node,
+        form([
+          ['f:freeTrial.__shown', '1'],
+          ['f:freeTrial', 'on'],
+        ]),
+      ),
+    ).toEqual({ freeTrial: true });
+  });
+
+  it('unknown keys inside a nullable list are named too', () => {
+    const schema = z.toJSONSchema(z.object({ plans: z.array(z.object({ id: z.string() })).nullable() }), {
+      io: 'input',
+    }) as Record<string, unknown>;
+    expect(jsonSchemaIssues(schema, { plans: [{ id: 'a', typo: 1 }] })).toEqual(['plans.0.typo: not a fact']);
+    expect(jsonSchemaIssues(schema, { plans: null })).toEqual([]);
+  });
+
   it('an empty form gives the required lists and objects empty, so the schema names what is missing', () => {
     const facts = factsFromForm(root, form([]));
     expect(facts).toEqual({ features: [], plans: [], pricing: {} });

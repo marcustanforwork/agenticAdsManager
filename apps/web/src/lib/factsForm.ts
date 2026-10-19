@@ -89,7 +89,8 @@ function itemIndices(f: Fields, path: readonly string[]): number[] {
  *  blank nullable field in it (a price: blank = none) would read as null. */
 function hasInput(f: Fields, prefix: string): boolean {
   for (const [name, values] of f) {
-    if (name.startsWith(prefix) && !name.endsWith('.__remove') && values.some((v) => v.trim() !== '')) return true;
+    if (!name.startsWith(prefix) || name.endsWith('.__remove') || name.endsWith('.__shown')) continue;
+    if (values.some((v) => v.trim() !== '')) return true;
   }
   return false;
 }
@@ -109,7 +110,10 @@ export function valueFromForm(node: FactNode, f: Fields, path: readonly string[]
     case 'list': {
       if (node.item.kind !== 'object' && node.item.kind !== 'list') {
         if (!f.has(name)) return undefined;
-        const items = lines(str(f, name)).map((l) => (node.item.kind === 'number' ? num(l) : l));
+        const item = node.item;
+        const items = lines(str(f, name)).map((l) =>
+          item.kind === 'number' ? num(l) : item.kind === 'text' && item.money ? moneyToMicros(l) : l,
+        );
         return items.length === 0 ? undefined : items;
       }
       const items = itemIndices(f, path)
@@ -129,7 +133,8 @@ export function valueFromForm(node: FactNode, f: Fields, path: readonly string[]
       return num(text);
     }
     case 'boolean':
-      return checked(f, name) ? true : undefined;
+      // An unticked box isn't sent; the form marks each box it showed, so unticked reads as false.
+      return checked(f, name) ? true : f.has(`${name}.__shown`) ? false : undefined;
     case 'unsupported': {
       // Edited as JSON text; text that isn't JSON is sent as typed, for the schema to refuse.
       const text = str(f, name);
