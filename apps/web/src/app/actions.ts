@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import { factsFromForm, nodeOf } from '../lib/factsForm.ts';
 import { fieldsOf, str } from '../lib/forms.ts';
 import { db, requireOperator } from '../lib/server.ts';
+import { FormError, briefFeedbackRequest, docRequest, proposalRequest, undoRequest } from '../lib/reviewForms.ts';
 import { isSection, patchFromForm } from '../lib/settingsForm.ts';
 import { getProductView } from '../lib/views.ts';
 
@@ -88,4 +89,49 @@ export async function saveFacts(prev: FactsState, form: FormData): Promise<Facts
   const issues = jsonSchemaIssues(jsonSchema, facts);
   if (issues.length > 0) return refuse(issues, facts);
   return record({ kind: 'facts_put', productId: product.id, offeringKey: str(f, 'offeringKey'), facts });
+}
+
+// ── The review screens (M10b) ─────────────────────────────────────────────────────────────────
+
+const SCREENS = ['proposals', 'changes', 'briefs', 'docs'] as const;
+
+/** Records the request a review form asks for. A form the contract rejects goes back to its screen with the reason
+ *  (the screen is named by the form; the product's slug is checked to exist, so the redirect stays on this site). */
+async function recordReview(
+  form: FormData,
+  build: (f: ReturnType<typeof fieldsOf>) => OperatorRequest,
+): Promise<never> {
+  await requireOperator();
+  const f = fieldsOf(form.entries());
+  let request: OperatorRequest;
+  try {
+    request = build(f);
+  } catch (error) {
+    if (!(error instanceof FormError)) throw error;
+    const product = await getProductView(str(f, 'slug'));
+    const screen = SCREENS.find((s) => s === str(f, 'screen'));
+    if (product === null || screen === undefined) throw error;
+    redirect(`/products/${product.slug}/${screen}?error=${encodeURIComponent(error.message)}`);
+  }
+  return record(request);
+}
+
+/** A proposal: approve, reject with a reason, or edit and approve. */
+export async function decideProposal(form: FormData): Promise<void> {
+  await recordReview(form, proposalRequest);
+}
+
+/** "Request undo" on a change in the change log. */
+export async function requestUndo(form: FormData): Promise<void> {
+  await recordReview(form, undoRequest);
+}
+
+/** A brief's feedback buttons. */
+export async function sendBriefFeedback(form: FormData): Promise<void> {
+  await recordReview(form, briefFeedbackRequest);
+}
+
+/** STRATEGY, PLAYBOOK or LEARNINGS: the next version of the document. */
+export async function saveDoc(form: FormData): Promise<void> {
+  await recordReview(form, docRequest);
 }

@@ -1,4 +1,4 @@
-// Home: the products, their status and settings version.
+// Home: the products, their status and settings version, and the way to each one's screens.
 import { listProductRows } from '../lib/views.ts';
 import { requireOperator } from '../lib/server.ts';
 
@@ -28,8 +28,9 @@ export default async function Home() {
                 <td>{p.status}</td>
                 <td>v{p.settingsVersion}</td>
                 <td>
-                  <a href={`/products/${p.slug}/settings`}>Settings</a> ·{' '}
-                  <a href={`/products/${p.slug}/history`}>History</a> · <a href={`/products/${p.slug}/facts`}>Facts</a>
+                  <a href={`/products/${p.slug}/overview`}>Overview</a> ·{' '}
+                  <a href={`/products/${p.slug}/proposals`}>Proposals</a> ·{' '}
+                  <a href={`/products/${p.slug}/settings`}>Settings</a>
                 </td>
               </tr>
             ))}

@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <a href="/" className="brand">
             Ads Agent
           </a>
-          <span className="muted">settings · every change is a request the worker checks</span>
+          <span className="muted">review and settings · every action is a request the worker checks</span>
         </header>
         <main>{children}</main>
       </body>
