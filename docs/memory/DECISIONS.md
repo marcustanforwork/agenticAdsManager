@@ -280,7 +280,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** PROPOSAL §6.12 · BLUEPRINT M15
 
 ### D-046 — Two Google logins: read-only for sync, standard for writes and uploads
-- **When / who / status:** 2026-09-25 · Claude · **adopted** (Marcus OK in Q1, 2026-09-25)
+- **When / who / status:** 2026-09-25 · Claude · adopted (Marcus OK in Q1, 2026-09-25); the identities are **superseded by D-071** (service accounts, Q13, 2026-10-19), the read/write split stays
 - **Why:** It gives a real token-level split on Google. v2 said this wasn't possible because the OAuth scope is shared.
 - **See:** PROPOSAL §6.1, §16 T5
 
@@ -502,7 +502,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** PROPOSAL §6.13, §7, §16 T5 · BLUEPRINT M03 · GOTCHAS "Google Ads API" rows
 
 ### D-071 — Two Google service accounts instead of two Google logins
-- **When / who / status:** 2026-10-02 · Claude (needs OK) · **proposed** (Q13). Supersedes D-046 if approved.
+- **When / who / status:** 2026-10-02 · Claude (needs OK) · **adopted** (Marcus answered Q13 "A", 2026-10-19). Supersedes D-046's choice of logins; its read/write split stays.
 - **Decision:** the agent signs in to Google Ads as two **service accounts** (robot identities in the Cloud project), added directly as users of the manager account (Admin → Access and security; Google has supported this since 2024-11-27): `ads-agent-read` with **Read only** access for sync, and `ads-agent-write` with **Standard** access for writes and uploads. Each one's key file goes into the vault (`read` and `write` roles), like Meta's system-user tokens. D-046's read/write split stays exactly as it is.
 - **Why:** no refresh tokens, no OAuth consent screen, no passkeys, and nothing that expires; it matches the Meta setup (system users). Google's passkey rule doesn't apply to service accounts.
 - **Risks / to verify:** whether the **Data Manager API** (conversion uploads, M13) accepts a service account (unverified; if not, the write side adds one Google login for uploads only); a Cloud *organization* created after mid-2024 may block service-account key creation by default (an org policy), which doesn't affect a project without an organization.

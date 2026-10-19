@@ -13,7 +13,7 @@ Typed, deterministic, quota-aware Google Ads reads.
 
 ## Needs
 - [ ] T5 (as rewritten for D-070): **not done yet.** Needed for the live steps only. Explorer access, which comes with enabling the Google Ads API in the Cloud project, is enough. The cloud work builds against Google's documented REST shapes with hand-written fixtures (D-072).
-- [ ] Q13 (D-071, service accounts vs logins): **open.** It only changes the sign-in piece, so both token providers are built (service-account key file, or a login's refresh token) and the credential's `type` picks one.
+- [x] Q13 (D-071, service accounts vs logins): **answered 2026-10-19: service accounts (A).** It only changes the sign-in piece, so both token providers are built (service-account key file, or a login's refresh token) and the credential's `type` picks one.
 - [x] M02: merged (PR #6). Reuse `@ads/connector-testing` and copy its fixture layout (M02 "Leave behind").
 - [ ] M01a / M00 / M02 live steps: not done yet (Marcus). They don't block M03's cloud work.
 

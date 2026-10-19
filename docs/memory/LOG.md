@@ -6,11 +6,11 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ## 2026-10-19 — PR #18 (M10a) merged; M10b approved to build ahead of the gate
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#18](https://github.com/marcustanforwork/agenticAdsManager/pull/18)
-- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "let's merge this PR first"; squash-merged PR #18 (D-057). Recorded his go-ahead for M10b (D-090; BLUEPRINT v3.27). Explained Q13.
-- **Decided:** D-090 (Marcus).
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "let's merge this PR first"; squash-merged PR #18 (D-057). Recorded his go-ahead for M10b (D-090; BLUEPRINT v3.27). Explained Q13; Marcus answered "A" → D-071 adopted (service accounts; BLUEPRINT v3.28, PROPOSAL v3.10).
+- **Decided:** D-090 (Marcus); D-071 adopted (Q13).
 - **Learned:** —
 - **Next:** a fresh session starts M10b. Marcus plans the Phase 0 setup for the weekend.
-- **Open:** Q13; the Phase 0 setup (no ticks yet).
+- **Open:** the Phase 0 setup (no ticks yet).
 
 ## 2026-10-19 — M10a built ahead of the Phase 0 gate (the dashboard: sign-in, settings), reviewed
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#18](https://github.com/marcustanforwork/agenticAdsManager/pull/18) (also carries the M09b memory note)
