@@ -9,6 +9,7 @@ import {
   type DbOrTx,
   type Finding,
   type Product,
+  countCycleProposals,
   countOutcomesByScope,
   getCycle,
   listAccounts,
@@ -102,6 +103,8 @@ export interface BriefNumbers {
   trust: { result: string | null; flagged: { check: string; result: string; account: string | null }[] };
   drift: number;
   openProposals: number;
+  /** The proposals this cycle drafted (F1), for Marcus to decide. Absent in briefs stored before F1. */
+  newProposals?: number;
   /** The agree rate over the last 3 weeks (M08, PROPOSAL §12); absent or null when there were no agent proposals,
    *  as before Phase 1. */
   agreeRate?: AgreeRate | null;
@@ -197,11 +200,12 @@ export async function buildBriefNumbers(
     sumMetricsByEntity(db, { productId: product.id, from, to, recentFrom: from }),
     getCycle(db, input.cycleId),
   ]);
-  const [findingRows, checks, drift, proposals] = await Promise.all([
+  const [findingRows, checks, drift, proposals, newProposals] = await Promise.all([
     listFindings(db, input.cycleId),
     listTrustChecks(db, input.cycleId),
     listUnacknowledgedDrift(db, product.id),
     listProposals(db, product.id, ['pending']),
+    countCycleProposals(db, { productId: product.id, cycleId: input.cycleId }),
   ]);
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const entitiesById = new Map(entities.map((e) => [e.id, e]));
@@ -311,6 +315,7 @@ export async function buildBriefNumbers(
     },
     drift: drift.length,
     openProposals: proposals.length,
+    newProposals,
     agreeRate: agree.proposals === 0 ? null : agree,
     modelCostUsd: microsToDecimal(cycle.modelCostMicros),
   };
@@ -404,6 +409,7 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
     `**${plainText(prose.headline, 300)}**`,
     '',
     ...prose.paragraphs.flatMap((p) => [p.replace(/\s*\n\s*/g, ' ').trim(), '']),
+    ...proposalLines(numbers),
     '## Numbers',
     `- Spend: ${m(spend.week)} (week before ${m(spend.previousWeek)}${pct(spend.changePct)})`,
     spend.monthlyCeiling === null
@@ -441,6 +447,18 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
   lines.push('', '## Checks', ...checkLines(numbers));
   lines.push('', `Model cost this cycle: US$${numbers.modelCostUsd}`);
   return lines.join('\n');
+}
+
+/** What the cycle proposed, and where to decide it (F1). Printed by code, so it shows whoever wrote the prose. */
+function proposalLines(numbers: BriefNumbers): string[] {
+  const n = numbers.newProposals ?? 0;
+  if (n === 0) return [];
+  return [
+    '## To decide',
+    `- This cycle proposed ${countOf(n, 'change')}. Decide ${n === 1 ? 'it' : 'them'} on ${n === 1 ? 'its card' : 'the cards'} in ` +
+      "Telegram (or /proposals), or on the dashboard's Proposals page.",
+    '',
+  ];
 }
 
 function checkLines(numbers: BriefNumbers): string[] {

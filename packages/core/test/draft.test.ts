@@ -531,6 +531,32 @@ describe('the agree rate in the weekly brief', () => {
   });
 });
 
+describe('the new proposals in the weekly brief (F1)', () => {
+  it('0 new proposals: nothing said; 2: how many, and where to decide them', async () => {
+    const { w, cycle, product, finding, deps } = await world();
+    await finding('zero_outcome_spend', await w.entity('google', 'campaign', '1'));
+    await finding('zero_outcome_spend', await w.entity('google', 'campaign', '2'));
+    const before = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
+    expect(before.newProposals).toBe(0);
+    const quiet = renderBrief(before, templateProse(before));
+    expect(quiet).not.toContain('## To decide');
+    expect(quiet).not.toContain('proposed');
+
+    await draftStage(deps(drafter(() => ({ rationale: 'r', expectedEffect: 'e' })).model), product, cycle.id);
+    const after = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
+    expect(after.newProposals).toBe(2);
+    const brief = renderBrief(after, templateProse(after));
+    expect(brief).toContain(
+      "## To decide\n- This cycle proposed 2 changes. Decide them on the cards in Telegram (or /proposals), or on the dashboard's Proposals page.\n\n## Numbers",
+    );
+    // Only this cycle's: the next cycle drafted nothing new, so its brief says nothing, though 2 are still open.
+    const next = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-09' });
+    const later = await buildBriefNumbers(t.db, { product, cycleId: next.id });
+    expect(later).toMatchObject({ newProposals: 0, openProposals: 2 });
+    expect(renderBrief(later, templateProse(later))).not.toContain('## To decide');
+  });
+});
+
 describe('operator proposals (M09b)', () => {
   it('an operator pause has the same shape as a drafted one (golden)', async () => {
     const { w, cycle, product, finding, deps } = await world();

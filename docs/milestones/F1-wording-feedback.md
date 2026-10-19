@@ -36,7 +36,7 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
 - Size ~250k: no checkpoint pressure expected.
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented
-  - [ ] ~300k built, typecheck green
+  - [x] ~300k built, typecheck green (at ~190k)
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
@@ -50,14 +50,15 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
 - [x] 3. **The dashboard's error notice shows only our own messages** (M10b review): a review screen's `?error=` carries a short code, and the server looks up the text; an unknown code shows a generic line.
   - plan: `FormError(code)`; a code table next to the forms (`reviewForms.ts`); the contract's issue list is no longer put in the URL.
   - done: `FORM_ERRORS` + `formErrorText` in `apps/web/src/lib/reviewForms.ts` (codes `invalid`, `reject_reason`, `budget`, `negative_text`, `match_type`, `feedback_unchanged`); `actions.ts` redirects with `?error=<code>`; `FormNotice` (Tabs.tsx) shows the looked-up words, the generic line for anything else (`Object.hasOwn`, so `toString` / `__proto__` are unknown too). The contract's issue text is dropped (it was only ever shown, never logged). Tests: `reviewForms.test.ts` "error codes (F1)", `views.test.ts` "the form notice (F1)".
-- [ ] 4. **The brief counts the cycle's new proposals** (M07 "Leave behind", for M08): the numbers table gains `newProposals`; when there are some, the brief says how many and where to decide them (Telegram, dashboard).
+- [x] 4. **The brief counts the cycle's new proposals** (M07 "Leave behind", for M08): the numbers table gains `newProposals`; when there are some, the brief says how many and where to decide them (Telegram, dashboard).
   - plan: a repository count of the cycle's proposals; an optional field in `brief-numbers-v1` (stored briefs without it stay readable, like `agreeRate`); a "## Proposals" line in the rendered brief, so it shows whoever wrote the prose.
+  - done: `countCycleProposals` (`db/repos/proposals.ts`); `BriefNumbers.newProposals?`; a "## To decide" section right under the prose ("This cycle proposed 2 changes. Decide them on the cards in Telegram (or /proposals), or on the dashboard's Proposals page."), only when there are some. The AI may quote the count (it is in the table, so the number check allows it). Test: `draft.test.ts` "the new proposals in the weekly brief (F1)".
 
 ## Tests
 - [x] Digest, brief and template words rendered with a descriptive stage label: no pluralised label anywhere.
 - [x] Brief feedback: a Telegram answer, then a dashboard save of the other answer, keeps both; a two-field request still works.
 - [x] Error codes: a crafted `?error=` text is never shown; an unknown code shows the generic line.
-- [ ] A brief with 0 and with 2 new proposals.
+- [x] A brief with 0 and with 2 new proposals.
 
 ## Done when (cloud)
 - [ ] All tests are green.

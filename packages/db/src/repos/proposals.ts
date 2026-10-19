@@ -261,6 +261,15 @@ export async function findProposalForFinding(db: DbOrTx, findingId: string): Pro
   return row ? toRecord(row) : null;
 }
 
+/** How many proposals a cycle drafted, whatever their status since (the brief's `newProposals`, F1). */
+export async function countCycleProposals(db: DbOrTx, input: { productId: string; cycleId: string }): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<string>`count(*)::text` })
+    .from(proposals)
+    .where(and(eq(proposals.productId, input.productId), eq(proposals.cycleId, input.cycleId)));
+  return Number(row?.n ?? 0);
+}
+
 /** Statuses in which a proposal is still waiting on Marcus or the gateway. */
 export const OPEN_STATUSES: readonly ProposalStatus[] = ['pending', 'approved', 'applying', 'needs_attention'];
 
