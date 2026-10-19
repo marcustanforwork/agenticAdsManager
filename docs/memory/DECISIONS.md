@@ -747,3 +747,13 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** each is the simplest way to meet M10a's builds and tests without the dashboard importing a pack or processing anything itself. Checking privileges rather than role names works for any login the owner creates.
 - **Instead of:** `session_user` (it would trust a superuser's `SET ROLE` test and make the role tests impossible); checking the role by name (fragile across environments); a separate API for the dashboard (more surface; the database role is the boundary); a form library or JSON Schema form package (extra dependencies for a small schema subset).
 - **See:** BLUEPRINT M10a "As built", §4 · `docs/milestones/M10a-dashboard-app-signin-settings.md`
+
+### D-090 — Build M10b before the Phase 0 gate
+- **When / who / status:** 2026-10-19 · Marcus · adopted. After merging M10a he said "for now we focus on development", and plans to do the Phase 0 setup this weekend.
+- **Decision:**
+  - M10b (dashboard review views) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082, D-084, D-086 and D-088 did for M08 to M10a. It completes Phase 1's code.
+  - **M11a onwards (Phase 2: the gateway, the first code that can change an ad account) still wait** for the Phase 0 gate unless Marcus says otherwise. They also sit behind the Phase 1 gate in the plan (≥ 70% agree over 3 weeks), which only real use can pass.
+- **Why:** Marcus's setup time is this weekend; building ahead uses the time until then.
+- **Risk:** as D-082, and growing: M00 to M10b would all reach their first real run together, so fixes from the live steps may touch many milestones at once.
+- **Supersedes:** D-088's line "M10b onwards still wait for the gate" (only for M10b).
+- **See:** BLUEPRINT M10b

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.26 — 2026-10-19 (M10a built before the Phase 0 gate, D-088; as built, D-089) |
+| **Version** | v3.27 — 2026-10-19 (M10b is built before the Phase 0 gate, D-090) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -2021,7 +2021,7 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
 ---
 
 ### M10b — Dashboard: review views
-**Phase 1 · Size ~400k · Needs:** M10a
+**Phase 1 · Size ~400k · Needs:** M10a. Built before the Phase 0 gate (D-090); its live steps wait for M07's deploy and the gate.
 
 **Goal:** review everything the agent has done, and act on proposals, from a screen.
 
