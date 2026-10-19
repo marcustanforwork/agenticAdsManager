@@ -9,7 +9,26 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { GOOGLE_TOKEN_URL } from '@ads/connector-google';
-import { type Database, connect, findProductBySlug, getFlag, listCycles, schema } from '@ads/db';
+import { Overview } from '@ads/app-web/app/products/[slug]/overview/Overview.tsx';
+import { Proposals } from '@ads/app-web/app/products/[slug]/proposals/Proposals.tsx';
+import { fieldsOf } from '@ads/app-web/lib/forms.ts';
+import { briefFeedbackRequest } from '@ads/app-web/lib/reviewForms.ts';
+import { loadOverview, loadProposals } from '@ads/app-web/lib/reviewViews.ts';
+import { getProductView } from '@ads/app-web/lib/views.ts';
+import {
+  type Database,
+  type DbOrTx,
+  connect,
+  findProductBySlug,
+  getFlag,
+  getRequestStatus,
+  listCycles,
+  recordWebRequest,
+  schema,
+} from '@ads/db';
+import { sql } from 'drizzle-orm';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { DEFAULT_TEST_DATABASE_URL } from '@ads/db/testing';
 import { createFixtureDb, seedFixtures, type FixtureDb } from '@ads/pack-saas-snappool/testing';
 import pg from 'pg';
@@ -98,6 +117,24 @@ async function morning(day: string): Promise<void> {
   for (const kind of missedToday(now())) await enqueueScheduled(database.db, kind, now());
   await settled();
 }
+
+/** Runs `fn` as the dashboard's database role (`agent_dashboard`), as every dashboard page does. */
+const asDashboard = <T>(fn: (db: DbOrTx) => Promise<T>): Promise<T> =>
+  database.db.transaction(async (tx) => {
+    await tx.execute(sql`set local role agent_dashboard`);
+    return fn(tx);
+  });
+
+/** A page's HTML as words: tags removed, entities decoded, spaces collapsed. */
+const text = (html: string): string =>
+  html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ');
 
 /** A day of SnapPool traffic: a signup from a Meta click every day and from a Google click every other day, each
  *  with its click id (SnapPool's `sp_attr`, T6b). The Meta ones came through the paused Retargeting campaign and the
@@ -396,7 +433,6 @@ describe('the first live weekend, rehearsed', () => {
     const mark = telegram.chat.length;
     for (let day = '2026-10-07'; day <= '2026-10-18'; day = minusDays(day, -1)) await morning(day);
     const texts = telegram.since(mark).map((m) => m.text);
-    console.log(texts.map((t) => t.slice(0, 120)));
     const digests = texts.filter((t) => t.startsWith('<b>SnapPool · '));
     expect(digests).toHaveLength(12);
     const briefs = texts.filter((t) => t.startsWith('<b>SnapPool: weekly brief'));
@@ -436,11 +472,108 @@ describe('the first live weekend, rehearsed', () => {
 
     const mark = telegram.chat.length;
     await morning('2026-10-19');
-    const sent = telegram.since(mark);
-    const cards = sent.filter((m) => m.keyboard?.inline_keyboard.flat().some((b) => b.text === '✅ Approve'));
-    console.log(JSON.stringify(cards, null, 1));
-    console.log(model.calls.map((c) => c.stage));
-    const listed = (await ads(cli, ['proposals', 'list', '--product', 'snappool'])).json();
-    console.log(JSON.stringify(listed, null, 1));
+    const cards = telegram.since(mark).filter((m) => m.text.startsWith('<b>Proposal '));
+    expect(cards).toHaveLength(3);
+    const card = (text: string): ChatMessage => {
+      const found = cards.find((m) => m.text.includes(text));
+      if (found === undefined) throw new Error(`no card with ${JSON.stringify(text)}`);
+      return found;
+    };
+    const metaPause = card('<b>Pause</b> campaign “Signups - Advantage+”');
+    const googlePause = card('<b>Pause</b> campaign “Signups - Search”');
+    const negative = card('<b>Add a negative keyword</b> to ad group “Photo sharing”');
+    for (const c of cards) expect(c.text).toContain('0 signups'); // the fact each rests on (F3)
+    expect(negative.text).toContain('+ “free event photo pool” (exact match) blocked');
+    expect(model.calls.filter((c) => c.stage === 'drafter')).toHaveLength(1);
+    expect(message('<b>SnapPool: weekly brief, 2026-10-12 to 2026-10-18</b>').text).toContain('Open proposals: 3');
+
+    // M09a step 3: approve one, reject one with a reason, and edit the negative to phrase match.
+    expect(await telegram.press(metaPause, 'Approve')).toBe('recorded');
+    expect(metaPause.text).toContain('✅ approved');
+    expect(await telegram.press(googlePause, 'Reject')).toBe('asked');
+    expect(telegram.chat.at(-1)?.forceReply).toBe(true);
+    expect(await telegram.say('Search is the steadiest channel; keep it.')).toBe('recorded');
+    expect(googlePause.text).toContain('❌ rejected');
+    expect(await telegram.press(negative, 'Edit')).toBe('asked');
+    expect(await telegram.say('match phrase')).toBe('recorded');
+    expect(telegram.chat.at(-1)?.text).toMatch(/^Edited and approved: <b>\w+<\/b> v2\.$/);
+    expect(negative.text).toContain('(phrase match)');
+    expect(negative.text).toContain('✅ approved');
+
+    // M08 step 3: the CLI shows the same decisions.
+    const listed = await ads(cli, ['proposals', 'list', '--product', 'snappool', '--all']);
+    const decided = listed.json<{ proposals: { finding: string; status: string; version: number }[] }>().proposals;
+    expect(decided.map((p) => [p.finding, p.status, p.version]).sort()).toEqual([
+      ['wasteful_search_term', 'approved', 2],
+      ['zero_outcome_spend', 'approved', 1],
+      ['zero_outcome_spend', 'rejected', 1],
+    ]);
   }, 60_000);
+
+  it('M10b: the dashboard shows the same database, and what Marcus does there the worker processes', async () => {
+    const product = await asDashboard((db) => getProductView('snappool', db));
+    if (product === null) throw new Error('the dashboard does not see snappool');
+    const overview = text(
+      renderToStaticMarkup(
+        createElement(Overview, { product, data: await asDashboard((db) => loadOverview(db, product, now())) }),
+      ),
+    );
+    expect(overview).toContain('Yesterday (2026-10-18) S$28.00 of S$20.00 (140%) — over the ceiling');
+    expect(overview).toContain('Month to date (2026-10) S$479.54 of S$500.00 (95%)');
+    expect(overview).toMatch(/Signup \(email link clicked\) · KPI \d+ \d+/);
+    expect(overview).toContain(
+      `google ${GOOGLE_ACCOUNT} “Test Client Account” active 2026-10-19 08:30 (Asia/Singapore)`,
+    );
+    const page = await asDashboard((db) => loadProposals(db, product, now()));
+    const proposals = text(renderToStaticMarkup(createElement(Proposals, { product, data: page })));
+    expect(proposals).toContain('Waiting for you (0)');
+    expect(proposals).toContain('Approved, to make by hand (2)');
+    expect(proposals).toContain('+ “free event photo pool” (phrase match) blocked');
+    expect(proposals).toContain('rejected · “Search is the steadiest channel; keep it.” telegram:424242 via telegram');
+    // The agree rate counts proposals by when the database stamped them (the real time, as on the SER9), so it is
+    // read at the database's own clock here: the rehearsal's is weeks away from it.
+    const dbNow = (await database.pool.query<{ now: Date }>('select now()')).rows[0]?.now ?? new Date();
+    expect((await asDashboard((db) => loadProposals(db, product, dbNow))).agree).toEqual({
+      days: 21,
+      total: 3,
+      approved: 2,
+      rejected: 1,
+      expired: 0,
+      pending: 0,
+    });
+
+    // M10b step 3: the Briefs page's yes / no choices, recorded as the dashboard's role and processed by the worker.
+    const [latest] = await database.pool
+      .query<{ id: string }>(`select id from briefs order by created_at desc limit 1`)
+      .then((r) => r.rows);
+    const request = briefFeedbackRequest(
+      fieldsOf([
+        ['briefId', latest?.id ?? ''],
+        ['useful', 'yes'],
+        ['usefulShown', ''],
+        ['newInfo', 'no'],
+        ['newInfoShown', ''],
+      ]),
+    );
+    const id = await asDashboard((db) => recordWebRequest(db, { request, email: 'marcus@example.com' }));
+    await vi.waitFor(async () => expect(await getRequestStatus(database.db, id)).toMatchObject({ status: 'done' }), {
+      timeout: 10_000,
+      interval: 100,
+    });
+    expect((await ads(cli, ['brief', '--product', 'snappool'])).json()).toMatchObject({
+      feedback: { useful: true, newInfo: false },
+    });
+  }, 60_000);
+
+  it('M08 step 5: `ads eval replay` scores the decisions', async () => {
+    const replay = await ads(cli, ['eval', 'replay', '--product', 'snappool']);
+    expect(replay.json()).toMatchObject({
+      product: 'snappool',
+      byType: [
+        { type: 'wasteful_search_term', truePositives: 1, falsePositives: 0 },
+        { type: 'zero_outcome_spend', truePositives: 1, falsePositives: 1 },
+      ],
+      overall: { truePositives: 2, falsePositives: 1, precisionPct: 66 },
+    });
+  });
 });
