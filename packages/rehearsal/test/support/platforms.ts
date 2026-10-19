@@ -39,8 +39,6 @@ export function cassettesAt(now: Date): Cassette[] {
 
 export interface FakePlatforms {
   fetch: typeof fetch;
-  /** Every request served, as match keys. */
-  calls: string[];
 }
 
 const isClickQuery = (init: RequestInit | undefined): boolean =>
@@ -50,7 +48,6 @@ const isClickQuery = (init: RequestInit | undefined): boolean =>
 export function fakePlatforms(now: () => Date): FakePlatforms {
   let day = '';
   let replay: ReplayFetch = replayFetch([]);
-  const calls: string[] = [];
   const fresh = (): ReplayFetch => {
     day = localDate(now(), TZ);
     replay = replayFetch(cassettesAt(now()));
@@ -59,17 +56,14 @@ export function fakePlatforms(now: () => Date): FakePlatforms {
   const answer = async (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
     if (localDate(now(), TZ) !== day) fresh();
     try {
-      const res = await replay.fetch(input, init);
-      calls.push(replay.calls.at(-1) ?? '');
-      return res;
+      return await replay.fetch(input, init);
     } catch (error) {
       if (!(error instanceof UnmatchedRequestError)) throw error;
       if (isClickQuery(init)) return new Response('[]', { headers: { 'content-type': 'application/json' } });
-      // Each recorded exchange is served once per replay: a later cycle the same day starts a fresh copy.
-      const res = await fresh().fetch(input, init);
-      calls.push(replay.calls.at(-1) ?? '');
-      return res;
+      // Each recorded exchange is served once per replay: a later cycle the same day starts a fresh copy. So this
+      // fake doesn't catch a request made twice in one cycle; core's cycle tests do (`replay.remaining()`).
+      return fresh().fetch(input, init);
     }
   };
-  return { fetch: answer, calls };
+  return { fetch: answer };
 }

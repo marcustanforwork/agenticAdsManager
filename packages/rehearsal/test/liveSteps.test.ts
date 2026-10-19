@@ -8,7 +8,7 @@ import { buildProgram } from '@ads/app-worker/cli.ts';
 import { findCommand } from '@ads/app-worker/telegram/commands.ts';
 import type { Command, Option } from 'commander';
 import { describe, expect, it } from 'vitest';
-import { type LiveCommand, liveStepCommands, shellCommands } from './support/liveSteps.ts';
+import { type LiveCommand, liveStepCommands, shellCommands, withoutComment } from './support/liveSteps.ts';
 
 const REPO = join(import.meta.dirname, '..', '..', '..');
 
@@ -57,8 +57,8 @@ export function checkAds(argv: string[]): string[] {
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i] ?? '';
     if (ELIDED.test(token)) {
-      elided = true;
-      break;
+      elided = true; // whatever it stands for isn't known: what follows is still checked, what's missing isn't
+      continue;
     }
     if (token.startsWith('--')) {
       const [flag = '', inline] = token.split('=', 2);
@@ -92,7 +92,7 @@ export function checkAds(argv: string[]): string[] {
       args++;
       continue;
     }
-    problems.push(`\`${pathOf(cmd)}\` has no subcommand or argument "${token}"`);
+    if (!elided) problems.push(`\`${pathOf(cmd)}\` has no subcommand or argument "${token}"`);
   }
   if (cmd === program) problems.push('no command');
   if (elided) return problems;
@@ -143,7 +143,7 @@ export function checkPnpmFilter(tokens: string[]): string[] {
     .slice(1)
     .filter((t) => t.startsWith('--') && t !== '--')
     .map((t) => t.slice(2).split('=')[0] ?? '')
-    .filter((flag) => !new RegExp(`['"]?${flag}['"]?\\s*:\\s*\\{\\s*type:`).test(source))
+    .filter((flag) => !new RegExp(`(?<![\\w-])['"]?${flag}['"]?\\s*:\\s*\\{\\s*type:`).test(source))
     .map((flag) => `${name} ${script} reads no --${flag}`);
 }
 
@@ -219,11 +219,25 @@ describe('the live steps’ commands', () => {
       ),
     ).toEqual([]);
     expect(checkAds(['proposals', 'approve', '<id>', '--version', '1', '…'])).toEqual([]);
+    // After an elision, the flags written are still checked.
+    expect(checkAds(['cycle', '…', '--kind', 'hourly'])).toEqual(['--kind hourly: not one of daily, weekly, manual']);
+    expect(shellCommands('ads cycle --kind daily 2>&1 | tee out.json')).toEqual([
+      ['ads', 'cycle', '--kind', 'daily'],
+      ['tee', 'out.json'],
+    ]);
     expect(checkPnpmFilter(shellCommands('pnpm --filter @ads/db db:migrat')[0] ?? [])).toEqual([
       '@ads/db has no script "db:migrat"',
     ]);
     expect(checkPnpmFilter(shellCommands('pnpm --filter @ads/connector-meta record --acount act_1')[0] ?? [])).toEqual([
       '@ads/connector-meta record reads no --acount',
     ]);
+    // A flag inside another's name (`ager` in `manager`) is not declared.
+    expect(checkPnpmFilter(shellCommands('pnpm --filter @ads/connector-google record --ager 1')[0] ?? [])).toEqual([
+      '@ads/connector-google record reads no --ager',
+    ]);
+    // A `#` inside quotes is not a comment.
+    expect(withoutComment('ads phase set 1 --note "see #12" --bogus  # set it')).toBe(
+      'ads phase set 1 --note "see #12" --bogus  ',
+    );
   });
 });

@@ -30,6 +30,22 @@ function section(markdown: string, heading: RegExp): { line: number; text: strin
   return out;
 }
 
+/** A line without its trailing `# comment`: a `#` after a space, outside quotes. */
+export function withoutComment(line: string): string {
+  let quote: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quote !== null) {
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1] ?? ''))) {
+      return line.slice(0, i);
+    }
+  }
+  return line;
+}
+
 /** The code in a section: inline spans, and each line of a fenced block. */
 function codeOf(lines: { line: number; text: string }[]): { line: number; code: string }[] {
   const out: { line: number; code: string }[] = [];
@@ -40,7 +56,7 @@ function codeOf(lines: { line: number; text: string }[]): { line: number; code: 
       continue;
     }
     if (fenced) {
-      const code = text.replace(/\s+#.*$/, '').trim();
+      const code = withoutComment(text).trim();
       if (code !== '') out.push({ line, code });
       continue;
     }
@@ -50,7 +66,9 @@ function codeOf(lines: { line: number; text: string }[]): { line: number; code: 
 }
 
 const OPERATORS = new Set(['&&', '||', ';', '|']);
-const REDIRECTS = new Set(['<', '>', '>>', '2>', '2>&1']);
+const REDIRECTS = new Set(['<', '>', '>>', '2>']);
+/** Redirections that name no file. */
+const BARE_REDIRECTS = new Set(['2>&1']);
 
 /** Splits shell text into commands of tokens: quotes kept together and removed, `&&` `;` `|` end a command,
  *  redirections and their file are dropped. Good enough for the docs, not a shell. */
@@ -99,6 +117,7 @@ export function shellCommands(text: string): string[][] {
       i++; // and its file
       continue;
     }
+    if (BARE_REDIRECTS.has(t)) continue;
     commands.at(-1)?.push(t);
   }
   return commands.filter((c) => c.length > 0);
