@@ -757,3 +757,19 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Risk:** as D-082, and growing: M00 to M10b would all reach their first real run together, so fixes from the live steps may touch many milestones at once.
 - **Supersedes:** D-088's line "M10b onwards still wait for the gate" (only for M10b).
 - **See:** BLUEPRINT M10b
+
+### D-091 — M10b build choices: the review views
+- **When / who / status:** 2026-10-19 · Claude (build choices within the plan) · adopted
+- **Decision:**
+  - **Reads** live in `@ads/db` `repos/dashboard.ts` and use only what the dashboard's role may read. Outcomes come through the `dashboard_outcomes` view (declared in the drizzle schema with `.existing()`, so no migration), never the table. Spend is summed from campaign rows only, as the evidence queries do.
+  - **Screens per product:** Overview, Proposals, Changes, Checks (trust history, drift, AI cost), Briefs, Docs; then M10a's Settings, Settings history and Facts. `/products/<slug>` opens the Overview.
+  - **The projection** is a straight line: month to date ÷ days so far × days in the month (bigint, rounded down), on the same "yesterday" as the digest.
+  - **The KPI trend** is 28 days: four weekly rows (spend, KPI outcomes, cost per) and the 28 days behind a "Day by day" fold. The attribution rate is counted as `ads outcomes` counts it (credited ÷ all real outcomes).
+  - **Proposals:** Approve, Reject (a reason of 3+ characters) and Edit (a budget, or a negative's words or match type) each record a request on the version shown. An operator proposal shows Confirm / Cancel, as on Telegram. The agree rate over 21 days (agent proposals, PROPOSAL §12) sits at the top.
+  - **A form the contract rejects** goes back to its screen with the reason (`?error=`). The screen comes from a fixed list, and the product slug must exist.
+  - **The KPI is named by its stage id in sentences.** Pack labels carry notes ("Signup (email link clicked)").
+  - **Testing:** each screen is a plain component fed by a loader that takes the database. Tests run the loader as `agent_dashboard` on a fixture database and render the component to HTML with `react-dom/server`.
+  - **Playwright moved to M16b**, reworded (the Overview shows a changed ceiling; `/status` doesn't show ceilings). A browser run covered the path this session.
+- **Why:** the simplest way to meet M10b's builds and tests within M10a's boundary (the dashboard reads under its role and only records requests). Rendered-HTML tests check what Marcus sees without a browser in CI.
+- **Instead of:** a chart library for the trend (a table reads clearly at low volume, with no new dependency); Playwright in CI (a browser download and a running worker for one smoke test); reusing core's formatters (the dashboard may not import core: a copy, noted in Leave behind).
+- **See:** BLUEPRINT M10b "As built"; `docs/milestones/M10b-dashboard-review-views.md`

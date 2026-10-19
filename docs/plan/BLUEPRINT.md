@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.28 — 2026-10-19 (M10b is built before the Phase 0 gate, D-090; Q13 answered: service accounts, D-071) |
+| **Version** | v3.29 — 2026-10-19 (M10b built: "As built", D-091; its Playwright test moved to M16b) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -2054,6 +2054,8 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
 
 **Cut first:** the briefs view; the AI cost panel; Playwright.
 
+**As built (D-091):** nothing was cut except Playwright (moved to M16b; a browser run covered the path by hand). The reads are in `@ads/db` `repos/dashboard.ts`, allowed to the dashboard's role: outcomes through the `dashboard_outcomes` view (declared in the drizzle schema with `.existing()`, no migration), spend from campaign rows only. Screens per product: **Overview** (yesterday and month to date against the ceilings; a straight-line projection = month to date ÷ days so far × days in the month; cost per KPI over 28 days by week and by day; outcomes by stage with the attribution rate as `ads outcomes` counts it; accounts and last sync), **Proposals** (pending ones with Approve / Reject with a reason / Edit for a budget or a negative's words and match, each on the version shown; the evidence line; approved ones to make by hand; the latest decisions; the agree rate over 21 days, the Phase 1 gate's measure), **Changes** (the change log with "Request undo"), **Checks** (trust-check history per cycle, drift, AI cost over 30 days), **Briefs** (👍 / 💡: `brief_feedback` with both answers), **Docs** (STRATEGY, PLAYBOOK, LEARNINGS: an editor on the latest version and its history; the request page shows the text sent). Every button records one request (`approve`, `reject`, `edit_approve`, `undo`, `brief_feedback`, `product_doc_put`); a form the contract rejects goes back to its screen with the reason. The KPI is named by its stage id in sentences (labels can carry notes). Tests render each screen to HTML from a fixture database read as the dashboard's role.
+
 ---
 
 ### M11a — Gateway rules: allowlist, guards, fingerprint
@@ -2408,7 +2410,9 @@ The **Phase 3 gate** then runs for 4 weeks.
 6. Deferred, and documented only: the policy adjuster.
 7. **Moved from M07 (D-081):** the pack's `briefSections` (named core queries a pack adds to its brief; build when a pack first needs one) and the image build and push to GHCR on git tags. Both can't be cut again without Marcus's OK.
 
-**Tests:** `ads doctor` against fixtures.
+**Tests:**
+- `ads doctor` against fixtures.
+- **Moved from M10b (D-091):** a Playwright smoke test of the dashboard: change a ceiling on Settings, and the Overview shows it (`/status` doesn't show ceilings, so the original wording can't be tested). It can't be cut again without Marcus's OK.
 
 **Done when (cloud):** all tests are green.
 
