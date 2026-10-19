@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-19 · cloud session · branch `claude/elegant-goodall-ursfd8` · **M10b built and reviewed; its PR is open for Marcus (see In flight).** That finishes every milestone allowed before the Phase 0 gate: **M11a onwards (the gateway) wait for the gate** (D-090). Marcus plans the Phase 0 setup for the weekend of 2026-10-24. His to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (no ticks yet on 2026-10-19; read them with `ArtifactData` `list`, collection `progress`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
+**Last updated:** 2026-10-19 · cloud session · branch `claude/elegant-goodall-ursfd8` · **M10b built and reviewed; PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20) is open for Marcus.** That finishes every milestone allowed before the Phase 0 gate: **M11a onwards (the gateway) wait for the gate** (D-090). Marcus plans the Phase 0 setup for the weekend of 2026-10-24. His to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (no ticks yet on 2026-10-19; read them with `ArtifactData` `list`, collection `progress`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
 
 ## Where we are
 - **Phase:** 0.
@@ -23,7 +23,7 @@
 6. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- **M10b** on branch `claude/elegant-goodall-ursfd8`: the PR (opened 2026-10-19) waits for Marcus's review. Merge only on his word, after CI passes (D-057).
+- **M10b** on branch `claude/elegant-goodall-ursfd8`: PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20) (opened 2026-10-19) waits for Marcus's review. Merge only on his word, after CI passes (D-057).
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -167,7 +167,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 | M09a | Telegram bot core and proposal cards | 1 | **awaiting live acceptance** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (merged) | Built before the gate (D-084); live: migrate now, cards after the gate |
 | M09b | Telegram operator commands | 1 | **awaiting live acceptance** | [#17](https://github.com/marcustanforwork/agenticAdsManager/pull/17) (merged) | Built before the gate (D-086); live: a week run from Telegram |
 | M10a | Dashboard: app, sign-in, settings | 1 | **awaiting live acceptance** | [#18](https://github.com/marcustanforwork/agenticAdsManager/pull/18) (merged) | Built before the gate (D-088); live: deploy behind Access, configure SnapPool (needs T10) |
-| M10b | Dashboard: review views | 1 | **awaiting live acceptance** | open (this session) | Built before the gate (D-090); live: the screens on real data; a week of proposals at phase 1 |
+| M10b | Dashboard: review views | 1 | **awaiting live acceptance** | [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20) | Built before the gate (D-090); live: the screens on real data; a week of proposals at phase 1 |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | not started | — | Phase 1 gate |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | not started | — | |
 | M12 | Meta writes + CAPI | 2 | not started | — | T4 (write side); T6b |

@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-10-19 — M10b built ahead of the Phase 0 gate (the dashboard's review screens), reviewed
-- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR: see NOW.md (opened this session)
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20)
 - **Did:**
   - Reset the branch onto `main` (its earlier commits were merged as PR #19); started M10b (D-090).
   - DB: `packages/db/src/repos/dashboard.ts` (spend per day, outcomes through `dashboard_outcomes`, cycle and trust history, AI cost, drift, entities by ref, findings by id, decisions, document versions), tested as `agent_dashboard`.

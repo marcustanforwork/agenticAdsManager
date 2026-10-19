@@ -10,7 +10,7 @@
 | **Phase** | 1 (built before the Phase 0 gate, D-090) |
 | **Started** | 2026-10-19 |
 | **Finished** | 2026-10-19 (cloud) |
-| **PRs** | see NOW.md (opened at the end of this session) |
+| **PRs** | [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20) |
 
 ## Goal
 Review everything the agent has done, and act on proposals, from a screen.
