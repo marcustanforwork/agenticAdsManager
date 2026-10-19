@@ -41,8 +41,9 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
-- [ ] 1. **Counts by stage id, everywhere** (M10b review): the digest, the brief (template prose and rendering) and the drafted proposals' template words print a count with the KPI's stage id ("12 signups"), never by pluralising its label ("12 signup (email link clicked)s"). The label may still appear as a name. Same rule as the detectors (M06a) and the dashboard (M10b).
+- [x] 1. **Counts by stage id, everywhere** (M10b review): the digest, the brief (template prose and rendering) and the drafted proposals' template words print a count with the KPI's stage id ("12 signups"), never by pluralising its label ("12 signup (email link clicked)s"). The label may still appear as a name. Same rule as the detectors (M06a) and the dashboard (M10b).
   - plan: core `report/format.ts` `countOf` takes a stage id (or a plain noun): `_` → space, lower case, plural `s` unless the word already ends in `s`, or reads as a state rather than a thing (ends in `ed`, or `paid`), so `paid` / `booked` / `activated` don't become "paids". "Cost per <stage id>" in the digest and the brief. The dashboard's `countOf` (`apps/web/src/lib/review.ts`) gets the same rule (it says "3 paids" when the KPI is switched to `paid`); F2 merges the copies into contracts.
+  - done: `stageWord` + `countOf` in `core/src/report/format.ts`; digest, brief (template prose, outcomes, cost per, campaigns, finding lines) and `templateWords` count by stage id. The Telegram cards already passed stage ids to core's `countOf`, so they now read "pool requests" instead of "pool_requests". Tests: `report.test.ts` "counts by stage id (F1)"; `apps/web/test/review.test.ts`.
 - [ ] 2. **`brief_feedback` sets one answer at a time** (M10b review): `useful` and `newInfo` become optional, with at least one given; the repository updates only the given fields. Telegram sends the button pressed; the dashboard sends only what changed. A request with both fields stays valid.
   - plan: the handler returns both answers as stored after the update, so the Telegram buttons show the true state. The Briefs form carries the answers it showed (hidden fields); a box left as shown is not sent; a form with nothing changed goes back with a notice.
 - [ ] 3. **The dashboard's error notice shows only our own messages** (M10b review): a review screen's `?error=` carries a short code, and the server looks up the text; an unknown code shows a generic line.
@@ -51,7 +52,7 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
   - plan: a repository count of the cycle's proposals; an optional field in `brief-numbers-v1` (stored briefs without it stay readable, like `agreeRate`); a "## Proposals" line in the rendered brief, so it shows whoever wrote the prose.
 
 ## Tests
-- [ ] Digest, brief and template words rendered with a descriptive stage label: no pluralised label anywhere.
+- [x] Digest, brief and template words rendered with a descriptive stage label: no pluralised label anywhere.
 - [ ] Brief feedback: a Telegram answer, then a dashboard save of the other answer, keeps both; a two-field request still works.
 - [ ] Error codes: a crafted `?error=` text is never shown; an unknown code shows the generic line.
 - [ ] A brief with 0 and with 2 new proposals.

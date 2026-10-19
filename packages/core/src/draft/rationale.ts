@@ -95,13 +95,14 @@ export function drafterData(drafts: readonly DraftWords[], ctx: WordsContext): R
 export const drafterPrompt = (data: Record<string, unknown>): string =>
   `## DATA\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
 
-/** The template: fixed sentences, every figure from the evidence. */
+/** The template: fixed sentences, every figure from the evidence. The KPI is counted by its stage id ("2 signups"),
+ *  never by its label, which takes no plural. */
 export function templateWords(d: DraftWords, ctx: WordsContext): { rationale: string; expectedEffect: string } {
   const e = d.evidence;
   const money = (micros: bigint): string => formatMoney(micros, ctx.currency);
   const rationale =
     `${d.label}: ${money(BigInt(e.spendMicros))} spent, ${e.clicks} clicks and ` +
-    `${countOf(e.outcomesByStage[ctx.kpiStage] ?? 0, ctx.kpiLabel)} over ${e.dataDays} days (${e.from} to ${e.to}).`;
+    `${countOf(e.outcomesByStage[ctx.kpiStage] ?? 0, ctx.kpiStage)} over ${e.dataDays} days (${e.from} to ${e.to}).`;
   const a = d.action;
   const expectedEffect =
     a.action === 'pause_entity'

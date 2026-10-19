@@ -38,6 +38,10 @@ describe('money', () => {
     expect(countOf(1, 'signup')).toBe('1 signup');
     expect(countOf(3, 'pool_request')).toBe('3 pool requests');
     expect(countOf(2, 'Clicks')).toBe('2 clicks');
+    // A stage named for a state takes no s: the KPI switched to `paid` reads "3 paid", not "3 paids".
+    expect(countOf(3, 'paid')).toBe('3 paid');
+    expect(countOf(2, 'booked')).toBe('2 booked');
+    expect(countOf(4, 'qualified_viewing')).toBe('4 qualified viewings');
   });
 });
 

@@ -23,10 +23,17 @@ export function costPer(spendMicros: bigint, outcomes: number): bigint | null {
   return (spendMicros * 2n + n) / (2n * n);
 }
 
-/** "1 signup" / "3 signups" from a stage label ("Signup", "Paid"). Labels are written by Marcus (trusted). */
-export function countOf(n: number, label: string): string {
-  const word = label.toLowerCase();
-  return `${n} ${n === 1 || word.endsWith('s') ? word : `${word}s`}`;
+/** A stage id or a plain noun as words: "pool_request" → "pool request"; with `plural`, "pool requests". A word that
+ *  already ends in s, or names a state rather than a thing ("paid", "booked", "activated"), takes no s. Never give it
+ *  a stage *label*: labels are descriptive phrases ("Signup (email link clicked)") that don't take a plural. */
+export function stageWord(word: string, plural = false): string {
+  const w = word.replaceAll('_', ' ').toLowerCase();
+  return plural && !/(?:s|ed|\bpaid)$/.test(w) ? `${w}s` : w;
+}
+
+/** "1 signup" / "3 signups" / "2 pool requests" / "4 paid" from a stage id or a plain noun (see `stageWord`). */
+export function countOf(n: number, word: string): string {
+  return `${n} ${stageWord(word, n !== 1)}`;
 }
 
 /** Makes text safe to sit inside a markdown-lite line: no line breaks, no `**`, and not read as a heading or bullet.

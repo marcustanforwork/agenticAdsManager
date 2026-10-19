@@ -25,11 +25,14 @@ import {
   buildDigest,
   canonicalNumber,
   checkNumbers,
+  countOf,
   renderBrief,
   renderDigest,
   reportStage,
   shouldSendDigest,
+  stageWord,
   templateProse,
+  templateWords,
 } from '../src/index.ts';
 import { NOW, S, makeAdWorld } from './support/adWorld.ts';
 
@@ -181,6 +184,84 @@ describe('the digest', () => {
     const text = renderDigest({ ...data, trust: { result: 'fail', flagged }, drift: 120, openProposals: 40 });
     expect(text).toContain('reset the Meta account spending limit');
     expect(text.length).toBeLessThan(4000);
+  });
+});
+
+/** SnapPool's stages as its pack writes them: descriptive labels with a note, which take no plural (F1). */
+const LABELLED: ProductSettings = {
+  ...SETTINGS,
+  outcomes: {
+    stages: [
+      { id: 'pool_request', label: 'Pool request (/start submitted)', tier: 'soft' },
+      { id: 'signup', label: 'Signup (email link clicked)', tier: 'success' },
+      { id: 'paid', label: 'Paid (no checkout yet)', tier: 'hard' },
+    ],
+    primaryKpiStage: 'signup',
+    feedback: [],
+  },
+};
+
+describe('counts by stage id (F1)', () => {
+  it('names a stage by its id; a word for a state takes no s', () => {
+    expect(countOf(1, 'signup')).toBe('1 signup');
+    expect(countOf(12, 'signup')).toBe('12 signups');
+    expect(countOf(3, 'pool_request')).toBe('3 pool requests');
+    expect(countOf(0, 'paid')).toBe('0 paid');
+    expect(countOf(2, 'activated')).toBe('2 activated');
+    expect(countOf(5, 'clicks')).toBe('5 clicks');
+    expect(stageWord('Form_Fill')).toBe('form fill');
+    expect(stageWord('form_fill', true)).toBe('form fills');
+  });
+
+  it('the digest, the brief and the template words never pluralise a descriptive label', async () => {
+    const { w, product, cycle, search } = await world(LABELLED);
+    await w.outcome('p1', 'pool_request', '2026-10-07T03:00:00Z', search);
+    const noLabelPlural = (text: string) => {
+      expect(text).not.toMatch(/\)s\b/);
+      for (const s of LABELLED.outcomes.stages) expect(text).not.toContain(s.label.toLowerCase());
+    };
+
+    const digest = renderDigest(await buildDigest(t.db, { product, now: NOW, cycle }));
+    expect(digest).toContain('Outcomes yesterday: 1 pool request · 1 signup');
+    expect(digest).toContain('Cost per signup (7 days): S$35.00 (2 signups, S$70.00 spent)');
+    noLabelPlural(digest);
+    // The KPI switched to `paid` (M05a's live step): "no paid", not "no paids" or "no paid (no checkout yet)s".
+    const paid = {
+      ...product,
+      settings: { ...product.settings, outcomes: { ...LABELLED.outcomes, primaryKpiStage: 'paid' } },
+    };
+    const paidDigest = renderDigest(await buildDigest(t.db, { product: paid, now: NOW, cycle }));
+    expect(paidDigest).toContain('Cost per paid (7 days): no paid (S$70.00 spent)');
+    noLabelPlural(paidDigest);
+
+    const numbers = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
+    const prose = templateProse(numbers);
+    expect(prose.paragraphs[0]).toContain('with 70 clicks and 2 signups. Cost per signup: S$35.00.');
+    const brief = renderBrief(numbers, prose);
+    expect(brief).toContain('- Outcomes: 1 pool request (before 0) · 2 signups (before 1) · 0 paid (before 0)');
+    expect(brief).toContain('- Cost per signup: S$35.00 (before S$35.00, 0%)');
+    expect(brief).toContain('S$70.00, 70 clicks, 2 signups, S$35.00 each');
+    noLabelPlural(brief);
+
+    const words = templateWords(
+      {
+        key: 'p1',
+        label: 'Spend without outcomes',
+        action: {
+          action: 'pause_entity',
+          target: { platform: 'google', accountId: '1', type: 'campaign', externalId: '10' },
+        },
+        currentDailyBudgetMicros: null,
+        targetName: 'campaign 10',
+        evidence: { ...evidence(S(105), 105), outcomesByStage: { signup: 0 } },
+        findingSummary: 'S$105.00 over 14 days with no signups.',
+      },
+      { currency: 'SGD', kpiStage: 'signup', kpiLabel: 'Signup (email link clicked)' },
+    );
+    expect(words.rationale).toBe(
+      'Spend without outcomes: S$105.00 spent, 105 clicks and 0 signups over 14 days (2026-09-24 to 2026-10-07).',
+    );
+    noLabelPlural(`${words.rationale} ${words.expectedEffect}`);
   });
 });
 
