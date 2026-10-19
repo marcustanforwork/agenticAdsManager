@@ -62,6 +62,18 @@ const refused = (reason: string, extra: RequestResult = {}): RequestOutcome => (
   result: { reason, ...extra },
 });
 
+/** Binds the actor to who inserted the row (D-068, M10a). A role that can update requests (the worker, the owner
+ *  running a CLI) may record any channel; any other role (the dashboard's, which can only insert the request
+ *  columns, roles.sql) may record only web requests. `inserted_by` is set by the database (`current_user`), never
+ *  by the dashboard. An inserting role that no longer exists counts as untrusted. */
+async function insertedByTrustedRole(tx: Tx, insertedBy: string): Promise<boolean> {
+  const { rows } = await tx.execute<{ trusted: boolean }>(
+    sql`select coalesce((select has_table_privilege(r.oid, 'operator_requests', 'UPDATE')
+                           from pg_roles r where r.rolname = ${insertedBy}), false) as trusted`,
+  );
+  return rows[0]?.trusted === true;
+}
+
 async function decide(tx: Tx, row: OperatorRequestRow, ctx: RequestContext): Promise<RequestOutcome> {
   const parsed = OperatorRequest.safeParse(row.payload);
   if (!parsed.success) {
@@ -71,6 +83,9 @@ async function decide(tx: Tx, row: OperatorRequestRow, ctx: RequestContext): Pro
   }
   const request = parsed.data;
   if (request.kind !== row.kind) return refused(`the kind column (${row.kind}) does not match the request`);
+  if (!(await insertedByTrustedRole(tx, row.insertedBy)) && (row.channel !== 'web' || !row.actor.startsWith('web:'))) {
+    return refused('a request recorded by the dashboard must be a web request with a web: actor');
+  }
   if (!ctx.actors.has(row.actor)) return refused('unknown actor');
 
   const handler = HANDLERS[request.kind] as RequestHandler<typeof request> | undefined;

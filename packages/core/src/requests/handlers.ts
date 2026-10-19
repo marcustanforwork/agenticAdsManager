@@ -14,6 +14,7 @@ import {
   getPhase,
   getProposal,
   getStoredSettings,
+  setProductStatus,
   listAccounts,
   newVersion,
   recordDecision,
@@ -86,6 +87,13 @@ const halt: RequestHandler<RequestOf<'halt'>> = async (tx, request) => {
 const resumeAgent: RequestHandler<RequestOf<'resume_agent'>> = async (tx, request) => {
   const resumed = await moveStatus(tx, request.productId, 'halted', 'active');
   return { resumed };
+};
+
+/** set_product_status (M10a): any status → active or dormant. Returns the status before and after. */
+const setProductStatusHandler: RequestHandler<RequestOf<'set_product_status'>> = async (tx, request) => {
+  const stored = await getStoredSettings(tx, request.productId); // unknown product → refused
+  if (stored.status !== request.status) await setProductStatus(tx, request.productId, request.status);
+  return { product: stored.slug, from: stored.status, to: request.status };
 };
 
 const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, request, row, ctx) => {
@@ -297,6 +305,7 @@ export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
   undo,
   halt,
   resume_agent: resumeAgent,
+  set_product_status: setProductStatusHandler,
   settings_patch: settingsPatch,
   facts_put: factsPut,
   product_doc_put: productDocPut,

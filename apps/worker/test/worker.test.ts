@@ -2,7 +2,7 @@
 // startup reconciliation resumes an interrupted cycle, the leader catches up the day's scheduled runs, the job
 // runner runs every active product's cycle, the outbox reaches Telegram, and the heartbeats are pinged.
 import { randomBytes } from 'node:crypto';
-import { advance, createProduct, getCycle, listCycles, schema, startScheduled } from '@ads/db';
+import { advance, createProduct, getCycle, getRequestStatus, listCycles, schema, startScheduled } from '@ads/db';
 import { TEST_SETTINGS, createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import { createRegistry } from '@ads/pack-sdk';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -138,4 +138,63 @@ describe('the worker service', () => {
     }
     expect(polling).toBe(0);
   }, 30_000);
+});
+
+describe('requests the dashboard records (M10a)', () => {
+  it('are processed on the NOTIFY wake-up, without waiting for the poll', async () => {
+    const product = await createProduct(t.db, {
+      slug: `web-${randomBytes(3).toString('hex')}`,
+      name: 'Web',
+      packId: 'none',
+      status: 'dormant', // no cycles to run in the background
+      settings: TEST_SETTINGS,
+    });
+    const worker = await startWorker({
+      env: {
+        DATABASE_URL: t.url,
+        VAULT_READ_KEY: `read-v1:${randomBytes(32).toString('base64')}`,
+        OPERATOR_ACTORS: 'web:marcus@example.com',
+      },
+      logger: silent,
+      now: () => NOW,
+      packs: createRegistry([]),
+      telegram: null,
+      leaderRetryMs: 50,
+      requestPollMs: 600_000,
+      schedule: false,
+    });
+    if (worker === null) throw new Error('worker not started');
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300)); // the listener connects
+      // As the dashboard does it: its role can only insert the request's columns.
+      const client = await t.pool.connect();
+      let id = '';
+      try {
+        await client.query('begin');
+        await client.query('set local role agent_dashboard');
+        const request = {
+          kind: 'settings_patch',
+          productId: product.id,
+          baseVersion: 1,
+          patch: { notifications: { digest: 'off' } },
+        };
+        const { rows } = await client.query<{ id: string }>(
+          `insert into operator_requests (product_id, kind, payload, actor, channel)
+           values ($1, 'settings_patch', $2, 'web:marcus@example.com', 'web') returning id`,
+          [product.id, JSON.stringify(request)],
+        );
+        id = rows[0]?.id ?? '';
+        await client.query('commit');
+      } finally {
+        client.release();
+      }
+      await vi.waitFor(async () => expect(await getRequestStatus(t.db, id)).toMatchObject({ status: 'done' }), {
+        timeout: 5_000,
+        interval: 50,
+      });
+      expect(await getRequestStatus(t.db, id)).toMatchObject({ result: { version: 2 } });
+    } finally {
+      await worker.stop();
+    }
+  }, 20_000);
 });
