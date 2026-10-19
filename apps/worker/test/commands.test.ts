@@ -3,6 +3,8 @@
 // through the one processor as Marcus.
 import {
   createProduct,
+  createProposal,
+  expireDue,
   getProduct,
   getProposal,
   getSettingsHistory,
@@ -485,7 +487,7 @@ describe('messages', () => {
           ? () => {
               throw new Error('database down');
             }
-          : Reflect.get(target, key, receiver),
+          : (Reflect.get(target, key, receiver) as unknown),
     });
     const ctx: BotContext = {
       ...b.ctx,
@@ -525,5 +527,89 @@ describe('messages', () => {
     expect(b.last()).toContain('Name the product:');
     expect(await b.say('/ceiling daily 30')).toBe('command:usage');
     await setProductStatus(t.db, spare.id, 'dormant');
+  });
+});
+
+describe('found in review', () => {
+  it('/pause_all needs the product named, even when only one is live', async () => {
+    const b = bot();
+    const n = await requestCount();
+    expect(await b.say('/pause_all')).toBe('command:usage');
+    expect(await requestCount()).toBe(n);
+  });
+
+  it('Cancel on /pause_all leaves a pause the agent drafted pending: it is not a rejection of the agent', async () => {
+    const b = bot();
+    const third = await createProduct(t.db, {
+      slug: 'third',
+      name: 'Third',
+      packId: 'test-pack',
+      status: 'dormant',
+      settings: TEST_SETTINGS,
+    });
+    const account = await upsertAccount(t.db, { productId: third.id, platform: 'google', externalId: '5550004' });
+    await entity(third, account.id, 'thirdA', { externalId: '301', name: 'Third one' });
+    await entity(third, account.id, 'thirdB', { externalId: '302', name: 'Third two' });
+    const target = { platform: 'google' as const, accountId: '5550004', type: 'campaign' as const, externalId: '301' };
+    const drafted = await createProposal(t.db, {
+      productId: third.id,
+      origin: 'agent',
+      action: { action: 'pause_entity', target },
+      undo: { action: 'resume_entity', target },
+      preconditionHash: null,
+      preconditionFields: [],
+      rationale: 'r',
+      expectedEffect: 'e',
+    });
+    await b.say('/pause_all third');
+    const [, cancel] = buttonsOf(b.keyboardOf());
+    await b.press(cancel?.callback_data ?? '');
+    expect(b.answers.at(-1)).toBe('Cancelled 1');
+    expect((await getProposal(t.db, drafted.id)).status).toBe('pending');
+    const operator = (await listProposals(t.db, third.id)).filter((p) => p.origin === 'operator');
+    expect(operator.map((p) => p.status)).toEqual(['rejected']);
+  });
+
+  it('a confirmed pause still counts as made by hand after its 30 minutes are over', async () => {
+    const b = bot();
+    await b.say('/pause_all spare'); // both were confirmed earlier: the same proposals come back
+    const confirmed = await listProposals(t.db, spare.id, ['approved']);
+    expect(confirmed).toHaveLength(2);
+    await t.pool.query(`update proposals set expires_at = now() - interval '1 second' where product_id = $1`, [
+      spare.id,
+    ]);
+    await expireDue(t.db);
+    const [first] = confirmed;
+    expect((await getProposal(t.db, first?.id ?? '')).status).toBe('expired');
+
+    await b.say('/changes spare');
+    expect(b.last()).toContain(`<code>${first?.shortId}</code>: pause campaign`);
+    expect(await b.say(`/undo ${first?.shortId}`)).toBe('command:shown');
+    expect(b.last()).toContain('back on');
+    await b.say('/pause_all spare'); // nothing active is waiting now: fresh proposals, the old ones confirmed
+    expect(b.last()).toContain('Pause everything in spare?');
+  });
+
+  it('a reply Telegram refuses as HTML is sent again as plain text', async () => {
+    const b = bot();
+    let refusals = 0;
+    const api: TelegramApi = {
+      ...b.api,
+      sendMessage(chat, text, other) {
+        if (other?.parse_mode === 'HTML' && refusals === 0) {
+          refusals += 1;
+          return Promise.reject(Object.assign(new Error("can't parse entities"), { error_code: 400 }));
+        }
+        return b.api.sendMessage(chat, text, other);
+      },
+    };
+    await handleMessage(
+      { ...b.ctx, api },
+      { message_id: 1, from: { id: OWNER }, chat: { id: OWNER, type: 'private' }, text: '/drift main' },
+    );
+    expect(refusals).toBe(1);
+    expect(b.sent.at(-1)?.other?.parse_mode).toBeUndefined();
+    expect(b.last()).toContain('status paused → active');
+    expect(b.last()).not.toContain('<b>');
   });
 });

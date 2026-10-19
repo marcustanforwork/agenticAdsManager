@@ -2,9 +2,16 @@
 // product. Kept apart from commands.ts so the command modules can use them without importing the command table.
 import type { OperatorRequest } from '@ads/contracts';
 import { type RequestOutcome, submitRequest } from '@ads/core';
-import { type Product, findProductBySlug, listProducts } from '@ads/db';
+import {
+  type Db,
+  type Product,
+  type ProposalRecord,
+  findProductBySlug,
+  getCurrentApproval,
+  listProducts,
+} from '@ads/db';
 import type { BotContext, InlineKeyboard } from './bot.ts';
-import { chunkHtml, escapeHtml } from './format.ts';
+import { chunkHtml, escapeHtml, htmlToPlain, isBadRequest } from './format.ts';
 
 /** What a command did, for logs and tests. */
 export type CommandOutcome = 'shown' | 'recorded' | 'refused' | 'usage' | 'unknown';
@@ -16,15 +23,30 @@ export const nowOf = (ctx: BotContext): Date => ctx.now?.() ?? new Date();
 
 /** Sends HTML to Marcus, chunked at 4,000 characters; the buttons go under the last chunk. */
 export async function reply(ctx: BotContext, html: string, keyboard?: InlineKeyboard): Promise<void> {
-  const chunks = chunkHtml(html);
+  await sendChunks(ctx, chunkHtml(html), keyboard);
+}
+
+/** Sends HTML chunks; one Telegram refuses as malformed (400) is sent again as plain text, as the outbox does. */
+export async function sendChunks(ctx: BotContext, chunks: string[], keyboard?: InlineKeyboard): Promise<void> {
   for (const [i, chunk] of chunks.entries()) {
-    const last = i === chunks.length - 1;
-    await ctx.api.sendMessage(ctx.ownerId, chunk, {
-      parse_mode: 'HTML',
-      link_preview_options: { is_disabled: true },
-      ...(last && keyboard !== undefined ? { reply_markup: keyboard } : {}),
-    });
+    const markup = i === chunks.length - 1 && keyboard !== undefined ? { reply_markup: keyboard } : {};
+    const options = { link_preview_options: { is_disabled: true }, ...markup };
+    try {
+      await ctx.api.sendMessage(ctx.ownerId, chunk, { parse_mode: 'HTML', ...options });
+    } catch (error) {
+      if (!isBadRequest(error)) throw error;
+      ctx.logger?.error({ err: error }, 'Telegram refused a reply; sending it as plain text');
+      await ctx.api.sendMessage(ctx.ownerId, htmlToPlain(chunk), options);
+    }
   }
+}
+
+/** Whether Marcus approved the proposal's current version. In Phase 1 nothing is applied, so an approved proposal
+ *  later expires (BLUEPRINT §3.9; a confirmed pause after 30 minutes): it still counts as one he made by hand. */
+export async function approvedByMarcus(db: Db, proposal: ProposalRecord): Promise<boolean> {
+  if (proposal.status === 'approved') return true;
+  if (proposal.status !== 'expired') return false;
+  return (await getCurrentApproval(db, proposal.id))?.decision === 'approve';
 }
 
 /** Records and processes a request as Marcus, through the one processor (invariant 9). */

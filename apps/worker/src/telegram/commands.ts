@@ -126,7 +126,7 @@ async function patchSettings(
 }
 
 const CEILING_USAGE =
-  'Usage: <code>/ceiling [product] daily|monthly &lt;amount&gt;</code>, e.g. <code>/ceiling snappool daily 20</code>';
+  'Usage: <code>/ceiling [product] daily|monthly &lt;amount&gt;</code>, e.g. <code>/ceiling &lt;product&gt; daily 20</code>';
 
 /** `/ceiling [product] daily|monthly <amount>`: the product's spend ceiling, in its currency. */
 async function ceilingCommand(ctx: BotContext, args: string): Promise<CommandOutcome> {

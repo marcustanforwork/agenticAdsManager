@@ -16,11 +16,21 @@ import {
   listAccounts,
   listEntities,
   listProducts,
+  NotFoundError,
 } from '@ads/db';
 import type { BotContext, CallbackQuery, InlineButton, InlineKeyboard } from './bot.ts';
-import { loadCard, renderCard } from './cards.ts';
-import { escapeHtml } from './format.ts';
-import { CANCEL_REASON, type CommandOutcome, nowOf, pickProduct, reasonOf, reply, submitAsOwner } from './reply.ts';
+import { entityLine, loadCard, renderCard } from './cards.ts';
+import { clip, escapeHtml } from './format.ts';
+import {
+  CANCEL_REASON,
+  type CommandOutcome,
+  approvedByMarcus,
+  nowOf,
+  pickProduct,
+  reasonOf,
+  reply,
+  submitAsOwner,
+} from './reply.ts';
 
 // ── Callback data ─────────────────────────────────────────────────────────────────────────────
 
@@ -74,17 +84,12 @@ export async function findEntities(db: Db, query: string): Promise<{ active: Ent
   };
 }
 
-const clip = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
-const typeWords = (e: AdEntity): string => e.type.replaceAll('_', ' ');
-
-/** `campaign “Summer” (snappool)`, for a button (plain text: Telegram doesn't parse button labels). */
+/** `campaign “Summer” (main)`, for a button (plain text: Telegram doesn't parse button labels). */
 const buttonLabel = (m: EntityMatch): string =>
-  `${typeWords(m.entity)} “${clip(m.entity.name.replaceAll(/\s+/g, ' '), 40)}” (${m.product.slug})`;
+  `${m.entity.type.replaceAll('_', ' ')} “${clip(m.entity.name.replaceAll(/\s+/g, ' '), 40)}” (${m.product.slug})`;
 
 const entityHtml = (m: EntityMatch): string =>
-  `${typeWords(m.entity)} “${escapeHtml(clip(m.entity.name.replaceAll(/\s+/g, ' '), 80))}” <code>${escapeHtml(
-    entityRefText(entityRefOf(m.entity, { externalId: m.accountExternalId })),
-  )}</code>`;
+  entityLine(m.entity.name, entityRefOf(m.entity, { externalId: m.accountExternalId }));
 
 // ── /pause ────────────────────────────────────────────────────────────────────────────────────
 
@@ -179,14 +184,15 @@ export async function renderPauseAll(
     const open = p.status === 'pending' && p.expiresAt.getTime() > now.getTime();
     const status = open
       ? GROUP_STATUS['pending']
-      : p.status === 'pending'
-        ? GROUP_STATUS['expired']
-        : GROUP_STATUS[p.status];
+      : (await approvedByMarcus(db, p))
+        ? GROUP_STATUS['approved'] // still "confirmed" once its 30 minutes are over (Phase 1 applies nothing)
+        : p.status === 'pending'
+          ? GROUP_STATUS['expired']
+          : GROUP_STATUS[p.status];
     let html = `<code>${p.shortId}</code>`;
     if (p.action.action === 'pause_entity') {
       const entity = await findEntityByRef(db, p.productId, p.action.target);
-      const name = entity === null ? '' : ` “${escapeHtml(clip(entity.name.replaceAll(/\s+/g, ' '), 60))}”`;
-      html = `${p.action.target.type.replaceAll('_', ' ')}${name} <code>${escapeHtml(entityRefText(p.action.target))}</code>`;
+      html = entityLine(entity?.name ?? null, p.action.target, 60);
     }
     lines.push({ html, status: status ?? p.status.replaceAll('_', ' '), open });
   }
@@ -218,8 +224,9 @@ export async function renderPauseAll(
 
 /** `/pause_all <product>`: a pause proposal for every active campaign, confirmed together on one card. */
 export async function pauseAllCommand(ctx: BotContext, args: string): Promise<CommandOutcome> {
+  // The product must be named: this pauses everything, so it is never taken as the default.
   const words = args.trim().split(/\s+/).filter(Boolean);
-  if (words.length > 1) {
+  if (words.length !== 1) {
     await reply(ctx, 'Usage: <code>/pause_all &lt;product&gt;</code>');
     return 'usage';
   }
@@ -240,7 +247,9 @@ export async function pauseAllCommand(ctx: BotContext, args: string): Promise<Co
 
 // ── Button presses ────────────────────────────────────────────────────────────────────────────
 
-/** Confirms or cancels every proposal of a `/pause_all` that is still waiting, each as its own request. */
+/** Confirms or cancels every proposal of a `/pause_all` that is still waiting, each as its own request. A pause the
+ *  agent drafted (returned instead of a second proposal) is confirmed with the rest, but Cancel leaves it pending: a
+ *  cancel is not a rejection of the agent's proposal, which would count against its agree rate. */
 async function decideGroup(
   ctx: BotContext,
   requestId: string,
@@ -255,7 +264,7 @@ async function decideGroup(
   let refused = 0;
   for (const ref of refs) {
     const p = await getProposal(ctx.db, ref.proposalId);
-    if (p.status !== 'pending') continue;
+    if (p.status !== 'pending' || (!confirm && p.origin !== 'operator')) continue;
     const { outcome } = await submitAsOwner(
       ctx,
       confirm
@@ -292,9 +301,18 @@ export async function handlePausePress(
   let counts;
   try {
     counts = await decideGroup(ctx, parsed.id, parsed.verb === 'allok');
-  } catch {
-    await ctx.api.answerCallbackQuery(query.id, { text: 'That request no longer exists.' });
-    return 'unknown';
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      await ctx.api.answerCallbackQuery(query.id, { text: 'That request no longer exists.' });
+      return 'unknown';
+    }
+    // Some may be decided already (each is its own request): say so, and show the card as it now is.
+    ctx.logger?.error({ err: error, requestId: parsed.id }, 'deciding a pause-all failed part-way');
+    await ctx.api.answerCallbackQuery(query.id, {
+      text: 'Something failed part-way: the card shows what was decided.',
+    });
+    await refreshGroup(ctx, parsed.id, query.message?.message_id);
+    return 'refused';
   }
   const verb = parsed.verb === 'allok' ? 'Confirmed' : 'Cancelled';
   await ctx.api.answerCallbackQuery(query.id, {
@@ -303,18 +321,21 @@ export async function handlePausePress(
         ? 'Nothing was waiting.'
         : `${verb} ${counts.done}${counts.refused > 0 ? `; ${counts.refused} refused (expired or changed)` : ''}`,
   });
-  const messageId = query.message?.message_id;
-  if (messageId !== undefined) {
-    try {
-      const { html, keyboard } = await renderPauseAll(ctx.db, parsed.id, nowOf(ctx));
-      await ctx.api.editMessageText(ctx.ownerId, messageId, html, {
-        parse_mode: 'HTML',
-        link_preview_options: { is_disabled: true },
-        reply_markup: keyboard ?? { inline_keyboard: [] },
-      });
-    } catch (error) {
-      ctx.logger?.error({ err: error, requestId: parsed.id }, 'updating the pause-all card failed');
-    }
-  }
+  await refreshGroup(ctx, parsed.id, query.message?.message_id);
   return counts.done > 0 ? 'recorded' : 'refused';
+}
+
+/** Re-renders a `/pause_all` card in place. A failure only logs. */
+async function refreshGroup(ctx: BotContext, requestId: string, messageId: number | undefined): Promise<void> {
+  if (messageId === undefined) return;
+  try {
+    const { html, keyboard } = await renderPauseAll(ctx.db, requestId, nowOf(ctx));
+    await ctx.api.editMessageText(ctx.ownerId, messageId, html, {
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      reply_markup: keyboard ?? { inline_keyboard: [] },
+    });
+  } catch (error) {
+    ctx.logger?.error({ err: error, requestId }, 'updating the pause-all card failed');
+  }
 }

@@ -25,7 +25,7 @@ import { loadCard, parseCardData, renderCard } from './cards.ts';
 import { handleCardPress } from './decide.ts';
 import { handlePausePress, parsePauseData } from './pause.ts';
 import { briefMessage, feedbackKeyboard, parseFeedbackData } from './feedback.ts';
-import { chunkHtml, escapeHtml, markdownLiteToHtml } from './format.ts';
+import { chunkHtml, escapeHtml, htmlToPlain, isBadRequest, markdownLiteToHtml } from './format.ts';
 
 export interface InlineButton {
   text: string;
@@ -215,10 +215,6 @@ function alertLines(payload: Record<string, unknown>): string[] {
   return [...lines, ...genericLines(rest)];
 }
 
-/** Telegram refused the message itself (bad markup, too long): retrying the same text won't help. */
-const isBadRequest = (error: unknown): boolean =>
-  typeof error === 'object' && error !== null && 'error_code' in error && error.error_code === 400;
-
 export interface OutboxPass {
   sent: number;
   /** A send failed for a reason retrying later may fix (network, rate limit, bot blocked): the pass stopped there,
@@ -264,11 +260,7 @@ export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {})
             { err: error, notificationId: n.id },
             'Telegram refused the message; sending it as plain text',
           );
-          const plain = chunk
-            .replaceAll(/<\/?b>/g, '')
-            .replaceAll('&lt;', '<')
-            .replaceAll('&gt;', '>')
-            .replaceAll('&amp;', '&');
+          const plain = htmlToPlain(chunk);
           const { parse_mode: _html, ...rest } = options;
           await ctx.api.sendMessage(ctx.ownerId, plain, rest).catch((again: unknown) => {
             if (!isBadRequest(again)) throw again;

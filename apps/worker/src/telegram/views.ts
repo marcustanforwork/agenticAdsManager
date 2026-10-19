@@ -1,11 +1,12 @@
 // The read-only commands (BLUEPRINT M09b): `/status`, `/proposals`, `/brief`, `/drift` and `/changes`, and `/undo`,
 // which in Phase 1 only shows the undo for Marcus to make by hand. Every figure comes from the database; platform text
 // (names, keywords) is escaped. Nothing here changes anything except `/undo <rev>`, which records an `undo` request.
-import { type WriteOp, SET_AT_APPLY } from '@ads/contracts';
-import { entityRefText, formatMoney } from '@ads/core';
+import { type EntityRef, type WriteOp, SET_AT_APPLY } from '@ads/contracts';
+import { entityRefOf, formatMoney } from '@ads/core';
 import {
   type Db,
   type Product,
+  type ProposalRecord,
   findEntityByRef,
   findProposalByShortId,
   getEntity,
@@ -21,18 +22,26 @@ import {
   writesEnabled,
 } from '@ads/db';
 import type { BotContext } from './bot.ts';
-import { localTime } from './cards.ts';
+import { entityLine, localTime } from './cards.ts';
 import { briefMessage } from './feedback.ts';
-import { escapeHtml } from './format.ts';
+import { clip, escapeHtml } from './format.ts';
 import { sendCard } from './pause.ts';
-import { type CommandOutcome, liveProducts, nowOf, pickProduct, reasonOf, reply, submitAsOwner } from './reply.ts';
+import {
+  type CommandOutcome,
+  approvedByMarcus,
+  liveProducts,
+  nowOf,
+  pickProduct,
+  reasonOf,
+  reply,
+  sendChunks,
+  submitAsOwner,
+} from './reply.ts';
 
 /** The most proposal cards `/proposals` sends at once. */
 export const MAX_CARDS = 10;
 /** The most lines `/drift` and `/changes` list per product. */
 export const MAX_LINES = 15;
-
-const clip = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
 /** The products a read-only command covers: the one named, or every product that isn't dormant. */
 async function productsFor(ctx: BotContext, args: string): Promise<Product[] | null> {
@@ -45,15 +54,13 @@ async function productsFor(ctx: BotContext, args: string): Promise<Product[] | n
 }
 
 /** An entity, as `campaign “name” <code>ref</code>` (the name as last synced, if known). */
-async function targetHtml(db: Db, productId: string, ref: Parameters<typeof entityRefText>[0]): Promise<string> {
-  const entity = await findEntityByRef(db, productId, ref);
-  const name = entity === null ? '' : ` “${escapeHtml(clip(entity.name.replaceAll(/\s+/g, ' '), 60))}”`;
-  return `${escapeHtml(ref.type.replaceAll('_', ' '))}${name} <code>${escapeHtml(entityRefText(ref))}</code>`;
+async function targetHtml(db: Db, productId: string, ref: EntityRef): Promise<string> {
+  return entityLine((await findEntityByRef(db, productId, ref))?.name ?? null, ref, 60);
 }
 
 /** A write action in words (HTML). */
 export async function changeHtml(db: Db, product: Pick<Product, 'id' | 'currency'>, action: WriteOp): Promise<string> {
-  const target = (ref: Parameters<typeof entityRefText>[0]) => targetHtml(db, product.id, ref);
+  const target = (ref: EntityRef) => targetHtml(db, product.id, ref);
   switch (action.action) {
     case 'pause_entity':
       return `pause ${await target(action.target)}`;
@@ -136,6 +143,7 @@ export async function proposalsCommand(ctx: BotContext, args: string): Promise<C
       ...(await listProposals(ctx.db, product.id, ['pending'])).filter((p) => p.expiresAt.getTime() > now.getTime()),
     );
   }
+  waiting.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // newest first, across products
   if (waiting.length === 0) {
     await reply(ctx, 'Nothing is waiting for you.');
     return 'shown';
@@ -168,14 +176,7 @@ export async function briefCommand(ctx: BotContext, args: string): Promise<Comma
     return 'shown';
   }
   const message = briefMessage(brief);
-  for (const [i, chunk] of message.chunks.entries()) {
-    const last = i === message.chunks.length - 1;
-    await ctx.api.sendMessage(ctx.ownerId, chunk, {
-      parse_mode: 'HTML',
-      link_preview_options: { is_disabled: true },
-      ...(last && message.keyboard !== undefined ? { reply_markup: message.keyboard } : {}),
-    });
-  }
+  await sendChunks(ctx, message.chunks, message.keyboard);
   return 'shown';
 }
 
@@ -201,14 +202,9 @@ export async function driftCommand(ctx: BotContext, args: string): Promise<Comma
     );
     for (const e of events.slice(0, MAX_LINES)) {
       const entity = await getEntity(ctx.db, e.adEntityId);
-      const ref = {
-        platform: entity.platform,
-        accountId: accounts.get(entity.accountId) ?? '?',
-        type: entity.type,
-        externalId: entity.externalId,
-      };
+      const ref = entityRefOf(entity, { externalId: accounts.get(entity.accountId) ?? '?' });
       lines.push(
-        `• ${await targetHtml(ctx.db, product.id, ref)}: ${escapeHtml(e.field)} ${escapeHtml(valueText(e.expected))} → ${escapeHtml(
+        `• ${entityLine(entity.name, ref, 60)}: ${escapeHtml(e.field)} ${escapeHtml(valueText(e.expected))} → ${escapeHtml(
           valueText(e.observed),
         )} (${localTime(e.detectedAt, product.timezone)})`,
       );
@@ -229,7 +225,7 @@ export async function changesCommand(ctx: BotContext, args: string): Promise<Com
   const lines: string[] = [];
   for (const product of products) {
     const revisions = await listChanges(ctx.db, product.id, MAX_LINES);
-    const approved = (await listProposals(ctx.db, product.id, ['approved'])).slice(0, MAX_LINES);
+    const approved = await madeByHand(ctx, product.id);
     lines.push(`<b>${escapeHtml(product.slug)}</b>`);
     if (revisions.length === 0 && approved.length === 0) {
       lines.push('Nothing changed yet.');
@@ -252,6 +248,16 @@ export async function changesCommand(ctx: BotContext, args: string): Promise<Com
   lines.push('', 'To see how to undo one: <code>/undo &lt;rev or id&gt;</code>');
   await reply(ctx, lines.join('\n'));
   return 'shown';
+}
+
+/** The newest proposals Marcus approved (Phase 1: made by hand), including those whose expiry has passed since. */
+async function madeByHand(ctx: BotContext, productId: string): Promise<ProposalRecord[]> {
+  const found: ProposalRecord[] = [];
+  for (const p of await listProposals(ctx.db, productId, ['approved', 'expired'])) {
+    if (found.length >= MAX_LINES) break;
+    if (await approvedByMarcus(ctx.db, p)) found.push(p);
+  }
+  return found;
 }
 
 const REVISION = /^rev_[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -284,7 +290,7 @@ export async function undoCommand(ctx: BotContext, args: string): Promise<Comman
       return 'refused';
     }
     const product = await getProduct(ctx.db, proposal.productId);
-    if (proposal.status !== 'approved') {
+    if (!(await approvedByMarcus(ctx.db, proposal))) {
       const why =
         proposal.status === 'pending'
           ? 'it is still waiting for a decision: cancel or reject it on its card instead'
