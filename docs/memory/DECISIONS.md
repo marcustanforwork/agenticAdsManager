@@ -721,3 +721,29 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** the simplest way to meet M09b's builds and tests with the M09a card and processor unchanged in shape; pausing campaigns is the fastest whole-product stop; Phase 1 has nothing in the change log to undo.
 - **Instead of:** a new callback verb per operator card (old cards would have two formats); pausing every ad set and ad in `/pause_all` (many more proposals, same effect); guessing the closest name.
 - **See:** BLUEPRINT M09b "As built" · `docs/milestones/M09b-telegram-operator-commands.md`
+
+### D-088 — Build M10a before the Phase 0 gate
+- **When / who / status:** 2026-10-19 · Marcus · adopted. He said "let's start the next m10 session, together with the current PR 18".
+- **Decision:**
+  - M10a (dashboard: app, sign-in, settings) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082, D-084 and D-086 did for M08, M09a and M09b. M10b onwards still wait for the gate unless Marcus says otherwise.
+  - The work goes on the same branch as PR #18 (the M09b memory note), which becomes M10a's PR.
+  - Nothing in M10a changes an ad account. The dashboard only reads and records operator requests; its live steps need T10 (Cloudflare Access and the Vercel project) and wait for M07's deploy.
+- **Why:** the Phase 0 setup and gate take calendar time; building ahead uses it. The settings screens are useful from Phase 0 (ceilings, digest mode, test-traffic domains).
+- **Risk:** as D-082: fixes from the live checklist may touch code M10a builds on, and more unverified code piles up before the first real run.
+- **Supersedes:** D-086's line "M10a onwards still wait for the gate" (only for M10a).
+- **See:** BLUEPRINT M10a
+
+### D-089 — M10a build choices: sign-in, the actor binding, the request round trip, the screens
+- **When / who / status:** 2026-10-19 · Claude (build choices within the plan) · adopted
+- **Decision:**
+  - **Next.js 16.4.2** with `proxy.ts` (Next 16 renamed `middleware.ts`; it always runs on Node.js). It verifies the Cloudflare Access token with **jose 6** (RS256; issuer = `CF_ACCESS_TEAM_DOMAIN`; audience = `CF_ACCESS_AUD`; an `email` claim) and answers everything else with a 401, static files included. Missing or malformed config means every request gets a 401. Pages, the poll route and server actions verify the token again, so a proxy bypass alone opens nothing.
+  - **Database URL:** only `VERCEL_ENV=production` reads `DASHBOARD_DATABASE_URL`. Previews and local runs read only `DASHBOARD_DEV_DATABASE_URL`. On Vercel the host must be Neon's pooled `-pooler` host. `@ads/db`, `drizzle-orm` and `pg` are loaded by Node rather than bundled, and `@ads/db` finds its migrations with `path.join` instead of `new URL(…, import.meta.url)`, which the bundler tried to resolve.
+  - **Actor binding (D-068):** `operator_requests.inserted_by` defaults to **`current_user`**, not the plan's `session_user`. The dashboard's role may insert only the five request columns. The processor trusts a row's channel only when its inserting role can UPDATE `operator_requests` and doesn't inherit `agent_dashboard` (superusers aside); any other row must be `web` with a `web:` actor. `current_user` is as safe as `session_user` for a login that is a member of `agent_dashboard` only, and the tests can then act as the role with `SET ROLE`.
+  - **Round trip:** an insert trigger NOTIFYs `request_queued`; every worker replica LISTENs on its direct connection and also drains every 30 s. Until now the worker drained queued requests only at startup. The dashboard polls `/api/requests/<id>` every second for up to 2 minutes.
+  - **`set_product_status`** (new request kind) moves a product between active and dormant. A halted product is refused, because only `resume_agent` un-halts (a halt may be the gateway's, on a change that needs attention). Halt and resume keep their own requests.
+  - **An unchanged settings patch** comes back `done` with `unchanged: true` and makes no new version. This applies to Telegram's quick settings too.
+  - **Settings screens:** one form per section, each sending only its section as a patch based on the version shown: spending and digest, trust, outcomes (stages and feedback routes as rows, plus one empty row to add), copy, test traffic, and guards with disabled actions. Money is typed as an amount and sent as micros. A value the form can't read is sent as typed, so the worker refuses it with a reason. Guard overrides can be added or tightened, never removed: a blank field keeps the override.
+  - **Fact editor:** generated from the published JSON Schema (objects, lists of objects with an empty "add one" item and a remove box, text lists one per line, enums, numbers, yes/no, `…Micros` money, and nullable fields where blank means none), plus a JSON mode. Facts are checked with contracts `jsonSchemaIssues` (zod's `fromJSONSchema`, plus unknown keys) and refused on the page with the reasons, keeping what was typed; only facts that pass are recorded, and the worker checks them again against the pack. A worker test proves the two checks agree for each installed pack, on 24 hand-written cases and 600 generated ones.
+- **Why:** each is the simplest way to meet M10a's builds and tests without the dashboard importing a pack or processing anything itself. Checking privileges rather than role names works for any login the owner creates.
+- **Instead of:** `session_user` (it would trust a superuser's `SET ROLE` test and make the role tests impossible); checking the role by name (fragile across environments); a separate API for the dashboard (more surface; the database role is the boundary); a form library or JSON Schema form package (extra dependencies for a small schema subset).
+- **See:** BLUEPRINT M10a "As built", §4 · `docs/milestones/M10a-dashboard-app-signin-settings.md`

@@ -648,6 +648,11 @@ export const operatorRequests = pgTable(
     payload: jsonb('payload').notNull(), // OperatorRequest
     actor: text('actor').notNull(),
     channel: text('channel', { enum: REQUEST_CHANNELS }).notNull(),
+    // Who inserted the row (D-068, M10a): the database sets it; the dashboard's role can't (roles.sql grants it
+    // only the request columns). The processor binds a row from a role that can't update requests to `web`.
+    insertedBy: text('inserted_by')
+      .notNull()
+      .default(sql`current_user`),
     status: text('status', { enum: REQUEST_STATUSES }).notNull().default('queued'),
     result: jsonb('result'), // what happened, or why it was refused (shown to Marcus)
     createdAt: tstz('created_at').notNull().defaultNow(),

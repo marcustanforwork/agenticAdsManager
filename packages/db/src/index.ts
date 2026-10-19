@@ -16,6 +16,7 @@ export * from './repos/changes.ts';
 export * from './repos/evals.ts';
 export * from './repos/plumbing.ts';
 export * from './repos/telegram.ts';
+export * from './repos/web.ts';
 export * from './queue/jobs.ts';
 export * from './queue/listener.ts';
 export * from './queue/runner.ts';

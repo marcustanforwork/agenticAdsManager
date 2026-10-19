@@ -2,7 +2,7 @@
 // throws RefusedError / StaleVersionError / NotFoundError / a settings or facts error to refuse.
 // To add a kind: write its handler here, add it to HANDLERS, remove it from NOT_AVAILABLE_UNTIL, and test it
 // in test/requests.test.ts (the milestone file's "Leave behind" has the checklist).
-import { type OperatorRequest, plannedUndo, platformOfOp } from '@ads/contracts';
+import { type OperatorRequest, canonicalJson, plannedUndo, platformOfOp } from '@ads/contracts';
 import {
   IllegalTransitionError,
   PHASE,
@@ -14,6 +14,7 @@ import {
   getPhase,
   getProposal,
   getStoredSettings,
+  setProductStatus,
   listAccounts,
   newVersion,
   recordDecision,
@@ -88,6 +89,17 @@ const resumeAgent: RequestHandler<RequestOf<'resume_agent'>> = async (tx, reques
   return { resumed };
 };
 
+/** set_product_status (M10a): active ↔ dormant. A halted product is refused: only resume_agent un-halts it (a
+ *  halt may be the gateway's, on a change that needs attention). Returns the status before and after. */
+const setProductStatusHandler: RequestHandler<RequestOf<'set_product_status'>> = async (tx, request) => {
+  const stored = await getStoredSettings(tx, request.productId); // unknown product → refused
+  if (stored.status === 'halted') {
+    throw new RefusedError(`${stored.slug} is halted: resume the agent first (resume_agent)`);
+  }
+  if (stored.status !== request.status) await setProductStatus(tx, request.productId, request.status);
+  return { product: stored.slug, from: stored.status, to: request.status };
+};
+
 const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, request, row, ctx) => {
   // The stored document as is: a patch can repair one that fails validation (the result is validated).
   const stored = await getStoredSettings(tx, request.productId);
@@ -100,6 +112,8 @@ const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, re
     request.patch,
     packGuardLayer(manifestOf(ctx.packs, stored.packId)),
   );
+  // Saving a screen without changing anything (M10a) makes no new version.
+  if (canonicalJson(settings) === canonicalJson(stored.settings)) return { version: stored.version, unchanged: true };
   const version = await updateSettings(tx, {
     productId: request.productId,
     baseVersion: request.baseVersion,
@@ -297,6 +311,7 @@ export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
   undo,
   halt,
   resume_agent: resumeAgent,
+  set_product_status: setProductStatusHandler,
   settings_patch: settingsPatch,
   facts_put: factsPut,
   product_doc_put: productDocPut,

@@ -11,3 +11,4 @@ export * from './writes.ts';
 export * from './undo.ts';
 export * from './findings.ts';
 export * from './proposals.ts';
+export * from './jsonSchema.ts';

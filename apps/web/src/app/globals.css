@@ -1,0 +1,149 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1d1f23;
+  --muted: #5f6672;
+  --line: #d9dde3;
+  --accent: #1f5fbf;
+  --ok: #1e7b3a;
+  --bad: #b3261e;
+  --panel: #f6f7f9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171a;
+    --fg: #e7e9ec;
+    --muted: #9aa1ab;
+    --line: #2d3138;
+    --accent: #7aa7ff;
+    --ok: #62c27f;
+    --bad: #ff8a80;
+    --panel: #1c1f23;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    15px/1.5 system-ui,
+    sans-serif;
+}
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+a {
+  color: var(--accent);
+}
+.top {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.brand {
+  font-weight: 600;
+  text-decoration: none;
+}
+.muted {
+  color: var(--muted);
+}
+.ok {
+  color: var(--ok);
+}
+.bad {
+  color: var(--bad);
+}
+h1 {
+  font-size: 1.4rem;
+}
+h2 {
+  font-size: 1.1rem;
+  margin-top: 0;
+}
+nav.tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+section.card,
+form.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--panel);
+}
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+}
+label {
+  display: block;
+  margin: 6px 0;
+}
+label > span {
+  display: inline-block;
+  min-width: 14rem;
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  max-width: 100%;
+}
+textarea {
+  width: 100%;
+  min-height: 6rem;
+}
+button {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+pre {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.issues li {
+  color: var(--bad);
+}

@@ -79,6 +79,9 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('budget'), target: EntityRef, newDailyBudgetMicros: MicrosJson }), // Phase 3
   z.object({ kind: z.literal('halt'), productId: z.uuid().nullable() }), // null = all
   z.object({ kind: z.literal('resume_agent'), productId: z.uuid().nullable() }),
+  // A product's status from the dashboard (M10a): `dormant` stops its scheduled cycles; `active` starts them again.
+  // Halting is `halt`, which keeps Marcus's own pauses running.
+  z.object({ kind: z.literal('set_product_status'), productId: z.uuid(), status: z.enum(['active', 'dormant']) }),
   z.object({
     kind: z.literal('settings_patch'),
     productId: z.uuid(),

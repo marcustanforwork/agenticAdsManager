@@ -88,6 +88,16 @@ async function dashboardInsert(kind: string, payload: unknown, actor = 'web:marc
   }
 }
 
+/** Queues a row without processing it, as a trusted role (the owner) on the telegram channel: what a worker that
+ *  crashed between recording and processing would leave. */
+async function queueInsert(kind: string, payload: unknown): Promise<string> {
+  const { rows } = await t.pool.query<{ id: string }>(
+    `insert into operator_requests (kind, payload, actor, channel) values ($1, $2, $3, 'telegram') returning id`,
+    [kind, JSON.stringify(payload), MARCUS],
+  );
+  return rows[0]?.id ?? '';
+}
+
 describe('actor and schema checks', () => {
   it('parses the allowed actors from config', () => {
     expect([...ctx.actors].sort()).toEqual(['cli:marcus', MARCUS]);
@@ -405,7 +415,7 @@ describe('processing', () => {
 
   it('processes a request once, even with two workers racing', async () => {
     const p = await makeProduct();
-    const id = await dashboardInsert('halt', { kind: 'halt', productId: p.id }, MARCUS);
+    const id = await queueInsert('halt', { kind: 'halt', productId: p.id });
     const results = await Promise.all([processRequest(t.db, id, ctx), processRequest(t.db, id, ctx)]);
     expect(results.filter((r) => r !== null)).toHaveLength(1);
     expect(await processRequest(t.db, id, ctx)).toBeNull(); // already done
@@ -419,8 +429,8 @@ describe('processing', () => {
     HANDLERS.resume_agent = () => Promise.reject(new Error('database hiccup'));
     const faults: (string | null)[] = [];
     try {
-      const faulty = await dashboardInsert('resume_agent', { kind: 'resume_agent', productId: p.id }, MARCUS);
-      const fine = await dashboardInsert('halt', { kind: 'halt', productId: q.id }, MARCUS);
+      const faulty = await queueInsert('resume_agent', { kind: 'resume_agent', productId: p.id });
+      const fine = await queueInsert('halt', { kind: 'halt', productId: q.id });
       await processQueuedRequests(t.db, ctx, { onFault: (id) => faults.push(id) });
       expect(faults).toEqual([faulty]);
       expect((await getOperatorRequest(t.db, faulty)).status).toBe('queued');
@@ -437,8 +447,8 @@ describe('draining with other workers', () => {
   it('skips a request another worker holds instead of spinning on it or counting it', async () => {
     const p = await makeProduct();
     const q = await makeProduct();
-    const held = await dashboardInsert('halt', { kind: 'halt', productId: p.id }, MARCUS);
-    const free = await dashboardInsert('halt', { kind: 'halt', productId: q.id }, MARCUS);
+    const held = await queueInsert('halt', { kind: 'halt', productId: p.id });
+    const free = await queueInsert('halt', { kind: 'halt', productId: q.id });
     const other = await t.pool.connect(); // "another worker" mid-way through `held`
     try {
       await other.query('begin');
@@ -479,7 +489,7 @@ describe('worker recovery', () => {
     const job = await enqueueJob(t.db, { queue: 'worker', kind: 'recovery-test' });
     await claimJob(t.db, { queue: 'worker', workerId: 'crashed', leaseMs: 1, kinds: ['recovery-test'] });
     await new Promise((r) => setTimeout(r, 20));
-    const request = await dashboardInsert('halt', { kind: 'halt', productId: p.id }, MARCUS);
+    const request = await queueInsert('halt', { kind: 'halt', productId: p.id });
 
     const summary = await recoverWorker(t.db, ctx);
     expect(summary.jobsRequeued).toBeGreaterThanOrEqual(1);

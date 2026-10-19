@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.24 — 2026-10-19 (M09b as built: the Telegram command grammar, D-087) |
+| **Version** | v3.26 — 2026-10-19 (M10a built before the Phase 0 gate, D-088; as built, D-089) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -542,6 +542,7 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
              doc: z.enum(['strategy', 'playbook', 'learnings']), baseVersion: z.number().int(), markdown: z.string() }),
   z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean(), newInfo: z.boolean() }),
   z.object({ kind: z.literal('set_phase'), phase: z.number().int().min(0).max(5), note: z.string().min(3) }),   // M08, D-082
+  z.object({ kind: z.literal('set_product_status'), productId: z.uuid(), status: z.enum(['active', 'dormant']) }), // M10a, D-089
   z.object({ kind: z.literal('resolve_attention'), proposalId: z.uuid(),
              resolution: z.enum(['applied', 'not_applied']), note: z.string().min(3) }),
   // M15a adds: source_copy_put
@@ -968,6 +969,7 @@ create table operator_requests (
   payload jsonb not null,                            -- OperatorRequest
   actor text not null,
   channel text not null check (channel in ('telegram','web','cli')),
+  inserted_by text not null default current_user,    -- M10a, D-068/D-089: who inserted it; the dashboard can't set it
   status text not null default 'queued' check (status in ('queued','done','refused')),
   result jsonb,                                      -- what happened, or why it was refused (shown to Marcus)
   created_at timestamptz not null default now(),
@@ -975,6 +977,8 @@ create table operator_requests (
 );
 create index on operator_requests (status, created_at);
 create index on operator_requests (product_id);
+-- M10a: an AFTER INSERT trigger NOTIFYs 'request_queued' (payload: the id), so the worker processes what the
+-- dashboard records (the worker LISTENs on its direct connection and also polls every 30 s).
 
 create table notifications (                         -- outbox: anyone writes; the worker's bot sends
   id uuid primary key default gen_random_uuid(),
@@ -1050,7 +1054,7 @@ create index on source_copy (product_id);
 |---|---|---|
 | `agent_worker` | worker | Read and write on everything; `change_log` is read-only. Optional hardening in M16b. |
 | `agent_gateway` | gateway | Read everything; update `proposals`; insert into `change_log`, `notifications`, `credential_access`; insert into `proposals`, `proposal_versions`, `approvals` (for `ads-gw revert` only); update `change_log.reverted_by_revision_id`, `products.status` (halt), `jobs` (its queue); insert/update `api_usage` (D-066); insert/update `credentials` (`ads-gw credentials put`, rotation; D-068) |
-| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access`, `outcomes` and `telegram_conversations` (M09a); outcomes through the view `dashboard_outcomes` (no `hashed_contact`, no `web`); `INSERT` on `operator_requests` only |
+| `agent_dashboard` | dashboard | Read on every table except `credentials`, `credential_access`, `outcomes` and `telegram_conversations` (M09a); outcomes through the view `dashboard_outcomes` (no `hashed_contact`, no `web`); `INSERT` on `operator_requests` only, and only its request columns (`product_id, kind, payload, actor, channel`: never `inserted_by`, `status`, `result`, M10a) |
 
 The grants are `packages/db/sql/roles.sql`, applied by `db:migrate` after the migrations.
 
@@ -1973,7 +1977,7 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
 ---
 
 ### M10a — Dashboard: app, sign-in, settings
-**Phase 1 · Size ~450k · Needs:** T10 (Cloudflare Access and the Vercel project)
+**Phase 1 · Size ~450k · Needs:** T10 (Cloudflare Access and the Vercel project). Built before the Phase 0 gate (D-088); its live steps wait for M07's deploy and T10.
 
 **Goal:** the one place to configure products. It holds no platform credentials and can only record requests.
 
@@ -1986,7 +1990,7 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
    - anything else gets a 401 (fail closed), which also closes the raw `*.vercel.app` address;
    - Vercel preview deployments are protected, and never get the production DB URL.
 3. The request round-trip: submit the request, poll its status, and show the result. Polling is used because LISTEN/NOTIFY doesn't work through Neon's pooler.
-   - **Bind the actor to who inserted the row (D-068).** The M01b processor trusts the `actor` column, which the inserting role sets freely. So a leaked dashboard DB URL could act as Marcus on any channel. Add an `inserted_by` column (default `session_user`, not settable by the dashboard role), and have the processor accept a row from the dashboard role only with `channel = 'web'` and a `web:` actor. The dashboard sets the actor from the verified Access email.
+   - **Bind the actor to who inserted the row (D-068).** The M01b processor trusts the `actor` column, which the inserting role sets freely. So a leaked dashboard DB URL could act as Marcus on any channel. Add an `inserted_by` column (default `current_user` as built, D-089; not settable by the dashboard role), and have the processor accept a row from the dashboard role only with `channel = 'web'` and a `web:` actor. The dashboard sets the actor from the verified Access email.
 4. Settings, per product. Every change goes through `settings_patch`, and the page shows the worker's verdict:
    - ceilings, trust thresholds and digest mode;
    - outcome stages, tiers, KPI and feedback stages;
@@ -2011,6 +2015,8 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
 - The next morning's digest reflects the new ceilings.
 
 **Never cut:** the settings screens and their history, because M14 depends on the ceilings being settable and audited.
+
+**As built (D-089):** Next.js 16 (`proxy.ts`, the renamed middleware; it always runs on Node.js) verifies `Cf-Access-Jwt-Assertion` with jose against `<team>/cdn-cgi/access/certs` (RS256, issuer = team domain, audience = AUD tag, an `email` claim); env `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`; no config = every request 401. Pages, the poll route and server actions verify the token again. Only `VERCEL_ENV=production` reads `DASHBOARD_DATABASE_URL`; previews and local runs read `DASHBOARD_DEV_DATABASE_URL`; on Vercel the host must be Neon's `-pooler`. `@ads/db`, `drizzle-orm` and `pg` are loaded by Node, not bundled. The processor trusts a row's channel only if `inserted_by` can update `operator_requests` and doesn't inherit `agent_dashboard` (superusers aside); anything else must be `web` with a `web:` actor. The worker processes queued requests on the `request_queued` NOTIFY and every 30 s, on every replica. Screens: products; per product settings (spending and digest, trust, outcomes and feedback routes, copy, test traffic, guards and disabled actions, status), settings history (who, from where, what changed), facts per offering. Product status: halt / resume_agent, and a new `set_product_status` (active ↔ dormant; a halted product is refused: only resume_agent un-halts). An unchanged settings patch makes no new version. The fact editor is generated from the published JSON Schema and checks facts with contracts `jsonSchemaIssues` (zod `fromJSONSchema`, plus unknown keys) before recording; `apps/worker/test/factsSchema.test.ts` proves it agrees with each installed pack. Guard overrides can be added or tightened here, never removed.
 
 ---
 

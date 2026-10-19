@@ -57,13 +57,21 @@ const boundaryBlocks = [
 ];
 
 const ignores = {
-  ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/.turbo/**', 'scripts/test/fixtures/**'],
+  ignores: [
+    '**/dist/**',
+    '**/node_modules/**',
+    '**/coverage/**',
+    '**/.turbo/**',
+    '**/.next/**',
+    '**/next-env.d.ts',
+    'scripts/test/fixtures/**',
+  ],
 };
 
 const boundariesOnly = process.env.ADS_LINT_BOUNDARIES_ONLY === '1';
 
 export default boundariesOnly
-  ? defineConfig(ignores, { files: ['**/*.ts'], languageOptions: { parser: tseslint.parser } }, ...boundaryBlocks)
+  ? defineConfig(ignores, { files: ['**/*.{ts,tsx}'], languageOptions: { parser: tseslint.parser } }, ...boundaryBlocks)
   : defineConfig(
       ignores,
       js.configs.recommended,
@@ -87,6 +95,8 @@ export default boundariesOnly
           ],
         },
       },
+      // The dashboard's client components run in the browser too (M10a).
+      { files: ['apps/web/**/*.{ts,tsx}'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
       { files: ['**/*.js', '**/*.mjs', '**/*.cjs'], ...tseslint.configs.disableTypeChecked },
       ...boundaryBlocks,
       prettier,

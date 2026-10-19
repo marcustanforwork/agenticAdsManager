@@ -1,5 +1,6 @@
 // The worker service (BLUEPRINT §5.1–5.5, §5.16, M07). At startup it reconciles (`recoverWorker`: reclaims job
-// leases, processes requests left queued, resumes unfinished cycles), then runs the job queue. The leader (one
+// leases, processes requests left queued, resumes unfinished cycles), then runs the job queue and processes the
+// requests the dashboard records (M10a). The leader (one
 // replica, by advisory lock) also runs the schedule, polls Telegram for the brief buttons and sends the
 // notifications outbox. On SIGTERM the running cycle stops between stages and its job's lease is released, so the
 // next start picks it up where it stopped.
@@ -31,6 +32,7 @@ import type { PackRegistry } from '@ads/pack-sdk';
 import { masterKeyFromEnv } from '@ads/vault';
 import { HEARTBEAT_MS, ping, startHeartbeat } from './heartbeat.ts';
 import { INSTALLED_PACKS } from './packs.ts';
+import { type RequestProcessing, startRequestProcessing } from './requests.ts';
 import { type ScheduledJob, missedToday, startScheduler } from './schedule.ts';
 import { type BotContext, type TelegramApi, sendOutbox } from './telegram/bot.ts';
 import { grammyApi, startGrammyPolling } from './telegram/grammy.ts';
@@ -61,6 +63,8 @@ export interface WorkerOptions {
   expiryMs?: number;
   queuePollMs?: number;
   outboxMs?: number;
+  /** How often every replica drains queued operator requests besides the NOTIFY wake-up (default 30 s). */
+  requestPollMs?: number;
   heartbeatMs?: number;
   /** Tests: don't start the croner schedule (the catch-up still runs). */
   schedule?: boolean;
@@ -73,6 +77,8 @@ export interface RunningWorker {
   isLeader(): boolean;
   /** Sends the outbox now (the leader also does it every `outboxMs`). */
   sendOutboxNow(): Promise<number>;
+  /** Processes queued operator requests now (they're also processed on NOTIFY and every `requestPollMs`). */
+  processRequestsNow(): Promise<number>;
   stop(): Promise<void>;
 }
 
@@ -206,6 +212,7 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
       db,
       isLeader: () => false,
       sendOutboxNow: () => Promise.resolve(0),
+      processRequestsNow: () => Promise.resolve(0),
       async stop() {
         await heartbeat.stop();
         await tracing?.shutdown();
@@ -236,6 +243,15 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
     handlers: { daily: scheduled('daily'), weekly: scheduled('weekly') },
     ...(opts.queuePollMs === undefined ? {} : { pollMs: opts.queuePollMs }),
     logger,
+  });
+
+  // 3b. Requests other surfaces only record (the dashboard, M10a), on every replica.
+  const requestProcessing: RequestProcessing = startRequestProcessing({
+    db,
+    listenUrl: url,
+    ctx: requests,
+    logger,
+    ...(opts.requestPollMs === undefined ? {} : { pollMs: opts.requestPollMs }),
   });
 
   // 4. Leader-only work: the schedule, Telegram polling and the outbox.
@@ -338,9 +354,11 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
     db,
     isLeader: () => leadership.isLeader(),
     sendOutboxNow: sendNow,
+    processRequestsNow: () => requestProcessing.drainNow(),
     async stop() {
       // The running job's signal is aborted: its cycle stops between stages and the job is released, not failed.
       await runner.stop();
+      await requestProcessing.stop();
       const work = leaderWork;
       leaderWork = null;
       await work?.stop();
