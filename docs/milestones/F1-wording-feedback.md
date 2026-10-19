@@ -1,0 +1,110 @@
+# F1 — Wording and feedback fixes
+
+<!-- Created by the start-milestone skill from docs/plan/BLUEPRINT.md §7 ("Fix sessions", D-092).
+     Copy the requirements; don't paraphrase them. Tick items at every checkpoint.
+     Keep "Notes" factual and dated. -->
+
+| | |
+|---|---|
+| **Status** | in progress |
+| **Phase** | fix session (runs before the Phase 0 gate, D-092) |
+| **Started** | 2026-10-19 |
+| **Finished** | — |
+| **PRs** | — |
+
+## Goal
+The digest, the brief, the proposal words and the dashboard say the right thing, and an answer given on one surface is never overwritten by another.
+
+## Needs
+- [x] M10b merged: PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20), merged 2026-10-19.
+- [x] D-092 (Marcus): fix sessions F1 → F2 → F3 before the Phase 0 setup; they change no ad account, so they run before the gate.
+- No setup task (T-number) and no open question.
+
+## Read first
+- M10b's and M07's milestone files ("Leave behind").
+- BLUEPRINT §5.14 (briefs and digests).
+- `packages/core/src/report/` and `packages/core/src/draft/rationale.ts`.
+
+## Session plan (one session = one PR, 400–600k tokens incl. tests, review, fixes)
+- Build order (each leaves the tree green; commit and push after each):
+  1. Counts by stage id: one helper, used by the digest, the brief (template prose and rendering) and the template words; the dashboard's copy follows the same rule.
+  2. `brief_feedback` with one answer at a time: contract, repository, handler, Telegram, dashboard form (sends only what changed).
+  3. Error codes on the review screens: `FormError` carries a code; the notice looks the text up; unknown → a generic line.
+  4. `newProposals` in the brief's numbers table and a line in the rendered brief.
+- Then: `preflight`, `code-review` at high effort, fixes, `close-milestone`, `end-session`, one PR.
+- Cut first, if behind at ~300k: item 4 (moves to F3, which rehearses the brief with proposals).
+- Size ~250k: no checkpoint pressure expected.
+- Checkpoints (`docs/process/SESSIONS.md` §4):
+  - [x] ~50k oriented
+  - [ ] ~300k built, typecheck green
+  - [ ] ~450k tests green, self-review done
+  - [ ] ~550k committed, pushed, handed off
+
+## Builds
+- [ ] 1. **Counts by stage id, everywhere** (M10b review): the digest, the brief (template prose and rendering) and the drafted proposals' template words print a count with the KPI's stage id ("12 signups"), never by pluralising its label ("12 signup (email link clicked)s"). The label may still appear as a name. Same rule as the detectors (M06a) and the dashboard (M10b).
+  - plan: core `report/format.ts` `countOf` takes a stage id (or a plain noun): `_` → space, lower case, plural `s` unless the word already ends in `s`, or reads as a state rather than a thing (ends in `ed`, or `paid`), so `paid` / `booked` / `activated` don't become "paids". "Cost per <stage id>" in the digest and the brief. The dashboard's `countOf` (`apps/web/src/lib/review.ts`) gets the same rule (it says "3 paids" when the KPI is switched to `paid`); F2 merges the copies into contracts.
+- [ ] 2. **`brief_feedback` sets one answer at a time** (M10b review): `useful` and `newInfo` become optional, with at least one given; the repository updates only the given fields. Telegram sends the button pressed; the dashboard sends only what changed. A request with both fields stays valid.
+  - plan: the handler returns both answers as stored after the update, so the Telegram buttons show the true state. The Briefs form carries the answers it showed (hidden fields); a box left as shown is not sent; a form with nothing changed goes back with a notice.
+- [ ] 3. **The dashboard's error notice shows only our own messages** (M10b review): a review screen's `?error=` carries a short code, and the server looks up the text; an unknown code shows a generic line.
+  - plan: `FormError(code)`; a code table next to the forms (`reviewForms.ts`); the contract's issue list is no longer put in the URL.
+- [ ] 4. **The brief counts the cycle's new proposals** (M07 "Leave behind", for M08): the numbers table gains `newProposals`; when there are some, the brief says how many and where to decide them (Telegram, dashboard).
+  - plan: a repository count of the cycle's proposals; an optional field in `brief-numbers-v1` (stored briefs without it stay readable, like `agreeRate`); a "## Proposals" line in the rendered brief, so it shows whoever wrote the prose.
+
+## Tests
+- [ ] Digest, brief and template words rendered with a descriptive stage label: no pluralised label anywhere.
+- [ ] Brief feedback: a Telegram answer, then a dashboard save of the other answer, keeps both; a two-field request still works.
+- [ ] Error codes: a crafted `?error=` text is never shown; an unknown code shows the generic line.
+- [ ] A brief with 0 and with 2 new proposals.
+
+## Done when (cloud)
+- [ ] All tests are green.
+  - evidence: `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm format:check` → …
+
+## Done when (live, run by Marcus)
+- [ ] Folded into M07's and M10b's live steps (the digest and brief read right; feedback from both surfaces is kept).
+  - result: —
+
+### Live steps for Marcus
+No steps of its own (D-092). They fold into:
+1. M07 step 5 and the 7 unattended days: the digest says "Cost per signup", "N signups"; the brief's numbers say the same.
+2. M10b step 3: tick 👍 on Telegram, then 💡 on the dashboard's Briefs page: both stay.
+3. At phase 1 (M08 step 3): a brief after a cycle that proposed changes says how many and where to decide them.
+
+## Cut / moved
+| Item | Moved to | Why | Date |
+|---|---|---|---|
+| | | | |
+
+<!-- An item may move only once. An item moved INTO this milestone can't be cut again. -->
+
+## Leave behind (for later milestones)
+- …
+
+## Skills to create
+- None.
+
+## Invariants review (BLUEPRINT §8), done at close
+| # | Invariant | OK? | Note |
+|---|---|---|---|
+| 1 | One write path | | |
+| 2 | No product logic in shared code | | |
+| 3 | AI calls through core/model | | |
+| 4 | The AI never supplies decision numbers | | |
+| 5 | Untrusted text is data | | |
+| 6 | Money is bigint micros / decimal strings | | |
+| 7 | Every write action has an undo and a test | | |
+| 8 | Every guard has a property test; copy rules have pass/fail examples | | |
+| 9 | Surfaces only record intent | | |
+| 10 | apps/web depends only on contracts + db | | |
+| 11 | product_id + an index on product-scoped tables | | |
+| 12 | No state outside Postgres | | |
+| 13 | No secrets or personal data | | |
+| 14 | No production write capability outside the gateway | | |
+| 15 | Cut items moved at most once | | |
+| 16 | Memory is current | | |
+
+## Evidence
+<!-- command output that proves "Done when (cloud)" -->
+
+## Notes and surprises
+- 2026-10-19: started. External facts: F1 touches no external API or library beyond what M07–M10b already verified (Telegram callback answers, Next.js redirects and `searchParams`); nothing new to check.
