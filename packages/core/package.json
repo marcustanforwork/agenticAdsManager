@@ -8,6 +8,9 @@
       "@ads/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "@ads/source": "./test/support/world.ts"
     }
   },
   "files": [

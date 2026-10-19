@@ -70,6 +70,23 @@ export const PACKAGE_RULES = {
   },
   'apps/gateway': { name: '@ads/app-gateway', deps: ['@ads/contracts', '@ads/db', '@ads/vault', '@ads/gateway'] },
   'apps/web': { name: '@ads/app-web', deps: ['@ads/contracts', '@ads/db'] },
+  // The pre-live rehearsal (F3): test-only, nothing imports it. The one package that sees the worker and the
+  // dashboard together; apps/web's own tree is unchanged.
+  'packages/rehearsal': {
+    name: '@ads/rehearsal',
+    deps: [],
+    devDeps: [
+      '@ads/app-web',
+      '@ads/app-worker',
+      '@ads/connector-google',
+      '@ads/connector-testing',
+      '@ads/contracts',
+      '@ads/core',
+      '@ads/db',
+      '@ads/pack-saas-snappool',
+      '@ads/vault',
+    ],
+  },
 };
 
 /** Every pack: contracts and pack-sdk only. Never a connector, core, gateway or db. */

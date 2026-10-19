@@ -56,6 +56,8 @@ export interface WorkerOptions {
   fetch?: typeof fetch;
   tokenFetch?: typeof fetch;
   pingFetch?: typeof fetch;
+  /** Tests: the AI model for the analyst, the drafter and the brief (default: built from the environment). */
+  model?: CycleDeps['model'];
   /** Tests: a fake Telegram API and polling (default: grammY, when TELEGRAM_BOT_TOKEN is set). */
   telegram?: { api: TelegramApi; startPolling: (ctx: BotContext) => Polling } | null;
   leaderRetryMs?: number;
@@ -180,6 +182,7 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
     tracing,
     ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
     ...(opts.tokenFetch === undefined ? {} : { tokenFetch: opts.tokenFetch }),
+    ...(opts.model === undefined ? {} : { model: opts.model }),
   };
   const pingOpts = { ...(opts.pingFetch === undefined ? {} : { fetch: opts.pingFetch }), logger };
 
@@ -256,7 +259,7 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
 
   // 4. Leader-only work: the schedule, Telegram polling and the outbox.
   const botContext: BotContext | null =
-    telegram === null || ownerId === null ? null : { db, api: telegram.api, ownerId, requests, logger };
+    telegram === null || ownerId === null ? null : { db, api: telegram.api, ownerId, requests, logger, now };
   let leaderWork: { stop(): Promise<void> } | null = null;
   // One outbox pass at a time (an overlapping pass would send its notifications twice). A request during a pass sets
   // `again`, so at most one more pass follows it. After a stalled pass (Telegram unreachable, rate limited, bot
