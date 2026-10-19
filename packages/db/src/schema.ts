@@ -17,6 +17,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  pgView,
   primaryKey,
   text,
   timestamp,
@@ -361,6 +362,25 @@ export const outcomes = pgTable(
     check('outcomes_attribution_method_check', oneOf('attribution_method', ATTRIBUTION_METHODS)),
   ],
 );
+
+/** The dashboard's window on outcomes (roles.sql creates it): every column but `hashed_contact` and `web`. The
+ *  dashboard's role may read this and not the table (BLUEPRINT §4, "Database roles"). */
+export const dashboardOutcomes = pgView('dashboard_outcomes', {
+  id: uuid('id').notNull(),
+  productId: uuid('product_id').notNull(),
+  sourceId: text('source_id').notNull(),
+  stage: text('stage').notNull(),
+  occurredAt: tstz('occurred_at').notNull(),
+  valueMicros: micros('value_micros'),
+  currency: char('currency', { length: 3 }),
+  isTest: boolean('is_test').notNull(),
+  ids: jsonb('ids').notNull(),
+  attributedEntityId: uuid('attributed_entity_id'),
+  attributionMethod: text('attribution_method', { enum: ATTRIBUTION_METHODS }),
+  fedBackGoogleAt: tstz('fed_back_google_at'),
+  fedBackMetaAt: tstz('fed_back_meta_at'),
+  createdAt: tstz('created_at').notNull(),
+}).existing();
 
 // ── The agent's work ──────────────────────────────────────────────────────────────────────────
 
