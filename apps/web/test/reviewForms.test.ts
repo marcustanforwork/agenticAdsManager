@@ -85,29 +85,36 @@ describe('the other review forms', () => {
   });
 
   it('brief feedback sends only the answers changed on the page (F1)', () => {
-    const shown = (useful: string, newInfo: string, extra: Record<string, string> = {}) =>
-      form({ briefId: ID, usefulShown: useful, newInfoShown: newInfo, ...extra });
-    // Both unanswered on the page; 💡 ticked → only newInfo, so a 👍 given on Telegram meanwhile stays.
-    expect(briefFeedbackRequest(shown('', '', { newInfo: 'on' }))).toEqual({
+    const shown = (useful: string, newInfo: string, chosen: Record<string, string> = {}) =>
+      form({ briefId: ID, usefulShown: useful, newInfoShown: newInfo, ...chosen });
+    // Both unanswered on the page; 💡 yes → only newInfo, so a 👍 given on Telegram meanwhile stays.
+    expect(briefFeedbackRequest(shown('', '', { newInfo: 'yes' }))).toEqual({
       kind: 'brief_feedback',
       briefId: ID,
       newInfo: true,
     });
-    // 👍 shown ticked and left ticked; 💡 shown ticked and unticked → only newInfo: false.
-    expect(briefFeedbackRequest(shown('on', 'on', { useful: 'on' }))).toEqual({
+    // An explicit "no" on an unanswered brief is sent.
+    expect(briefFeedbackRequest(shown('', '', { useful: 'no' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      useful: false,
+    });
+    // 👍 shown yes and left; 💡 shown yes, changed to no → only newInfo: false.
+    expect(briefFeedbackRequest(shown('yes', 'yes', { useful: 'yes', newInfo: 'no' }))).toEqual({
       kind: 'brief_feedback',
       briefId: ID,
       newInfo: false,
     });
     // Both changed → both sent.
-    expect(briefFeedbackRequest(shown('', 'on', { useful: 'on' }))).toEqual({
+    expect(briefFeedbackRequest(shown('', 'yes', { useful: 'yes', newInfo: 'no' }))).toEqual({
       kind: 'brief_feedback',
       briefId: ID,
       useful: true,
       newInfo: false,
     });
-    expect(() => briefFeedbackRequest(shown('on', '', { useful: 'on' }))).toThrow(FormError); // nothing changed
-    expect(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'on' }))).toThrow(FormError);
+    expect(() => briefFeedbackRequest(shown('yes', '', { useful: 'yes' }))).toThrow(FormError); // nothing changed
+    expect(() => briefFeedbackRequest(shown('', '', { useful: 'maybe' }))).toThrow(FormError);
+    expect(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'yes' }))).toThrow(FormError);
   });
 });
 
@@ -127,8 +134,11 @@ describe('error codes (F1)', () => {
     expect(codeOf(() => proposalRequest(card('edit_budget', { budget: 'ten' })))).toBe('budget');
     expect(codeOf(() => proposalRequest(card('edit_text', { text: '' })))).toBe('negative_text');
     expect(codeOf(() => proposalRequest(card('edit_match', { matchType: 'BROAD' })))).toBe('match_type');
+    // A field's own code only when that field is wrong: a broken card with good words is `invalid`.
+    const broken = form({ proposalId: 'not-an-id', version: '2', verb: 'edit_text', text: 'free pool party' });
+    expect(codeOf(() => proposalRequest(broken))).toBe('invalid');
     expect(codeOf(() => proposalRequest(card('delete')))).toBe('invalid');
-    expect(codeOf(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'on' })))).toBe('invalid');
+    expect(codeOf(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'yes' })))).toBe('invalid');
     expect(codeOf(() => docRequest(form({ productId: ID, doc: 'secrets', baseVersion: '0' })))).toBe('invalid');
     expect(codeOf(() => briefFeedbackRequest(form({ briefId: ID })))).toBe('feedback_unchanged');
     for (const code of Object.keys(FORM_ERRORS)) expect(code).toMatch(/^[a-z_]+$/); // safe in a URL as is

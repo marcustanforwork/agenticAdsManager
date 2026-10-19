@@ -41,12 +41,15 @@ export function costPer(spendMicros: bigint, outcomes: number): bigint | null {
 export const ratePct = (part: number, whole: number): number | null =>
   whole === 0 ? null : Math.round((part * 1000) / whole) / 10;
 
-/** "1 signup" / "3 signups" from one word or a stage id ("pool_request" → "pool requests"). A word that already ends
- *  in s, or names a state rather than a thing ("paid", "booked", "activated"), takes no s. Not for stage labels,
- *  which can carry a note ("Signup (email link clicked)"): say those as `<n> × <label>`. Same rule as core's. */
+/** "1 signup" / "3 signups" from one word or a stage id ("pool_request" → "pool requests", "enquiry" → "enquiries").
+ *  A stage named for a state becomes a noun ("3 paid outcomes"). Not for stage labels, which can carry a note
+ *  ("Signup (email link clicked)"): say those as `<n> × <label>`. Same rule as core's `stageWord` (F2 merges them). */
 export function countOf(n: number, word: string): string {
   const w = word.replaceAll('_', ' ').toLowerCase();
-  return `${n} ${n === 1 || /(?:s|ed|\bpaid)$/.test(w) ? w : `${w}s`}`;
+  if (/(?:ed|\bpaid)$/.test(w)) return `${n} ${w} outcome${n === 1 ? '' : 's'}`;
+  if (n === 1 || w.endsWith('s')) return `${n} ${w}`;
+  if (/[^aeiou]y$/.test(w)) return `${n} ${w.slice(0, -1)}ies`;
+  return `${n} ${w}${/(?:ch|sh|x|z)$/.test(w) ? 'es' : 's'}`;
 }
 
 // ── Spend ─────────────────────────────────────────────────────────────────────────────────────

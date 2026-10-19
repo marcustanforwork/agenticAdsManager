@@ -23,15 +23,19 @@ export function costPer(spendMicros: bigint, outcomes: number): bigint | null {
   return (spendMicros * 2n + n) / (2n * n);
 }
 
-/** A stage id or a plain noun as words: "pool_request" → "pool request"; with `plural`, "pool requests". A word that
- *  already ends in s, or names a state rather than a thing ("paid", "booked", "activated"), takes no s. Never give it
- *  a stage *label*: labels are descriptive phrases ("Signup (email link clicked)") that don't take a plural. */
+/** A stage id or a plain noun as words: "pool_request" → "pool request"; with `plural`, "pool requests" ("enquiry" →
+ *  "enquiries", "search" → "searches"; a word already ending in s is kept). A stage named for a state rather than a
+ *  thing ("paid", "booked", "activated") becomes a noun: "paid outcome", "paid outcomes". Never give it a stage
+ *  *label*: labels are descriptive phrases ("Signup (email link clicked)") that don't take a plural. */
 export function stageWord(word: string, plural = false): string {
   const w = word.replaceAll('_', ' ').toLowerCase();
-  return plural && !/(?:s|ed|\bpaid)$/.test(w) ? `${w}s` : w;
+  if (/(?:ed|\bpaid)$/.test(w)) return plural ? `${w} outcomes` : `${w} outcome`;
+  if (!plural || w.endsWith('s')) return w;
+  if (/[^aeiou]y$/.test(w)) return `${w.slice(0, -1)}ies`;
+  return /(?:ch|sh|x|z)$/.test(w) ? `${w}es` : `${w}s`;
 }
 
-/** "1 signup" / "3 signups" / "2 pool requests" / "4 paid" from a stage id or a plain noun (see `stageWord`). */
+/** "1 signup" / "3 signups" / "2 pool requests" / "4 paid outcomes" from a stage id or a plain noun (`stageWord`). */
 export function countOf(n: number, word: string): string {
   return `${n} ${stageWord(word, n !== 1)}`;
 }

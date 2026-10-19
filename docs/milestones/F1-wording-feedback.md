@@ -71,7 +71,7 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
 ### Live steps for Marcus
 No steps of its own (D-092). They fold into:
 1. M07 step 5 and the 7 unattended days: the digest says "Cost per signup", "N signups"; the brief's numbers say the same.
-2. M10b step 3: tick 👍 on Telegram, then 💡 on the dashboard's Briefs page: both stay.
+2. M10b step 3: press 👍 on Telegram, then choose 💡 yes on the dashboard's Briefs page (loaded before the press): both stay.
 3. At phase 1 (M08 step 3): a brief after a cycle that proposed changes says how many and where to decide them.
 
 ## Cut / moved
@@ -82,7 +82,9 @@ No steps of its own (D-092). They fold into:
 <!-- An item may move only once. An item moved INTO this milestone can't be cut again. -->
 
 ## Leave behind (for later milestones)
-- …
+- **F2:** `countOf` / `stageWord` exist in core (`report/format.ts`) and in the web (`lib/review.ts`) with the same rule (stage id, "paid outcomes", y → ies); merge them with the other formatters into `@ads/contracts`.
+- **F3:** the Phase 0 checklist artifact's M10b step 3 may still say "tick 👍 / 💡": the Briefs page now has yes / no choices (NOW.md and the M10b file are updated).
+- **M16a:** the drafter's DATA block gives the AI the KPI's label (`kpi: ctx.kpiLabel`), so AI-written proposal words may name it differently from the template ("2 signups"). If a prompt change is made for the model-swap gate, give it the stage id too (a new `drafter-v2`).
 
 ## Skills to create
 - None.
@@ -111,4 +113,5 @@ No steps of its own (D-092). They fold into:
 <!-- command output that proves "Done when (cloud)" -->
 
 ## Notes and surprises
+- 2026-10-19: code review (high): 8 findings. Fixed with tests: (1) with checkboxes the Briefs page couldn't record a deliberate "no" on an unanswered brief (unticked = unanswered = no), so each answer is now a yes / no choice, preset to what is stored, and an untouched choice sends nothing; (2) "Cost per paid" / "no paid" read badly, so a stage named for a state becomes a noun ("paid outcome(s)"); (6) plurals of ids ending in y / ch / sh / x / z ("enquiries", "searches"); (3) `edit_text` / `edit_match` showed their own code for any contract failure, so now the edit is checked alone first and a broken card is `invalid`; (4 and 8) "To decide" counted decided proposals too and filtered on the unindexed `cycle_id`, so it now counts the cycle's `pending` ones through the (product_id, status) index, worded "waiting for your decision". Not fixed: (5) the plural rule is copied in core and web, and F2 merges the formatters into contracts (D-092); (7) the drafter's DATA still names the KPI by its label, which the AI writes free prose around (its numbers are checked), and changing the prompt means a new instructions version, so it goes to M16a (Leave behind).
 - 2026-10-19: started. External facts: F1 touches no external API or library beyond what M07–M10b already verified (Telegram callback answers, Next.js redirects and `searchParams`); nothing new to check.

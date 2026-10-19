@@ -202,15 +202,19 @@ const LABELLED: ProductSettings = {
 };
 
 describe('counts by stage id (F1)', () => {
-  it('names a stage by its id; a word for a state takes no s', () => {
+  it('names a stage by its id; a stage named for a state becomes a noun', () => {
     expect(countOf(1, 'signup')).toBe('1 signup');
     expect(countOf(12, 'signup')).toBe('12 signups');
     expect(countOf(3, 'pool_request')).toBe('3 pool requests');
-    expect(countOf(0, 'paid')).toBe('0 paid');
-    expect(countOf(2, 'activated')).toBe('2 activated');
+    expect(countOf(0, 'paid')).toBe('0 paid outcomes');
+    expect(countOf(1, 'activated')).toBe('1 activated outcome');
     expect(countOf(5, 'clicks')).toBe('5 clicks');
+    expect(countOf(2, 'enquiry')).toBe('2 enquiries');
+    expect(countOf(3, 'day')).toBe('3 days');
+    expect(countOf(2, 'search')).toBe('2 searches');
     expect(stageWord('Form_Fill')).toBe('form fill');
     expect(stageWord('form_fill', true)).toBe('form fills');
+    expect(stageWord('paid')).toBe('paid outcome');
   });
 
   it('the digest, the brief and the template words never pluralise a descriptive label', async () => {
@@ -225,20 +229,22 @@ describe('counts by stage id (F1)', () => {
     expect(digest).toContain('Outcomes yesterday: 1 pool request · 1 signup');
     expect(digest).toContain('Cost per signup (7 days): S$35.00 (2 signups, S$70.00 spent)');
     noLabelPlural(digest);
-    // The KPI switched to `paid` (M05a's live step): "no paid", not "no paids" or "no paid (no checkout yet)s".
+    // The KPI switched to `paid` (M05a's live step): "paid outcomes", not "paids" or "paid (no checkout yet)s".
     const paid = {
       ...product,
       settings: { ...product.settings, outcomes: { ...LABELLED.outcomes, primaryKpiStage: 'paid' } },
     };
     const paidDigest = renderDigest(await buildDigest(t.db, { product: paid, now: NOW, cycle }));
-    expect(paidDigest).toContain('Cost per paid (7 days): no paid (S$70.00 spent)');
+    expect(paidDigest).toContain('Cost per paid outcome (7 days): no paid outcomes (S$70.00 spent)');
     noLabelPlural(paidDigest);
 
     const numbers = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
     const prose = templateProse(numbers);
     expect(prose.paragraphs[0]).toContain('with 70 clicks and 2 signups. Cost per signup: S$35.00.');
     const brief = renderBrief(numbers, prose);
-    expect(brief).toContain('- Outcomes: 1 pool request (before 0) · 2 signups (before 1) · 0 paid (before 0)');
+    expect(brief).toContain(
+      '- Outcomes: 1 pool request (before 0) · 2 signups (before 1) · 0 paid outcomes (before 0)',
+    );
     expect(brief).toContain('- Cost per signup: S$35.00 (before S$35.00, 0%)');
     expect(brief).toContain('S$70.00, 70 clicks, 2 signups, S$35.00 each');
     noLabelPlural(brief);

@@ -1,8 +1,8 @@
 // The review screens' forms → the operator request each records (M10b). Pure, so the tests prove each button asks
 // for exactly the right thing; actions.ts records the result. The worker decides: a stale version, an expired
 // proposal or a change already undone is refused there, with the reason.
-import { OperatorRequest } from '@ads/contracts';
-import { type Fields, checked, moneyToMicros, str, versionOf } from './forms.ts';
+import { EditSpec, OperatorRequest } from '@ads/contracts';
+import { type Fields, moneyToMicros, str, versionOf } from './forms.ts';
 
 /** Why a review form went back unsent, by code (F1). Only the code travels in the screen's `?error=`; the screen
  *  looks the words up here, so a crafted link can't put its own text on the page. */
@@ -31,12 +31,18 @@ export class FormError extends Error {
   }
 }
 
-/** The request if the contract accepts it; otherwise the form goes back with `code` (`invalid` unless the form has
- *  a more precise one). */
-function parsed(request: unknown, code: FormErrorCode = 'invalid'): OperatorRequest {
+/** The request if the contract accepts it; otherwise the form goes back as `invalid` (a field with its own code is
+ *  checked before, so this is a stale or broken form). */
+function parsed(request: unknown): OperatorRequest {
   const result = OperatorRequest.safeParse(request);
-  if (!result.success) throw new FormError(code);
+  if (!result.success) throw new FormError('invalid');
   return result.data;
+}
+
+/** Edit and approve: the edit is checked on its own first, so `code` names the field Marcus typed, and only that. */
+function editRequest(proposalId: string, version: number, edit: unknown, code: FormErrorCode): OperatorRequest {
+  if (!EditSpec.safeParse(edit).success) throw new FormError(code);
+  return parsed({ kind: 'edit_approve', proposalId, version, edit });
 }
 
 /** A proposal card's buttons: approve, reject (with a reason), or edit one field and approve. Each names the
@@ -58,23 +64,12 @@ export function proposalRequest(f: Fields): OperatorRequest {
       if (!/^\d+$/.test(micros) || micros === '0') {
         throw new FormError('budget');
       }
-      return parsed({
-        kind: 'edit_approve',
-        proposalId,
-        version,
-        edit: { field: 'budget', newDailyBudgetMicros: micros },
-      });
+      return editRequest(proposalId, version, { field: 'budget', newDailyBudgetMicros: micros }, 'budget');
     }
     case 'edit_text':
-      return parsed(
-        { kind: 'edit_approve', proposalId, version, edit: { field: 'negative_text', text: str(f, 'text') } },
-        'negative_text',
-      );
+      return editRequest(proposalId, version, { field: 'negative_text', text: str(f, 'text') }, 'negative_text');
     case 'edit_match':
-      return parsed(
-        { kind: 'edit_approve', proposalId, version, edit: { field: 'match_type', matchType: str(f, 'matchType') } },
-        'match_type',
-      );
+      return editRequest(proposalId, version, { field: 'match_type', matchType: str(f, 'matchType') }, 'match_type');
     default:
       throw new FormError('invalid');
   }
@@ -85,12 +80,17 @@ export function undoRequest(f: Fields): OperatorRequest {
   return parsed({ kind: 'undo', revisionId: str(f, 'revisionId') });
 }
 
-/** A brief's 👍 useful / 💡 new to me (the Phase 0 gate's measure). Only the answers changed on the page are sent
- *  (F1): the form carries what it showed (`usefulShown`, `newInfoShown`: `on` when ticked), so an answer given on
- *  Telegram after the page loaded is never overwritten by a box left as it was. */
+/** A brief's 👍 useful / 💡 new to me (the Phase 0 gate's measure), each a yes / no choice. Only the answers changed
+ *  on the page are sent (F1): the form carries what it showed (`usefulShown`, `newInfoShown`: `yes`, `no`, or empty
+ *  when unanswered), so an answer given on Telegram after the page loaded is never overwritten by a choice left as
+ *  it was. An unanswered choice left alone sends nothing; "no" can be given on purpose. */
 export function briefFeedbackRequest(f: Fields): OperatorRequest {
-  const changed = (name: 'useful' | 'newInfo') =>
-    checked(f, name) === (str(f, `${name}Shown`) === 'on') ? {} : { [name]: checked(f, name) };
+  const changed = (name: 'useful' | 'newInfo') => {
+    const now = str(f, name);
+    if (now === '' || now === str(f, `${name}Shown`)) return {};
+    if (now !== 'yes' && now !== 'no') throw new FormError('invalid');
+    return { [name]: now === 'yes' };
+  };
   const answers = { ...changed('useful'), ...changed('newInfo') };
   if (Object.keys(answers).length === 0) {
     throw new FormError('feedback_unchanged');

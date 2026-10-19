@@ -81,7 +81,7 @@ _After M10a's live steps (the dashboard deployed behind Access). No migration; V
 2. Docs → STRATEGY: change a line and save.
    - expect: **Done** `{"doc": "strategy", "version": N+1}`; the history shows the new version "by web:<your email> via web".
    - report: "doc saved".
-3. Briefs: on the latest brief, tick 👍 and/or 💡 and save.
+3. Briefs: on the latest brief, choose yes or no for 👍 and/or 💡 and save (since F1: a choice left alone is not sent).
    - expect: **Done**; "now: yes" on the brief. (The form sends both answers: press Telegram's buttons or the dashboard's, not both at the same time.)
    - report: "feedback saved".
 4. Checks: the week's cycles with their trust result, any warnings, the AI cost; drift if anything was changed by hand.

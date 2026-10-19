@@ -7,6 +7,24 @@ import { sendBriefFeedback } from '../../../actions.ts';
 import { Back } from '../Tabs.tsx';
 
 const answer = (v: boolean | null): string => (v === null ? 'not answered' : v ? 'yes' : 'no');
+/** An answer as the form carries it: `yes`, `no`, or empty when unanswered (reviewForms.ts compares against it). */
+const shown = (v: boolean | null): string => (v === null ? '' : v ? 'yes' : 'no');
+
+/** One answer as a yes / no choice, preset to what is stored; left alone, it sends nothing (F1). */
+function Choice({ name, label, value }: { name: string; label: string; value: boolean | null }) {
+  return (
+    <p>
+      {label}:{' '}
+      <label>
+        <input type="radio" name={name} value="yes" defaultChecked={value === true} /> yes
+      </label>{' '}
+      <label>
+        <input type="radio" name={name} value="no" defaultChecked={value === false} /> no
+      </label>{' '}
+      <span className="muted">(now: {answer(value)})</span>
+    </p>
+  );
+}
 
 export function Briefs({ product, briefs }: { product: ProductView; briefs: Brief[] }) {
   if (briefs.length === 0) {
@@ -32,16 +50,10 @@ export function Briefs({ product, briefs }: { product: ProductView; briefs: Brie
           <form action={sendBriefFeedback}>
             <Back slug={product.slug} screen="briefs" />
             <input type="hidden" name="briefId" value={b.id} />
-            <input type="hidden" name="usefulShown" value={b.feedbackUseful === true ? 'on' : ''} />
-            <input type="hidden" name="newInfoShown" value={b.feedbackNewInfo === true ? 'on' : ''} />
-            <label>
-              <input type="checkbox" name="useful" defaultChecked={b.feedbackUseful === true} /> 👍 Useful{' '}
-              <span className="muted">(now: {answer(b.feedbackUseful)})</span>
-            </label>
-            <label>
-              <input type="checkbox" name="newInfo" defaultChecked={b.feedbackNewInfo === true} /> 💡 New to me{' '}
-              <span className="muted">(now: {answer(b.feedbackNewInfo)})</span>
-            </label>
+            <input type="hidden" name="usefulShown" value={shown(b.feedbackUseful)} />
+            <input type="hidden" name="newInfoShown" value={shown(b.feedbackNewInfo)} />
+            <Choice name="useful" label="👍 Useful" value={b.feedbackUseful} />
+            <Choice name="newInfo" label="💡 New to me" value={b.feedbackNewInfo} />
             <button type="submit" className="secondary">
               Save feedback
             </button>

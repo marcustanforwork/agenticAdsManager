@@ -9,7 +9,7 @@ import {
   type DbOrTx,
   type Finding,
   type Product,
-  countCycleProposals,
+  countPendingCycleProposals,
   countOutcomesByScope,
   getCycle,
   listAccounts,
@@ -103,7 +103,8 @@ export interface BriefNumbers {
   trust: { result: string | null; flagged: { check: string; result: string; account: string | null }[] };
   drift: number;
   openProposals: number;
-  /** The proposals this cycle drafted (F1), for Marcus to decide. Absent in briefs stored before F1. */
+  /** This cycle's proposals still waiting for Marcus's decision when the brief was written (F1). Absent in briefs
+   *  stored before F1. */
   newProposals?: number;
   /** The agree rate over the last 3 weeks (M08, PROPOSAL §12); absent or null when there were no agent proposals,
    *  as before Phase 1. */
@@ -205,7 +206,7 @@ export async function buildBriefNumbers(
     listTrustChecks(db, input.cycleId),
     listUnacknowledgedDrift(db, product.id),
     listProposals(db, product.id, ['pending']),
-    countCycleProposals(db, { productId: product.id, cycleId: input.cycleId }),
+    countPendingCycleProposals(db, { productId: product.id, cycleId: input.cycleId }),
   ]);
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const entitiesById = new Map(entities.map((e) => [e.id, e]));
@@ -449,14 +450,16 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
   return lines.join('\n');
 }
 
-/** What the cycle proposed, and where to decide it (F1). Printed by code, so it shows whoever wrote the prose. */
+/** What the cycle proposed that still waits for Marcus, and where to decide it (F1). Printed by code, so it shows
+ *  whoever wrote the prose. */
 function proposalLines(numbers: BriefNumbers): string[] {
   const n = numbers.newProposals ?? 0;
   if (n === 0) return [];
+  const one = n === 1;
   return [
     '## To decide',
-    `- This cycle proposed ${countOf(n, 'change')}. Decide ${n === 1 ? 'it' : 'them'} on ${n === 1 ? 'its card' : 'the cards'} in ` +
-      "Telegram (or /proposals), or on the dashboard's Proposals page.",
+    `- ${countOf(n, 'change')} proposed this cycle ${one ? 'is' : 'are'} waiting for your decision: decide ` +
+      `${one ? 'it on its card' : 'them on the cards'} in Telegram (or /proposals), or on the dashboard's Proposals page.`,
     '',
   ];
 }

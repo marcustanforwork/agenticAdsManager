@@ -40,7 +40,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 **M10b** (after M10a's; no migration; steps 1–4 during the gate, step 5 at phase 1). Full text in the M10b milestone file:
 1. `https://ads.<your domain>/products/snappool/overview`: spend, projection, cost per signup by week, outcomes and attribution, accounts. Report "overview seen", and whether it matches that morning's digest.
 2. Docs → STRATEGY: edit and save → **Done**, a new version "by web:…". Report "doc saved".
-3. Briefs: tick 👍 / 💡 on the latest brief → **Done**. Report "feedback saved".
+3. Briefs: choose yes / no for 👍 / 💡 on the latest brief → **Done**. Report "feedback saved".
 4. Checks: the week's cycles, warnings, AI cost, drift. Report "checks seen".
 5. At phase 1: review a week of proposals on the dashboard (approve / reject / edit; make approved ones by hand). Report the counts and "change log seen" (empty until Phase 2).
 

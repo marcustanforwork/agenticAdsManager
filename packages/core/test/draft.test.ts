@@ -542,17 +542,31 @@ describe('the new proposals in the weekly brief (F1)', () => {
     expect(quiet).not.toContain('## To decide');
     expect(quiet).not.toContain('proposed');
 
-    await draftStage(deps(drafter(() => ({ rationale: 'r', expectedEffect: 'e' })).model), product, cycle.id);
+    const drafted = await draftStage(
+      deps(drafter(() => ({ rationale: 'r', expectedEffect: 'e' })).model),
+      product,
+      cycle.id,
+    );
     const after = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
     expect(after.newProposals).toBe(2);
     const brief = renderBrief(after, templateProse(after));
     expect(brief).toContain(
-      "## To decide\n- This cycle proposed 2 changes. Decide them on the cards in Telegram (or /proposals), or on the dashboard's Proposals page.\n\n## Numbers",
+      "## To decide\n- 2 changes proposed this cycle are waiting for your decision: decide them on the cards in Telegram (or /proposals), or on the dashboard's Proposals page.\n\n## Numbers",
     );
-    // Only this cycle's: the next cycle drafted nothing new, so its brief says nothing, though 2 are still open.
+    // A proposal decided before the brief is written (a resumed report stage) is not counted.
+    await t.db
+      .update(schema.proposals)
+      .set({ status: 'rejected' })
+      .where(eq(schema.proposals.id, drafted.drafted[0]?.proposalId ?? ''));
+    const decided = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
+    expect(decided.newProposals).toBe(1);
+    expect(renderBrief(decided, templateProse(decided))).toContain(
+      '- 1 change proposed this cycle is waiting for your decision: decide it on its card in Telegram',
+    );
+    // Only this cycle's: the next cycle drafted nothing new, so its brief says nothing, though 1 is still open.
     const next = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-09' });
     const later = await buildBriefNumbers(t.db, { product, cycleId: next.id });
-    expect(later).toMatchObject({ newProposals: 0, openProposals: 2 });
+    expect(later).toMatchObject({ newProposals: 0, openProposals: 1 });
     expect(renderBrief(later, templateProse(later))).not.toContain('## To decide');
   });
 });
