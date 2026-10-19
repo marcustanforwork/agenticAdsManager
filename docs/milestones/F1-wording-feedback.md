@@ -6,10 +6,10 @@
 
 | | |
 |---|---|
-| **Status** | in progress |
+| **Status** | awaiting live acceptance (folded into M07's and M10b's live steps) |
 | **Phase** | fix session (runs before the Phase 0 gate, D-092) |
 | **Started** | 2026-10-19 |
-| **Finished** | — |
+| **Finished** | 2026-10-19 (cloud) |
 | **PRs** | — |
 
 ## Goal
@@ -37,8 +37,8 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented
   - [x] ~300k built, typecheck green (at ~190k)
-  - [ ] ~450k tests green, self-review done
-  - [ ] ~550k committed, pushed, handed off
+  - [x] ~450k tests green, self-review done (at ~240k)
+  - [x] ~550k committed, pushed, handed off (closed at ~260k)
 
 ## Builds
 - [x] 1. **Counts by stage id, everywhere** (M10b review): the digest, the brief (template prose and rendering) and the drafted proposals' template words print a count with the KPI's stage id ("12 signups"), never by pluralising its label ("12 signup (email link clicked)s"). The label may still appear as a name. Same rule as the detectors (M06a) and the dashboard (M10b).
@@ -61,8 +61,8 @@ The digest, the brief, the proposal words and the dashboard say the right thing,
 - [x] A brief with 0 and with 2 new proposals.
 
 ## Done when (cloud)
-- [ ] All tests are green.
-  - evidence: `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm format:check` → …
+- [x] All tests are green.
+  - evidence: `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm build && pnpm format:check` → exit 0; 1,073 tests passed (3 skipped, as before F1). See Evidence.
 
 ## Done when (live, run by Marcus)
 - [ ] Folded into M07's and M10b's live steps (the digest and brief read right; feedback from both surfaces is kept).
@@ -92,25 +92,37 @@ No steps of its own (D-092). They fold into:
 ## Invariants review (BLUEPRINT §8), done at close
 | # | Invariant | OK? | Note |
 |---|---|---|---|
-| 1 | One write path | | |
-| 2 | No product logic in shared code | | |
-| 3 | AI calls through core/model | | |
-| 4 | The AI never supplies decision numbers | | |
-| 5 | Untrusted text is data | | |
-| 6 | Money is bigint micros / decimal strings | | |
-| 7 | Every write action has an undo and a test | | |
-| 8 | Every guard has a property test; copy rules have pass/fail examples | | |
-| 9 | Surfaces only record intent | | |
-| 10 | apps/web depends only on contracts + db | | |
-| 11 | product_id + an index on product-scoped tables | | |
-| 12 | No state outside Postgres | | |
-| 13 | No secrets or personal data | | |
-| 14 | No production write capability outside the gateway | | |
-| 15 | Cut items moved at most once | | |
-| 16 | Memory is current | | |
+| 1 | One write path | yes | No write action touched; nothing reaches an ad account. |
+| 2 | No product logic in shared code | yes | The plural rule is generic (stage ids, state words); no product names in shared code (the grep is clean outside tests). |
+| 3 | AI calls through core/model | yes | No new AI call. |
+| 4 | The AI never supplies decision numbers | yes | `newProposals` comes from SQL; the "To decide" line is printed by code; the number check still holds the AI's prose to the table. |
+| 5 | Untrusted text is data | yes | The `?error=` value is never shown: only our own words for a known code (fixes M10b's crafted-link gap). |
+| 6 | Money is bigint micros / decimal strings | yes | No money maths changed. |
+| 7 | Every write action has an undo and a test | n/a | No write action. |
+| 8 | Every guard has a property test; copy rules have pass/fail examples | n/a | No guard or copy rule. |
+| 9 | Surfaces only record intent | yes | Telegram and the Briefs page still only record `brief_feedback`; the worker stores it. |
+| 10 | apps/web depends only on contracts + db | yes | The web uses `EditSpec` and `OperatorRequest` from contracts; `check:boundaries` OK. |
+| 11 | product_id + an index on product-scoped tables | yes | No new table; the new count filters on product_id + status (indexed). |
+| 12 | No state outside Postgres | yes | Feedback state stays in `briefs`; the form's shown values are hidden fields of one page. |
+| 13 | No secrets or personal data | yes | None added; tests use example.com. |
+| 14 | No production write capability outside the gateway | yes | Unchanged. |
+| 15 | Cut items moved at most once | yes | Nothing cut. |
+| 16 | Memory is current | yes | NOW, LOG, DECISIONS (D-093), BLUEPRINT v3.31 updated at close. |
 
 ## Evidence
-<!-- command output that proves "Done when (cloud)" -->
+```
+$ pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm build && pnpm format:check   # 2026-10-19, after the review fixes
+ Tasks:    17 successful, 17 total                       (typecheck)
+check-boundaries: OK (17 packages)
+✔ no dependency violations found (555 modules, 1513 dependencies cruised)
+ Test Files  89 passed | 1 skipped (90)
+      Tests  1073 passed | 3 skipped (1076)
+ Tasks:    17 successful, 17 total                       (build)
+All matched files use Prettier code style!
+exit 0
+```
+- Preflight greps: invariant 1 and 13 clean (the one `ya29.` hit is the existing fake token in `connector-testing`'s test); invariant 2 clean in shared code; invariant 6: no float near money in the diff.
+- The F1 tests: `report.test.ts` "counts by stage id (F1)"; `draft.test.ts` "the new proposals in the weekly brief (F1)"; `requests.test.ts` "one answer at a time"; `telegram.test.ts` "a Telegram answer, then a dashboard save of the other answer, keeps both"; `reviewForms.test.ts` "brief feedback sends only the answers changed" and "error codes (F1)"; `views.test.ts` "the form notice (F1)" and the Briefs form; `review.test.ts` countOf.
 
 ## Notes and surprises
 - 2026-10-19: code review (high): 8 findings. Fixed with tests: (1) with checkboxes the Briefs page couldn't record a deliberate "no" on an unanswered brief (unticked = unanswered = no), so each answer is now a yes / no choice, preset to what is stored, and an untouched choice sends nothing; (2) "Cost per paid" / "no paid" read badly, so a stage named for a state becomes a noun ("paid outcome(s)"); (6) plurals of ids ending in y / ch / sh / x / z ("enquiries", "searches"); (3) `edit_text` / `edit_match` showed their own code for any contract failure, so now the edit is checked alone first and a broken card is `invalid`; (4 and 8) "To decide" counted decided proposals too and filtered on the unindexed `cycle_id`, so it now counts the cycle's `pending` ones through the (product_id, status) index, worded "waiting for your decision". Not fixed: (5) the plural rule is copied in core and web, and F2 merges the formatters into contracts (D-092); (7) the drafter's DATA still names the KPI by its label, which the AI writes free prose around (its numbers are checked), and changing the prompt means a new instructions version, so it goes to M16a (Leave behind).
