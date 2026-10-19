@@ -187,7 +187,7 @@ describe('the digest', () => {
   });
 });
 
-/** SnapPool's stages as its pack writes them: descriptive labels with a note, which take no plural (F1). */
+/** Stages as a real pack writes them: descriptive labels with a note, which take no plural (F1). */
 const LABELLED: ProductSettings = {
   ...SETTINGS,
   outcomes: {
