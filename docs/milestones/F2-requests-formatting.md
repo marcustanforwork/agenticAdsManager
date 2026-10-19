@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | in progress |
+| **Status** | built; awaiting Marcus's merge (no live steps of its own) |
 | **Phase** | fix (runs before the Phase 0 gate, D-092) |
 | **Started** | 2026-10-19 |
 | **Finished** | — |
@@ -36,7 +36,7 @@ A request that keeps failing stops and tells Marcus, and money, dates and times 
   - [x] ~50k oriented
   - [x] ~300k built, typecheck green (at ~170k)
   - [x] ~450k tests green, self-review done (at ~230k)
-  - [ ] ~550k committed, pushed, handed off
+  - [x] ~550k committed, pushed, handed off (closed at ~250k)
 
 ## Builds
 - [x] 1. **A faulting request stops after 5 tries** (M10a review): `operator_requests.attempts` (migration); each fault (not a refusal) counts; at 5 the request is refused with its last error, and an alert goes to Marcus. Refusals stay final, as now.
@@ -52,8 +52,8 @@ A request that keeps failing stops and tells Marcus, and money, dates and times 
 - [x] A request processed in the same transaction it was recorded in sends no wake-up (if item 3 is built).
 
 ## Done when (cloud)
-- [ ] All tests are green.
-  - evidence: —
+- [x] All tests are green.
+  - evidence: `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm build && pnpm format:check` → exit 0; 1,089 tests passed (3 skipped, as before F2). See Evidence.
 
 ## Done when (live, run by Marcus)
 - [ ] Migration `0008` runs with the others; nothing else is visible.
@@ -80,25 +80,26 @@ None of its own (D-092). Migration `0008` runs with the others (M10a's step 1 an
 ## Invariants review (BLUEPRINT §8), done at close
 | # | Invariant | OK? | Note |
 |---|---|---|---|
-| 1 | One write path | | |
-| 2 | No product logic in shared code | | |
-| 3 | AI calls through core/model | | |
-| 4 | The AI never supplies decision numbers | | |
-| 5 | Untrusted text is data | | |
-| 6 | Money is bigint micros / decimal strings | | |
-| 7 | Every write action has an undo and a test | | |
-| 8 | Every guard has a property test; copy rules have pass/fail examples | | |
-| 9 | Surfaces only record intent | | |
-| 10 | apps/web depends only on contracts + db | | |
-| 11 | product_id + an index on product-scoped tables | | |
-| 12 | No state outside Postgres | | |
-| 13 | No secrets or personal data | | |
-| 14 | No production write capability outside the gateway | | |
-| 15 | Cut items moved at most once | | |
-| 16 | Memory is current | | |
+| 1 | One write path | yes | no write connector touched |
+| 2 | No product logic in shared code | yes | the format tables name currencies, not products; the preflight grep hits only older test fixtures |
+| 3 | AI calls through core/model | yes | no AI call added |
+| 4 | The AI never supplies decision numbers | yes | only display text changed; numbers still come from SQL |
+| 5 | Untrusted text is data | yes | a fault's message reaches Telegram escaped (`genericLines`), as data |
+| 6 | Money is bigint micros / decimal strings | yes | `formatMoney` works in bigint micros; display only |
+| 7 | Every write action has an undo and a test | yes | no write action added |
+| 8 | Every guard has a property test; copy rules have pass/fail examples | yes | no guard changed; a property test covers `formatMoney` |
+| 9 | Surfaces only record intent | yes | the dashboard still only inserts; `attempts` and `retry_after` aren't in its column grant (roles test) |
+| 10 | apps/web depends only on contracts + db | yes | `pnpm check:boundaries` green; the web imports `@ads/contracts` only |
+| 11 | product_id + an index on product-scoped tables | yes | no new table; `operator_requests` keeps its indexes |
+| 12 | No state outside Postgres | yes | the per-timezone `Intl.DateTimeFormat` cache is a pure memo, not state |
+| 13 | No secrets or personal data | yes | a stored fault is the innermost cause, never drizzle's query and parameters |
+| 14 | No production write capability outside the gateway | yes | nothing near the gateway |
+| 15 | Cut items moved at most once | yes | nothing cut |
+| 16 | Memory is current | yes | NOW, LOG, DECISIONS (D-094), GOTCHAS and BLUEPRINT updated |
 
 ## Evidence
-<!-- command output that proves "Done when (cloud)" -->
+- 2026-10-19, after the review fixes (commit `687f3db`): `pnpm typecheck && pnpm lint && pnpm check:boundaries && pnpm test && pnpm build && pnpm format:check` → exit 0; `Test Files 90 passed | 1 skipped (91)`, `Tests 1089 passed | 3 skipped (1092)`. `pnpm --filter @ads/db db:generate` → "No schema changes".
+- Preflight greps: invariant 1, 6 and 13 clean; invariant 2 hits only older test fixtures.
 
 ## Code review (high effort, 2026-10-19): 9 findings
 - **Fixed (8):**
