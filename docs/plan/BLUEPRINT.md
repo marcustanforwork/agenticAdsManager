@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.24 — 2026-10-19 (M09b as built: the Telegram command grammar, D-087) |
+| **Version** | v3.25 — 2026-10-19 (M10a built before the Phase 0 gate, D-088) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1973,7 +1973,7 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
 ---
 
 ### M10a — Dashboard: app, sign-in, settings
-**Phase 1 · Size ~450k · Needs:** T10 (Cloudflare Access and the Vercel project)
+**Phase 1 · Size ~450k · Needs:** T10 (Cloudflare Access and the Vercel project). Built before the Phase 0 gate (D-088); its live steps wait for M07's deploy and T10.
 
 **Goal:** the one place to configure products. It holds no platform credentials and can only record requests.
 

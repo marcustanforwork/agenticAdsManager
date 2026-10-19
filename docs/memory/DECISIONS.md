@@ -721,3 +721,14 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** the simplest way to meet M09b's builds and tests with the M09a card and processor unchanged in shape; pausing campaigns is the fastest whole-product stop; Phase 1 has nothing in the change log to undo.
 - **Instead of:** a new callback verb per operator card (old cards would have two formats); pausing every ad set and ad in `/pause_all` (many more proposals, same effect); guessing the closest name.
 - **See:** BLUEPRINT M09b "As built" · `docs/milestones/M09b-telegram-operator-commands.md`
+
+### D-088 — Build M10a before the Phase 0 gate
+- **When / who / status:** 2026-10-19 · Marcus · adopted. He said "let's start the next m10 session, together with the current PR 18".
+- **Decision:**
+  - M10a (dashboard: app, sign-in, settings) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082, D-084 and D-086 did for M08, M09a and M09b. M10b onwards still wait for the gate unless Marcus says otherwise.
+  - The work goes on the same branch as PR #18 (the M09b memory note), which becomes M10a's PR.
+  - Nothing in M10a changes an ad account. The dashboard only reads and records operator requests; its live steps need T10 (Cloudflare Access and the Vercel project) and wait for M07's deploy.
+- **Why:** the Phase 0 setup and gate take calendar time; building ahead uses it. The settings screens are useful from Phase 0 (ceilings, digest mode, test-traffic domains).
+- **Risk:** as D-082: fixes from the live checklist may touch code M10a builds on, and more unverified code piles up before the first real run.
+- **Supersedes:** D-086's line "M10a onwards still wait for the gate" (only for M10a).
+- **See:** BLUEPRINT M10a

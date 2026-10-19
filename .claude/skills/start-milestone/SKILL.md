@@ -8,7 +8,7 @@ description: Begin a blueprint milestone or milestone part (M00–M16, including
 ## 1. Is it allowed to start?
 
 - In `NOW.md`'s tracker, the previous milestone in the same phase is `done`, or is `awaiting live acceptance` with nothing that this milestone depends on.
-- **Crossing into a new phase?** The previous phase gate must be recorded as *passed* in `NOW.md`. That is Marcus's call, recorded in `DECISIONS.md`. If it isn't, **stop and tell Marcus. Don't start.** (Exceptions: D-082, D-084 and D-086 let M08, M09a and M09b be built before the Phase 0 gate; their live steps wait for it.)
+- **Crossing into a new phase?** The previous phase gate must be recorded as *passed* in `NOW.md`. That is Marcus's call, recorded in `DECISIONS.md`. If it isn't, **stop and tell Marcus. Don't start.** (Exceptions: D-082, D-084, D-086 and D-088 let M08, M09a, M09b and M10a be built before the Phase 0 gate; their live steps wait for it.)
 - Check **Needs** in `docs/plan/BLUEPRINT.md` §7: setup tasks (T-numbers), and decisions still waiting for Marcus's OK. If something is unmet, tell Marcus exactly what's missing. Start only the parts that don't depend on it (for example, code against documented API shapes with hand-written fixtures), and note that in the milestone file.
 
 ## 2. Create the milestone file
