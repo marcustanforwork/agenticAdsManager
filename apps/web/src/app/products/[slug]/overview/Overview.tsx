@@ -1,7 +1,8 @@
 // The overview: spend against the ceilings with the month's projection, the KPI trend, outcomes by stage with the
 // attribution rate, and the accounts with their last sync. Numbers only, all from SQL (reviewViews.ts).
+import { costPer, countOf, formatMoney, localTime, percentOf } from '@ads/contracts';
 import { type OverviewData, TREND_DAYS } from '../../../../lib/reviewViews.ts';
-import { costPer, countOf, formatMoney, localTime, percentOf, type TrendRow } from '../../../../lib/review.ts';
+import { type TrendRow } from '../../../../lib/review.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 
 function OfCeiling({ part, ceiling, currency }: { part: bigint; ceiling: bigint | null; currency: string }) {

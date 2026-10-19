@@ -2,7 +2,7 @@
 // around it; the number check holds every numeric token of that prose to the table, and if one doesn't match, a
 // plain template replaces the prose (`used_template_fallback`). The table, the findings list and the checks are
 // rendered by code. A failed trust check gives the diagnostic variant instead: template only, no AI.
-import { minusDays } from '@ads/contracts';
+import { costPer, countOf, formatMoney, minusDays, percentOf, stageWord } from '@ads/contracts';
 import {
   type Account,
   type AdEntity,
@@ -26,7 +26,7 @@ import { accountRefText, findingRefText, findingTargetOf, microsToDecimal } from
 import { FINDING_TYPES } from '../findings/registry.ts';
 import type { ComputedEvidence, FindingTypeId } from '@ads/contracts';
 import { type AgreeRate, MAX_EXPIRED_PCT, agreeRate } from '../draft/agreeRate.ts';
-import { costPer, countOf, formatMoney, percentOf, plainText, stageWord } from './format.ts';
+import { plainText } from './format.ts';
 
 export const BRIEF_WEEK_DAYS = 7;
 /** Campaigns listed in the brief, most spend first. */

@@ -9,9 +9,12 @@ import {
   ComputedEvidence as EvidenceSchema,
   type EntityRef,
   type WriteOp,
+  countOf,
+  formatMoney,
+  localTime,
   targetRefOf,
 } from '@ads/contracts';
-import { countOf, entityRefText, formatMoney } from '@ads/core';
+import { entityRefText } from '@ads/core';
 import {
   type AdEntity,
   type Db,
@@ -146,21 +149,6 @@ function evidenceLine(view: CardView): string | null {
     ...(outcomes === '' ? [] : [outcomes]),
   ];
   return `Evidence (${e.from} to ${e.to}, ${countOf(e.windowDays, 'day')}): ${escapeHtml(parts.join(' · '))}`;
-}
-
-/** `2026-10-21 10:00` in the product's timezone. */
-export function localTime(at: Date, timezone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
 }
 
 /** The card's text (HTML, well under one message) and, while it can still be decided, its buttons. */

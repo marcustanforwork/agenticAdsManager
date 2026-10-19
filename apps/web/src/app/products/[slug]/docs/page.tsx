@@ -1,8 +1,8 @@
 // The product's documents: STRATEGY, PLAYBOOK and LEARNINGS, which the analyst reads (M10b). A form that comes back
 // incomplete lands here with its reason.
+import { localTime } from '@ads/contracts';
 import { getProductDoc } from '@ads/db';
 import { notFound } from 'next/navigation';
-import { localTime } from '../../../../lib/review.ts';
 import { DOCS } from '../../../../lib/reviewViews.ts';
 import { db, requireOperator } from '../../../../lib/server.ts';
 import { getProductView } from '../../../../lib/views.ts';

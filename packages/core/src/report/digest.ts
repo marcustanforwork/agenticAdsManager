@@ -1,7 +1,7 @@
 // The daily digest (BLUEPRINT §5.14, M07): about six lines, numbers only, no AI. Every figure comes from SQL here;
 // `renderDigest` only formats them. The daily cycle's `reported` stage builds it and, when the send rule says so,
 // queues it in the notifications outbox for the worker's bot.
-import { localDate, minusDays } from '@ads/contracts';
+import { costPer, countOf, formatMoney, localDate, minusDays, percentOf, stageWord } from '@ads/contracts';
 import {
   type DbOrTx,
   type Product,
@@ -14,7 +14,6 @@ import {
   trustSignalsOf,
 } from '@ads/db';
 import { accountRefText } from '../analyst/refs.ts';
-import { costPer, countOf, formatMoney, percentOf, stageWord } from './format.ts';
 
 /** Days the digest's cost per KPI covers: one day is too noisy at low volume. */
 export const DIGEST_KPI_DAYS = 7;

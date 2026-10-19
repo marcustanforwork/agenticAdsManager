@@ -114,6 +114,8 @@ These come from the v3 review. The ones marked *(training knowledge)* weren't re
 - **Google `click_view`** can be queried for only one day at a time, and only for the last ~90 days. *(training knowledge; M03)*
 - **A Meta ad account's timezone and currency** can't simply be changed after creation. *(training knowledge; M02)*
 - **Google can spend up to 2× a campaign's daily budget on a single day,** so daily budgets aren't hard caps. *(training knowledge; M14)*
+- **Currency minor units: ISO 4217, not Node's Intl.** Intl (CLDR) shows HUF, IDR, COP, PKR and others without decimals, and IQD with none, while ISO 4217 gives them 2 (IQD 3). Display uses the explicit ISO table in `contracts/src/format.ts` (`minorDigits`); Meta's own currency offsets are separate (`metaMinorToMicros`). *(checked against Node 24's `Intl.NumberFormat` on 2026-10-19; the ISO list is training knowledge; F2)*
+- **Postgres: a `DEFERRABLE INITIALLY DEFERRED` constraint trigger runs at commit, but its `NEW` is the row as inserted.** To see the row as committed, select it again (the `request_queued` trigger, F2). *(proved by `db/test/web.test.ts`, 2026-10-19)*
 
 ## SnapPool facts (read from its repo on 2026-09-25, commit `a6c190a`; re-checked 2026-10-06, `origin/main` `34d3473`)
 

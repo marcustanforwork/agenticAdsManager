@@ -1,8 +1,8 @@
 // The read-only commands (BLUEPRINT M09b): `/status`, `/proposals`, `/brief`, `/drift` and `/changes`, and `/undo`,
 // which in Phase 1 only shows the undo for Marcus to make by hand. Every figure comes from the database; platform text
 // (names, keywords) is escaped. Nothing here changes anything except `/undo <rev>`, which records an `undo` request.
-import { type EntityRef, type WriteOp, SET_AT_APPLY } from '@ads/contracts';
-import { entityRefOf, formatMoney } from '@ads/core';
+import { type EntityRef, type WriteOp, SET_AT_APPLY, formatMoney, localTime } from '@ads/contracts';
+import { entityRefOf } from '@ads/core';
 import {
   type Db,
   type Product,
@@ -22,7 +22,7 @@ import {
   writesEnabled,
 } from '@ads/db';
 import type { BotContext } from './bot.ts';
-import { entityLine, localTime } from './cards.ts';
+import { entityLine } from './cards.ts';
 import { briefMessage } from './feedback.ts';
 import { clip, escapeHtml } from './format.ts';
 import { sendCard } from './pause.ts';

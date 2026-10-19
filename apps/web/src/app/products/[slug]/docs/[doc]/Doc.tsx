@@ -1,7 +1,7 @@
 // A product document (STRATEGY, PLAYBOOK or LEARNINGS): the editor on the latest version, and its history. Saving
 // records a `product_doc_put` on the version shown; if it changed meanwhile, the worker refuses it as stale.
+import { localTime } from '@ads/contracts';
 import type { DocVersion } from '@ads/db';
-import { localTime } from '../../../../../lib/review.ts';
 import type { DocKind } from '../../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../../lib/views.ts';
 import { saveDoc } from '../../../../actions.ts';

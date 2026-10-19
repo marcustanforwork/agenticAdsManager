@@ -1,5 +1,6 @@
 // A product's settings, one form per section. Each form sends that section as a settings_patch on the version shown
 // here; the worker validates it (a looser guard, an unknown stage or a stale version is refused, with the reason).
+import { moneyPrefix } from '@ads/contracts';
 import type { ProductSettings } from '@ads/contracts';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -33,10 +34,8 @@ function SectionForm({
   );
 }
 
-const money = (currency: string) => (currency === 'SGD' ? 'S$' : currency);
-
 function Spend({ product, s }: { product: ProductView; s: ProductSettings }) {
-  const c = money(product.currency);
+  const c = moneyPrefix(product.currency).trim();
   return (
     <SectionForm product={product} section="spend" title="Spending and digest">
       <label>
@@ -92,7 +91,7 @@ function Outcomes({ product, s }: { product: ProductView; s: ProductSettings }) 
               <th>Stage id</th>
               <th>Label</th>
               <th>Tier</th>
-              <th>Value ({money(product.currency)})</th>
+              <th>Value ({moneyPrefix(product.currency).trim()})</th>
               <th>Remove</th>
             </tr>
           </thead>

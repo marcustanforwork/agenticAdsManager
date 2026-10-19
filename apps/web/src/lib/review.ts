@@ -1,56 +1,15 @@
 // The review views' arithmetic and wording (M10b): pure functions over what the loaders read. Every number comes
 // from SQL; these only add up, divide (in bigint micros, invariant 6) and format. Display only: nothing here feeds
 // back into a decision.
-import { type EntityRef, type WriteOp, formatSgd, minusDays, targetRefOf } from '@ads/contracts';
+import { type EntityRef, type WriteOp, costPer, formatMoney, minusDays, targetRefOf } from '@ads/contracts';
 import type { DayStageCount, DaySpend, StageAttribution } from '@ads/db';
 
 // ── Numbers ───────────────────────────────────────────────────────────────────────────────────
-
-/** Micros as an exact decimal with at least `minDecimals` places ("12.50", "0.0123"). */
-function microsDecimal(micros: bigint, minDecimals: number): string {
-  const negative = micros < 0n;
-  const abs = negative ? -micros : micros;
-  let frac = (abs % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '');
-  frac = frac.padEnd(minDecimals, '0');
-  const whole = (abs / 1_000_000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${negative ? '-' : ''}${whole}${frac === '' ? '' : `.${frac}`}`;
-}
-
-/** "S$1,234.57" for SGD (as the digest shows it); "<CUR> 1,234.57" for anything else. */
-export function formatMoney(micros: bigint, currency: string): string {
-  if (currency === 'SGD') return formatSgd(micros);
-  return `${currency} ${microsDecimal(((micros >= 0n ? micros + 5_000n : micros - 5_000n) / 10_000n) * 10_000n, 2)}`;
-}
-
-/** The AI cost, in US dollars (the providers bill in USD, D-078): exact, since a cycle costs fractions of a cent. */
-export const formatUsd = (micros: bigint): string => `US$${microsDecimal(micros, 2)}`;
-
-/** `part` as a whole percentage of `whole`, rounded down; null when `whole` isn't positive. */
-export function percentOf(part: bigint, whole: bigint): number | null {
-  return whole > 0n ? Number((part * 100n) / whole) : null;
-}
-
-/** Cost per outcome in micros, rounded half up; null without outcomes. */
-export function costPer(spendMicros: bigint, outcomes: number): bigint | null {
-  if (outcomes <= 0) return null;
-  const n = BigInt(outcomes);
-  return (spendMicros * 2n + n) / (2n * n);
-}
+// Money, counts and times come from `@ads/contracts` (F2), shared with the digest, the brief and the Telegram cards.
 
 /** A rate to one decimal place, e.g. 66.7; null without a whole. */
 export const ratePct = (part: number, whole: number): number | null =>
   whole === 0 ? null : Math.round((part * 1000) / whole) / 10;
-
-/** "1 signup" / "3 signups" from one word or a stage id ("pool_request" → "pool requests", "enquiry" → "enquiries").
- *  A stage named for a state becomes a noun ("3 paid outcomes"). Not for stage labels, which can carry a note
- *  ("Signup (email link clicked)"): say those as `<n> × <label>`. Same rule as core's `stageWord` (F2 merges them). */
-export function countOf(n: number, word: string): string {
-  const w = word.replaceAll('_', ' ').toLowerCase();
-  if (/(?:ed|\bpaid)$/.test(w)) return `${n} ${w} outcome${n === 1 ? '' : 's'}`;
-  if (n === 1 || w.endsWith('s')) return `${n} ${w}`;
-  if (/[^aeiou]y$/.test(w)) return `${n} ${w.slice(0, -1)}ies`;
-  return `${n} ${w}${/(?:ch|sh|x|z)$/.test(w) ? 'es' : 's'}`;
-}
 
 // ── Spend ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -232,19 +191,4 @@ export function editableFields(op: WriteOp): ('budget' | 'negative_text' | 'matc
   if (op.action === 'adjust_budget') return ['budget'];
   if (op.action === 'add_negative_keyword') return ['negative_text', 'match_type'];
   return [];
-}
-
-/** `2026-10-21 10:00` in the product's timezone. */
-export function localTime(at: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
 }

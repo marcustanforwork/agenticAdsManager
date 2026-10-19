@@ -33,7 +33,8 @@ import {
   handleCallback,
   sendOutbox,
 } from '../src/telegram/bot.ts';
-import { CARD_VERBS, cardData, localTime, parseCardData } from '../src/telegram/cards.ts';
+import { localTime } from '@ads/contracts';
+import { CARD_VERBS, cardData, parseCardData } from '../src/telegram/cards.ts';
 import { type ChatMessage, handleMessage } from '../src/telegram/decide.ts';
 import { parseEdit } from '../src/editGrammar.ts';
 
@@ -229,11 +230,12 @@ const say = (text: string, opts: { from?: number; chat?: string } = {}): ChatMes
   text,
 });
 
-async function world() {
+async function world(currency = 'SGD') {
   const product = await createProduct(t.db, {
     slug: `cards-${randomBytes(3).toString('hex')}`,
     name: 'Cards',
     packId: 'test-pack',
+    currency,
     settings: TEST_SETTINGS,
   });
   const accountId = String(5_550_000_000 + Math.floor(Math.random() * 1_000_000));
@@ -339,6 +341,16 @@ describe('the card in the outbox', () => {
         ],
       ],
     });
+  });
+
+  it("prints money in the product's currency by its minor unit, as the digest and the dashboard do (F2)", async () => {
+    const w = await world('JPY');
+    const b = await w.budget();
+    await enqueueNotification(t.db, { productId: w.product.id, kind: 'proposal', payload: { proposalId: b.id } });
+    const { api, sent } = fakeApi();
+    await sendOutbox(botFor(api));
+    const card = sent.find((s) => s.text.includes(`<b>Proposal ${b.shortId}</b>`));
+    expect(card?.text).toContain('Before → after: JPY 100 → JPY 80 a day'); // whole yen, as formatMoney prints them
   });
 
   it('shows a budget change and a negative keyword as before → after', async () => {

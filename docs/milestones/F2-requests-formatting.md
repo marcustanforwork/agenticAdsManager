@@ -34,20 +34,21 @@ A request that keeps failing stops and tells Marcus, and money, dates and times 
 - Size ~300k: no checkpoint pressure expected.
 - Checkpoints (`docs/process/SESSIONS.md` §4):
   - [x] ~50k oriented
-  - [ ] ~300k built, typecheck green
+  - [x] ~300k built, typecheck green (at ~170k)
   - [ ] ~450k tests green, self-review done
   - [ ] ~550k committed, pushed, handed off
 
 ## Builds
 - [x] 1. **A faulting request stops after 5 tries** (M10a review): `operator_requests.attempts` (migration); each fault (not a refusal) counts; at 5 the request is refused with its last error, and an alert goes to Marcus. Refusals stay final, as now.
   - done: migration `0008` (`attempts int not null default 0`; the dashboard's column grant leaves it out). `addRequestAttempt` (db); `recordRequestFault` + `MAX_REQUEST_ATTEMPTS = 5` (core processor): in its own transaction, +1 while queued; at 5, refused with "failed 5 times on our side; the last error: …" (500 characters, one line) and `attempts`, a `request_failed` alert (once per request, `raiseRequestFailedAlert` in `alerts.ts`), NOTIFY `request_done`. The drain and `processRequest` both count; `submitRequest` still rolls the row back on a fault. The bot's alert says "Nothing was changed…". Tests: `core/test/requests.test.ts` (5 faults by drain, by `processRequest`; a refusal costs no attempt), `apps/worker/test/cards.test.ts` (the alert's text), `db/test/roles.test.ts` (the dashboard can't set `attempts`).
-- [ ] 2. **One set of display formatters in `@ads/contracts`** (M10b review): money in any currency by its minor unit (SGD cents, JPY whole yen), dates and local times, used by core's reports, the Telegram cards and the dashboard. The three copies go. (M14's budget unit for zero-decimal currencies can reuse the minor-unit table.)
+- [x] 2. **One set of display formatters in `@ads/contracts`** (M10b review): money in any currency by its minor unit (SGD cents, JPY whole yen), dates and local times, used by core's reports, the Telegram cards and the dashboard. The three copies go. (M14's budget unit for zero-decimal currencies can reuse the minor-unit table.)
+  - done: `contracts/src/format.ts`: `minorDigits` / `microsPerMinorUnit` (an explicit ISO 4217 table; 2 otherwise), `moneyPrefix`, `formatMoney` (half away from zero to the minor unit; "S$1,234.57", "JPY 1,235", "USD 12.30"; a negative starts with "-", so "-MYR 12.50", where the dashboard printed "MYR -12.50"), `formatSgd` (moved from `money.ts`, now `formatMoney` in SGD), `formatUsdExact` (the AI cost), `percentOf`, `costPer`, `stageWord`, `countOf`; `localTime` in `dates.ts`. Users: core's digest, brief and template words, the detectors (their own `money` and `plural` helpers went; "Cost per <stage>" uses `stageWord`, so a `paid` KPI reads "Cost per paid outcome"), the Telegram cards, views and commands, and the dashboard (Overview, Proposals, Changes, Checks, Briefs, Docs; history and facts now show local times and dates; the request page shows UTC, named; the settings form's currency label is `moneyPrefix`). Copies removed: core `report/format.ts` (keeps `plainText`), the cards' `localTime`, the dashboard's `formatMoney` / `formatUsd` / `microsDecimal` / `percentOf` / `costPer` / `countOf` / `localTime`. Tests: `contracts/test/format.test.ts` (golden SGD, JPY, USD, KWD; a property test), and the same JPY text on each surface: `report.test.ts` (template words), `cards.test.ts` (a JPY budget card), `apps/web/test/review.test.ts` (`describeAction` in JPY).
 - [x] 3. **The `request_queued` wake-up fires only for rows still queued at commit** (M10a review): a deferred trigger checks the status before notifying.
   - done: in migration `0008`: `operator_requests_queued` is now a constraint trigger, `DEFERRABLE INITIALLY DEFERRED`; its function notifies only if the row is still `queued`. Test: `db/test/web.test.ts` (recorded and processed in one transaction, and a rolled-back insert: no wake-up; a dashboard insert: one).
 
 ## Tests
 - [x] A handler that throws 5 times: refused with its reason, an alert queued, never retried after; a refusal is still not retried.
-- [ ] Formatter golden tests in SGD, JPY and USD; the three surfaces print the same text.
+- [x] Formatter golden tests in SGD, JPY and USD; the three surfaces print the same text.
 - [x] A request processed in the same transaction it was recorded in sends no wake-up (if item 3 is built).
 
 ## Done when (cloud)
@@ -69,7 +70,9 @@ None of its own (D-092). Migration `0008` runs with the others (M10a's step 1 an
 <!-- An item may move only once. An item moved INTO this milestone can't be cut again. -->
 
 ## Leave behind (for later milestones)
-- …
+- **Money for the AI is still cents:** `core/src/analyst/refs.ts` `microsToDecimal` gives the analyst and the drafter amounts with two decimals whatever the currency (both products are SGD). A JPY product would show the AI "1234.50" yen. Move it onto `microsPerMinorUnit` when a non-SGD product arrives (it needs the currency passed in; the number check would follow).
+- **The brief's AI cost line** prints `US$` + the stored `modelCostUsd` (rounded to cents); the dashboard's Checks screen shows the exact cost (`formatUsdExact`). Both are right; they differ below a cent.
+- **M14** can take its zero-decimal budget unit from `microsPerMinorUnit` (contracts), as the plan says.
 
 ## Skills to create
 - None.

@@ -3,8 +3,7 @@
 // request through the one processor (invariant 9); nothing here calls a platform. Telegram's command menu allows only
 // lowercase letters, digits and underscores, so `/pause_all` and `/resume_agent` are the menu's names; the plan's
 // `/pause-all` and `/resume-agent` are accepted too. To add a command: the `add-telegram-command` skill.
-import { decimalToMicros, microsToJson } from '@ads/contracts';
-import { formatMoney } from '@ads/core';
+import { decimalToMicros, formatMoney, microsToJson } from '@ads/contracts';
 import { getStoredSettings } from '@ads/db';
 import type { BotContext } from './bot.ts';
 import { escapeHtml } from './format.ts';
