@@ -1,9 +1,11 @@
 // The draft stage (M08): budget amounts, the finding → action step, the phase switch (D-082), the AI's words with
-// their number check and template fallback, idempotency, and the agree rate.
+// their number check and template fallback, idempotency, and the agree rate; and (M09b) that an operator pause has
+// the same shape as a drafted one.
 import {
   CORE_GUARD_DEFAULTS,
   type ComputedEvidence,
   type GuardConfig,
+  type OperatorRequest,
   type ProductSettings,
   fingerprintOf,
   hashOf,
@@ -36,8 +38,10 @@ import {
   buildBriefNumbers,
   draftStage,
   renderBrief,
+  submitRequest,
   templateProse,
 } from '../src/index.ts';
+import { createRegistry } from '@ads/pack-sdk';
 import { NOW, S, makeAdWorld } from './support/adWorld.ts';
 
 const SPEC: ModelSpec = { provider: 'anthropic', modelId: 'claude-opus-5-5' };
@@ -483,6 +487,16 @@ describe('agreeRateOf (PROPOSAL §12)', () => {
   });
 });
 
+/** Drafted proposals expire 7 days after the test clock's NOW; deciding one checks the real clock, so a test that
+ *  decides one moves its expiry past today first. */
+async function keepOpen(proposalId: string) {
+  await t.db
+    .update(schema.proposals)
+    .set({ expiresAt: new Date(Date.now() + 24 * HOUR) })
+    .where(eq(schema.proposals.id, proposalId));
+  return getProposal(t.db, proposalId);
+}
+
 describe('the agree rate in the weekly brief', () => {
   it('is absent before any agent proposal, and shown once there are some', async () => {
     const { w, cycle, product, finding, deps } = await world();
@@ -498,7 +512,7 @@ describe('the agree rate in the weekly brief', () => {
       cycle.id,
     );
     const [first] = drafted.drafted;
-    const p = await getProposal(t.db, first?.proposalId ?? '');
+    const p = await keepOpen(first?.proposalId ?? '');
     await recordDecision(t.db, {
       proposalId: p.id,
       version: 1,
@@ -514,5 +528,49 @@ describe('the agree rate in the weekly brief', () => {
     expect(renderBrief(after, templateProse(after))).toContain(
       '- Agree rate, last 21 days: 100% (1 approved, 0 rejected, 0 expired undecided, 1 waiting)',
     );
+  });
+});
+
+describe('operator proposals (M09b)', () => {
+  it('an operator pause has the same shape as a drafted one (golden)', async () => {
+    const { w, cycle, product, finding, deps } = await world();
+    const campaign = await w.entity('google', 'campaign', '1', { dailyBudget: S(20) });
+    await finding('zero_outcome_spend', campaign);
+    const { model } = drafter(() => ({ rationale: 'It spent with no signups.', expectedEffect: 'Spend stops.' }));
+    const summary = await draftStage(deps(model), product, cycle.id);
+    const drafted = await keepOpen(summary.drafted[0]?.proposalId ?? '');
+
+    // Marcus rejects the drafted card, then asks for the same pause himself: a new operator proposal.
+    const requests = { actors: new Set(['cli:marcus']), packs: createRegistry([]) };
+    const submit = (request: OperatorRequest) =>
+      submitRequest(t.db, { request, actor: 'cli:marcus', channel: 'cli' }, requests);
+    expect(
+      (await submit({ kind: 'reject', proposalId: drafted.id, version: 1, reason: 'not yet' })).outcome.status,
+    ).toBe('done');
+    if (drafted.action.action !== 'pause_entity') throw new Error('expected a drafted pause');
+    const { outcome } = await submit({ kind: 'pause', target: drafted.action.target });
+    const operator = await getProposal(t.db, outcome.result['proposalId'] as string);
+
+    // The same columns, and the same values in every part the gateway will check or apply.
+    expect(Object.keys(operator).sort()).toEqual(Object.keys(drafted).sort());
+    const SAME = [
+      'productId',
+      'version',
+      'status',
+      'action',
+      'actionHash',
+      'undo',
+      'revertsRevisionId',
+      'preconditionHash',
+      'preconditionFields',
+      'statusDetail',
+    ] as const;
+    const pick = (p: typeof drafted) => Object.fromEntries(SAME.map((k) => [k, p[k]]));
+    expect(pick(operator)).toEqual(pick(drafted)); // `drafted` was read while pending
+    // What differs: who it came from, no cycle or finding, Marcus's words, and the confirm card's 30 minutes.
+    expect(operator).toMatchObject({ origin: 'operator', cycleId: null, findingId: null });
+    expect(drafted).toMatchObject({ origin: 'agent', cycleId: cycle.id });
+    expect(operator.rationale).toBe('Your own request, from cli.');
+    expect(operator.expiresAt.getTime() - operator.createdAt.getTime()).toBeLessThanOrEqual(30 * 60_000 + 1000);
   });
 });

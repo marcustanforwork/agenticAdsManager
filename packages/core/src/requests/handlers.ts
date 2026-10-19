@@ -36,6 +36,7 @@ import { findingRefText } from '../analyst/refs.ts';
 import { effectiveGuards, manifestOf, packGuardLayer } from '../settings/settings.ts';
 import { EditError, applyEdit } from './edit.ts';
 import { validateFacts } from './facts.ts';
+import { pause, pauseAll, undo } from './operator.ts';
 import { applySettingsPatch } from './settingsPatch.ts';
 
 const { products } = schema;
@@ -59,9 +60,6 @@ export interface HandlerContext {
 
 /** Which milestone adds the kinds this processor doesn't handle yet. */
 export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
-  pause: 'M09b',
-  pause_all: 'M09b',
-  undo: 'M09b',
   budget: 'M14',
   resolve_attention: 'M11b',
 };
@@ -294,6 +292,9 @@ export const HANDLERS: { [K in Kind]?: RequestHandler<RequestOf<K>> } = {
   approve,
   reject,
   edit_approve: editApprove,
+  pause,
+  pause_all: pauseAll,
+  undo,
   halt,
   resume_agent: resumeAgent,
   settings_patch: settingsPatch,

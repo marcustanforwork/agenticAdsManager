@@ -12,12 +12,30 @@ import {
   startScheduled,
   tryAdvisoryLock,
   upsertAccount,
+  upsertAdEntity,
 } from '@ads/db';
+import type { OperatorRequest } from '@ads/contracts';
 import { createTestDatabase, type TestDatabase } from '@ads/db/testing';
 import { parseMasterKey } from '@ads/vault';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { type CycleDeps, CycleInterruptedError, STAGES, resumeUnfinishedCycles, runCycle } from '../src/index.ts';
-import { NOW, TEST_PACKS, type World, googleCassettes, makeWorld, metaCassettes, tokenFetch } from './support/world.ts';
+import {
+  type CycleDeps,
+  CycleInterruptedError,
+  STAGES,
+  resumeUnfinishedCycles,
+  runCycle,
+  submitRequest,
+} from '../src/index.ts';
+import {
+  META_ACCOUNT,
+  NOW,
+  TEST_PACKS,
+  type World,
+  googleCassettes,
+  makeWorld,
+  metaCassettes,
+  tokenFetch,
+} from './support/world.ts';
 
 let t: TestDatabase;
 let world: World;
@@ -184,6 +202,39 @@ describe('runCycle', () => {
     });
     expect(summary).toMatchObject({ outcome: 'finished', trustResult: 'fail', stageReached: 'done' });
     expect(ran).toEqual(['reported']);
+  });
+
+  it('halt stops the agent (no cycle runs) but not a pause, which Marcus can still confirm (M09b)', async () => {
+    const requests = { actors: new Set(['cli:marcus']), packs: TEST_PACKS };
+    const submit = (request: OperatorRequest) =>
+      submitRequest(t.db, { request, actor: 'cli:marcus', channel: 'cli' }, requests);
+    await upsertAdEntity(t.db, {
+      productId: world.productId,
+      accountId: world.metaAccountId,
+      platform: 'meta',
+      type: 'campaign',
+      externalId: '9001',
+      name: 'c',
+      status: 'active',
+      rawStatus: 'ACTIVE',
+    });
+    expect((await submit({ kind: 'halt', productId: world.productId })).outcome.status).toBe('done');
+
+    const summary = await runCycle(deps(replayFetch([])), { productId: world.productId, kind: 'daily' });
+    expect(summary).toMatchObject({ outcome: 'skipped', detail: 'product is halted', cycleId: null });
+    expect(await listCycles(t.db, world.productId)).toEqual([]);
+
+    const target = {
+      platform: 'meta' as const,
+      accountId: META_ACCOUNT,
+      type: 'campaign' as const,
+      externalId: '9001',
+    };
+    const paused = await submit({ kind: 'pause', target });
+    expect(paused.outcome.status).toBe('done');
+    const { proposalId, actionHash } = paused.outcome.result as { proposalId: string; actionHash: string };
+    expect((await submit({ kind: 'approve', proposalId, version: 1, actionHash })).outcome.status).toBe('done');
+    expect((await submit({ kind: 'pause_all', productId: world.productId })).outcome.status).toBe('done');
   });
 
   it('a product that is not active runs no cycle', async () => {

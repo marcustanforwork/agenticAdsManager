@@ -22,7 +22,14 @@ import {
   getBrief,
   listUnsentNotifications,
   setProductStatus,
+  insertChange,
+  listAccounts,
+  listProposals,
+  markReverted,
+  schema,
 } from '@ads/db';
+import { fingerprintOf } from '@ads/contracts';
+import { eq } from 'drizzle-orm';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
 import { randomBytes, randomUUID } from 'node:crypto';
 import pg from 'pg';
@@ -113,9 +120,7 @@ describe('actor and schema checks', () => {
   });
 
   it('refuses kinds that later milestones add, naming the milestone', async () => {
-    const p = await makeProduct();
     const cases: [OperatorRequest, string][] = [
-      [{ kind: 'pause_all', productId: p.id }, 'M09b'],
       [
         {
           kind: 'budget',
@@ -738,5 +743,156 @@ describe('approve and reject (M08)', () => {
         result: { reason: `proposal ${b.shortId} is rejected, not pending` },
       });
     });
+  });
+});
+
+describe('pause, pause_all and undo (M09b, Phase 1 behaviour)', () => {
+  const HALF_HOUR = 30 * 60_000;
+
+  async function pauseWorld() {
+    const w = await makeAdWorld(t.db, { slug: `pause-${randomBytes(3).toString('hex')}` });
+    const accounts = new Map((await listAccounts(t.db, w.productId)).map((a) => [a.platform, a.externalId]));
+    const ref = (e: { platform: 'google' | 'meta'; type: EntityRef['type']; externalId: string }): EntityRef => ({
+      platform: e.platform,
+      accountId: accounts.get(e.platform) ?? '',
+      type: e.type,
+      externalId: e.externalId,
+    });
+    return { w, ref };
+  }
+
+  it('a pause becomes an operator proposal with a planned undo, a fingerprint and a 30-minute expiry', async () => {
+    const { w, ref } = await pauseWorld();
+    const campaign = await w.entity('google', 'campaign', '501');
+    const before = Date.now();
+    const { outcome } = await submit({ kind: 'pause', target: ref(campaign) });
+    expect(outcome.status).toBe('done');
+    expect(outcome.result).toMatchObject({ created: true, version: 1 });
+    const p = await getProposal(t.db, outcome.result['proposalId'] as string);
+    expect(p).toMatchObject({
+      origin: 'operator',
+      status: 'pending',
+      cycleId: null,
+      findingId: null,
+      action: { action: 'pause_entity', target: ref(campaign) },
+      undo: { action: 'resume_entity', target: ref(campaign) },
+      preconditionFields: ['status'],
+      preconditionHash: fingerprintOf({ status: 'active' }, ['status']),
+      rationale: 'Your own request, from telegram.',
+    });
+    expect(outcome.result['shortId']).toBe(p.shortId);
+    expect(outcome.result['actionHash']).toBe(p.actionHash);
+    expect(p.expiresAt.getTime() - before).toBeGreaterThanOrEqual(HALF_HOUR - 1000);
+    expect(p.expiresAt.getTime() - before).toBeLessThanOrEqual(HALF_HOUR + 5000);
+
+    // Asking again returns the same open proposal; the confirm tap is an ordinary approval.
+    const again = await submit({ kind: 'pause', target: ref(campaign) });
+    expect(again.outcome.result).toMatchObject({ proposalId: p.id, created: false });
+    const confirmed = await submit({ kind: 'approve', proposalId: p.id, version: 1, actionHash: p.actionHash });
+    expect(confirmed.outcome.status).toBe('done');
+    expect((await getProposal(t.db, p.id)).status).toBe('approved');
+    expect(await listEvalCases(t.db, w.productId)).toEqual([]); // Marcus's own actions aren't eval data
+  });
+
+  it('a pause past its expiry is replaced, not returned', async () => {
+    const { w, ref } = await pauseWorld();
+    const campaign = await w.entity('meta', 'campaign', '502');
+    const first = (await submit({ kind: 'pause', target: ref(campaign) })).outcome.result['proposalId'] as string;
+    await t.db
+      .update(schema.proposals)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(schema.proposals.id, first));
+    const { outcome } = await submit({ kind: 'pause', target: ref(campaign) });
+    expect(outcome.result).toMatchObject({ created: true });
+    expect(outcome.result['proposalId']).not.toBe(first);
+    expect((await getProposal(t.db, first)).status).toBe('expired');
+  });
+
+  it('refuses an unknown account, an entity not synced, one not active, and a level it cannot pause', async () => {
+    const { w, ref } = await pauseWorld();
+    const paused = await w.entity('google', 'campaign', '503', { status: 'paused' });
+    const keyword = await w.entity('google', 'keyword', '504');
+    const cases: [EntityRef, string][] = [
+      [
+        { platform: 'google', accountId: '999999999', type: 'campaign', externalId: '1' },
+        'unknown google account 999999999',
+      ],
+      [ref({ platform: 'google', type: 'campaign', externalId: '404' }), 'no synced campaign 404'],
+      [ref(paused), 'the campaign is paused, not active'],
+      [ref(keyword), "a keyword can't be paused from here"],
+    ];
+    for (const [target, reason] of cases) {
+      expect((await submit({ kind: 'pause', target })).outcome).toEqual({ status: 'refused', result: { reason } });
+    }
+    expect(await listProposals(t.db, w.productId)).toEqual([]);
+  });
+
+  it('pause_all: one proposal per active campaign, also for a halted product; again returns the same ones', async () => {
+    const { w } = await pauseWorld();
+    const g = await w.entity('google', 'campaign', '601');
+    await w.entity('meta', 'campaign', '602');
+    await w.entity('google', 'campaign', '603', { status: 'paused' });
+    await w.entity('google', 'ad_group', '604', { parent: g });
+    await submit({ kind: 'halt', productId: w.productId });
+
+    const { outcome } = await submit({ kind: 'pause_all', productId: w.productId });
+    expect(outcome.status).toBe('done');
+    const refs = outcome.result['proposals'] as { proposalId: string; created: boolean }[];
+    expect(refs).toHaveLength(2);
+    expect(refs.every((r) => r.created)).toBe(true);
+    const targets = await Promise.all(refs.map(async (r) => (await getProposal(t.db, r.proposalId)).action));
+    expect(targets.map((a) => (a.action === 'pause_entity' ? a.target.externalId : '')).sort()).toEqual(['601', '602']);
+    const again = (await submit({ kind: 'pause_all', productId: w.productId })).outcome.result['proposals'] as {
+      proposalId: string;
+      created: boolean;
+    }[];
+    expect(again.map((r) => [r.proposalId, r.created]).sort()).toEqual(refs.map((r) => [r.proposalId, false]).sort());
+  });
+
+  it('pause_all refuses a product with nothing active', async () => {
+    const { w } = await pauseWorld();
+    expect((await submit({ kind: 'pause_all', productId: w.productId })).outcome).toMatchObject({
+      status: 'refused',
+      result: { reason: expect.stringContaining('has no active campaign to pause') as unknown },
+    });
+  });
+
+  it('undo shows the stored undo of a change; refuses one without an undo, one already undone, an unknown one', async () => {
+    const { w, ref } = await pauseWorld();
+    const campaign = await w.entity('google', 'campaign', '701');
+    const target = ref(campaign);
+    const proposalId = (await submit({ kind: 'pause', target })).outcome.result['proposalId'] as string;
+    const change = (undoOp: WriteOp | null) =>
+      insertChange(t.db, {
+        productId: w.productId,
+        proposalId,
+        action: { action: 'pause_entity', target },
+        undo: undoOp,
+        before: { status: 'active' },
+        after: { status: 'paused' },
+        approvedBy: MARCUS,
+        verified: true,
+      });
+    const rev = await change({ action: 'resume_entity', target });
+    expect((await submit({ kind: 'undo', revisionId: rev })).outcome).toEqual({
+      status: 'done',
+      result: {
+        revisionId: rev,
+        productId: w.productId,
+        action: { action: 'pause_entity', target },
+        undo: { action: 'resume_entity', target },
+      },
+    });
+    const none = await change(null);
+    expect((await submit({ kind: 'undo', revisionId: none })).outcome.result['reason']).toBe(
+      `${none} (pause_entity) cannot be undone`,
+    );
+    const later = await change({ action: 'resume_entity', target });
+    await markReverted(t.db, rev, later);
+    expect((await submit({ kind: 'undo', revisionId: rev })).outcome.result['reason']).toBe(
+      `${rev} was already undone by ${later}`,
+    );
+    expect((await submit({ kind: 'undo', revisionId: 'rev_nope' })).outcome.status).toBe('refused');
+    expect(await listProposals(t.db, w.productId)).toHaveLength(1); // Phase 1: no undo proposal
   });
 });
