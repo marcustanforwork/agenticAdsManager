@@ -170,6 +170,8 @@ describe('drift, entities, decisions and documents', () => {
       origin: 'agent',
       action: pauseOp(ref),
       undo: null,
+      preconditionHash: null,
+      preconditionFields: [],
       rationale: 'r',
       expectedEffect: 'e',
       expiresAt: IN_A_DAY(),

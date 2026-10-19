@@ -3,7 +3,14 @@
 import type { OperatorRequest } from '@ads/contracts';
 import {
   createProduct,
+  createProposal,
   ensureOffering,
+  getBrief,
+  getProductDoc,
+  getProposal,
+  insertBrief,
+  insertChange,
+  listDecisions,
   getProduct,
   getRequestStatus,
   recordWebRequest,
@@ -275,5 +282,96 @@ describe('set_product_status (M10a)', () => {
     });
     await processRequest(t.db, unknown, ctx);
     expect(await getRequestStatus(t.db, unknown)).toMatchObject({ status: 'refused' });
+  });
+});
+
+describe('review actions from the dashboard (M10b)', () => {
+  const ref = { platform: 'google' as const, accountId: '1234567890', type: 'campaign' as const, externalId: '11' };
+  const propose = (productId: string, action: Parameters<typeof createProposal>[1]['action']) =>
+    createProposal(t.db, {
+      productId,
+      origin: 'agent',
+      action,
+      undo: null,
+      preconditionHash: null,
+      preconditionFields: [],
+      rationale: 'r',
+      expectedEffect: 'e',
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+
+  it('approve, reject and edit_approve record the decision as web, by the signed-in email', async () => {
+    const product = await makeProduct();
+    const a = await propose(product.id, { action: 'pause_entity', target: ref });
+    const r = await propose(product.id, { action: 'pause_entity', target: { ...ref, externalId: '12' } });
+    const e = await propose(product.id, {
+      action: 'add_negative_keyword',
+      target: ref,
+      text: 'free',
+      matchType: 'PHRASE',
+    });
+    expect(await roundTrip({ kind: 'approve', proposalId: a.id, version: 1, actionHash: a.actionHash })).toMatchObject({
+      status: 'done',
+      result: { decision: 'approve' },
+    });
+    expect(await roundTrip({ kind: 'reject', proposalId: r.id, version: 1, reason: 'too early' })).toMatchObject({
+      status: 'done',
+      result: { decision: 'reject' },
+    });
+    expect(
+      await roundTrip({
+        kind: 'edit_approve',
+        proposalId: e.id,
+        version: 1,
+        edit: { field: 'match_type', matchType: 'EXACT' },
+      }),
+    ).toMatchObject({ status: 'done' });
+    expect((await getProposal(t.db, e.id)).action).toMatchObject({ matchType: 'EXACT' });
+    const decisions = await listDecisions(t.db, product.id);
+    expect(decisions.map((d) => [d.shortId, d.decision, d.actor, d.channel]).sort()).toEqual(
+      [
+        [a.shortId, 'approve', `web:${EMAIL}`, 'web'],
+        [r.shortId, 'reject', `web:${EMAIL}`, 'web'],
+        [e.shortId, 'approve', `web:${EMAIL}`, 'web'],
+      ].sort(),
+    );
+    // A decision on a version the screen no longer shows is refused.
+    expect(await roundTrip({ kind: 'reject', proposalId: e.id, version: 1, reason: 'changed my mind' })).toMatchObject({
+      status: 'refused',
+    });
+  });
+
+  it('undo returns the stored undo once, brief feedback is stored, a document becomes its next version', async () => {
+    const product = await makeProduct();
+    const p = await propose(product.id, { action: 'pause_entity', target: ref });
+    const revisionId = await insertChange(t.db, {
+      productId: product.id,
+      proposalId: p.id,
+      action: p.action,
+      undo: { action: 'resume_entity', target: ref },
+      before: {},
+      after: {},
+      approvedBy: `web:${EMAIL}`,
+      verified: true,
+    });
+    expect(await roundTrip({ kind: 'undo', revisionId })).toMatchObject({
+      status: 'done',
+      result: { revisionId, undo: { action: 'resume_entity' } },
+    });
+    expect(await roundTrip({ kind: 'undo', revisionId: 'rev_unknown' })).toMatchObject({ status: 'refused' });
+
+    const brief = await insertBrief(t.db, { productId: product.id, kind: 'weekly', numbers: {}, markdown: 'b' });
+    expect(await roundTrip({ kind: 'brief_feedback', briefId: brief.id, useful: true, newInfo: false })).toMatchObject({
+      status: 'done',
+    });
+    expect(await getBrief(t.db, brief.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: false });
+
+    const doc = { kind: 'product_doc_put' as const, productId: product.id, doc: 'learnings' as const };
+    expect(await roundTrip({ ...doc, baseVersion: 0, markdown: '# One' })).toMatchObject({
+      status: 'done',
+      result: { version: 1 },
+    });
+    expect(await roundTrip({ ...doc, baseVersion: 0, markdown: '# Stale' })).toMatchObject({ status: 'refused' });
+    expect(await getProductDoc(t.db, product.id, 'learnings')).toMatchObject({ version: 1, markdown: '# One' });
   });
 });
