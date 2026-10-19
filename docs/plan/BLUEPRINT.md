@@ -540,7 +540,9 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
              facts: z.record(z.string(), z.unknown()) }),
   z.object({ kind: z.literal('product_doc_put'), productId: z.uuid(),
              doc: z.enum(['strategy', 'playbook', 'learnings']), baseVersion: z.number().int(), markdown: z.string() }),
-  z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean(), newInfo: z.boolean() }),
+  // One answer at a time (F1): only the given fields are stored; at least one is required.
+  z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean().optional(), newInfo: z.boolean().optional() })
+    .refine((r) => r.useful !== undefined || r.newInfo !== undefined),
   z.object({ kind: z.literal('set_phase'), phase: z.number().int().min(0).max(5), note: z.string().min(3) }),   // M08, D-082
   z.object({ kind: z.literal('set_product_status'), productId: z.uuid(), status: z.enum(['active', 'dormant']) }), // M10a, D-089
   z.object({ kind: z.literal('resolve_attention'), proposalId: z.uuid(),

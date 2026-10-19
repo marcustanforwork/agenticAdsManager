@@ -119,12 +119,14 @@ async function handleFeedback(
     await ctx.api.answerCallbackQuery(query.id, { text: 'That brief no longer exists.' });
     return 'unknown';
   }
-  const useful = parsed.verb === 'useful' ? brief.feedbackUseful !== true : brief.feedbackUseful === true;
-  const newInfo = parsed.verb === 'new' ? brief.feedbackNewInfo !== true : brief.feedbackNewInfo === true;
+  // A press toggles its own answer and sends only that one (F1): the other answer, perhaps given on the dashboard
+  // since this card was drawn, is left as stored.
+  const answer =
+    parsed.verb === 'useful' ? { useful: brief.feedbackUseful !== true } : { newInfo: brief.feedbackNewInfo !== true };
   const { outcome } = await submitRequest(
     ctx.db,
     {
-      request: { kind: 'brief_feedback', briefId: brief.id, useful, newInfo },
+      request: { kind: 'brief_feedback', briefId: brief.id, ...answer },
       actor: `telegram:${query.from.id}`,
       channel: 'telegram',
     },
@@ -136,12 +138,15 @@ async function handleFeedback(
     });
     return 'refused';
   }
+  const stored = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
+  const state = { useful: stored(outcome.result['useful']), newInfo: stored(outcome.result['newInfo']) };
+  const said = (v: boolean | null): string => (v === null ? 'not answered' : v ? 'yes' : 'no');
   await ctx.api.answerCallbackQuery(query.id, {
-    text: `Saved: useful ${useful ? 'yes' : 'no'}, new to me ${newInfo ? 'yes' : 'no'}`,
+    text: `Saved: useful ${said(state.useful)}, new to me ${said(state.newInfo)}`,
   });
   await ctx.api
     .editMessageReplyMarkup(query.message.chat.id, query.message.message_id, {
-      reply_markup: feedbackKeyboard(brief.id, { useful, newInfo }),
+      reply_markup: feedbackKeyboard(brief.id, state),
     })
     .catch((err: unknown) => ctx.logger?.error({ err }, 'updating the feedback buttons failed'));
   return 'recorded';

@@ -212,6 +212,9 @@ describe('briefs', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt; is just text');
     expect(html).not.toContain('<script>alert');
     expect(html).toContain(`name="briefId" value="${w.brief.id}"`);
+    // What the page showed travels with the form, so only a changed answer is sent (F1).
+    expect(html).toContain('name="usefulShown" value=""');
+    expect(html).toContain('name="newInfoShown" value=""');
     expect(text(html)).toContain('👍 Useful (now: not answered)');
     expect(text(html)).toContain('Not sent to Telegram');
   });

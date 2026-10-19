@@ -1,4 +1,4 @@
-import type { EditSpec, EntityRef, OperatorRequest, WriteOp } from '@ads/contracts';
+import { type EditSpec, type EntityRef, OperatorRequest, type WriteOp } from '@ads/contracts';
 import {
   claimJob,
   createProduct,
@@ -394,6 +394,17 @@ describe('brief_feedback', () => {
     expect(await getBrief(t.db, brief.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: false });
     const missing = await submit({ kind: 'brief_feedback', briefId: randomUUID(), useful: true, newInfo: true });
     expect(missing.outcome.status).toBe('refused');
+  });
+
+  it('one answer at a time: the other answer is kept; at least one answer is required (F1)', async () => {
+    const p = await makeProduct();
+    const brief = await insertBrief(t.db, { productId: p.id, kind: 'weekly', numbers: {}, markdown: '# Brief' });
+    const useful = await submit({ kind: 'brief_feedback', briefId: brief.id, useful: true });
+    expect(useful.outcome).toMatchObject({ status: 'done', result: { useful: true, newInfo: null } });
+    const newInfo = await submit({ kind: 'brief_feedback', briefId: brief.id, newInfo: false });
+    expect(newInfo.outcome).toMatchObject({ status: 'done', result: { useful: true, newInfo: false } });
+    expect(await getBrief(t.db, brief.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: false });
+    expect(OperatorRequest.safeParse({ kind: 'brief_feedback', briefId: brief.id }).success).toBe(false);
   });
 });
 

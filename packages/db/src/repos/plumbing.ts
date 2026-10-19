@@ -62,17 +62,24 @@ export async function markBriefSent(db: DbOrTx, id: string, at: Date = new Date(
   await db.update(briefs).set({ sentAt: at }).where(eq(briefs.id, id));
 }
 
-/** Marcus's feedback (the Phase 0 gate). The latest answer wins. */
+/** Marcus's feedback (the Phase 0 gate). Only the answers given are stored (F1): an answer from one surface never
+ *  overwrites the other answer given elsewhere. The latest answer to each wins. Returns both answers as stored. */
 export async function setBriefFeedback(
   db: DbOrTx,
-  input: { briefId: string; useful: boolean; newInfo: boolean },
-): Promise<void> {
-  const rows = await db
+  input: { briefId: string; useful?: boolean | undefined; newInfo?: boolean | undefined },
+): Promise<{ useful: boolean | null; newInfo: boolean | null }> {
+  const set = {
+    ...(input.useful === undefined ? {} : { feedbackUseful: input.useful }),
+    ...(input.newInfo === undefined ? {} : { feedbackNewInfo: input.newInfo }),
+  };
+  if (Object.keys(set).length === 0) throw new Error('brief feedback: no answer given');
+  const [row] = await db
     .update(briefs)
-    .set({ feedbackUseful: input.useful, feedbackNewInfo: input.newInfo })
+    .set(set)
     .where(eq(briefs.id, input.briefId))
-    .returning({ id: briefs.id });
-  if (rows.length === 0) throw new NotFoundError('brief', input.briefId);
+    .returning({ useful: briefs.feedbackUseful, newInfo: briefs.feedbackNewInfo });
+  if (row === undefined) throw new NotFoundError('brief', input.briefId);
+  return row;
 }
 
 // ── Operator requests: surfaces record intent; one processor acts (BLUEPRINT §5.4, M01b) ───────

@@ -65,17 +65,17 @@ export function undoRequest(f: Fields): OperatorRequest {
   return parsed({ kind: 'undo', revisionId: str(f, 'revisionId') }, 'Undo');
 }
 
-/** A brief's 👍 useful / 💡 new to me (the Phase 0 gate's measure): both answers, as the form shows them. */
+/** A brief's 👍 useful / 💡 new to me (the Phase 0 gate's measure). Only the answers changed on the page are sent
+ *  (F1): the form carries what it showed (`usefulShown`, `newInfoShown`: `on` when ticked), so an answer given on
+ *  Telegram after the page loaded is never overwritten by a box left as it was. */
 export function briefFeedbackRequest(f: Fields): OperatorRequest {
-  return parsed(
-    {
-      kind: 'brief_feedback',
-      briefId: str(f, 'briefId'),
-      useful: checked(f, 'useful'),
-      newInfo: checked(f, 'newInfo'),
-    },
-    'Feedback',
-  );
+  const changed = (name: 'useful' | 'newInfo') =>
+    checked(f, name) === (str(f, `${name}Shown`) === 'on') ? {} : { [name]: checked(f, name) };
+  const answers = { ...changed('useful'), ...changed('newInfo') };
+  if (Object.keys(answers).length === 0) {
+    throw new FormError('Feedback: nothing changed. Tick or untick an answer, then save.');
+  }
+  return parsed({ kind: 'brief_feedback', briefId: str(f, 'briefId'), ...answers }, 'Feedback');
 }
 
 /** A product document, saved as the next version of the one the editor showed. Browsers send a textarea's line

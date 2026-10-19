@@ -1,5 +1,5 @@
 // Briefs: the latest weekly and diagnostic briefs as they were sent, each with 👍 useful / 💡 new to me (the Phase 0
-// gate's measure). Saving records a `brief_feedback` request with both answers.
+// gate's measure). Saving records a `brief_feedback` request with only the answers changed on the page (F1).
 import type { Brief } from '@ads/db';
 import { localTime } from '../../../../lib/review.ts';
 import type { ProductView } from '../../../../lib/views.ts';
@@ -32,6 +32,8 @@ export function Briefs({ product, briefs }: { product: ProductView; briefs: Brie
           <form action={sendBriefFeedback}>
             <Back slug={product.slug} screen="briefs" />
             <input type="hidden" name="briefId" value={b.id} />
+            <input type="hidden" name="usefulShown" value={b.feedbackUseful === true ? 'on' : ''} />
+            <input type="hidden" name="newInfoShown" value={b.feedbackNewInfo === true ? 'on' : ''} />
             <label>
               <input type="checkbox" name="useful" defaultChecked={b.feedbackUseful === true} /> 👍 Useful{' '}
               <span className="muted">(now: {answer(b.feedbackUseful)})</span>

@@ -60,14 +60,8 @@ describe('proposalRequest', () => {
 });
 
 describe('the other review forms', () => {
-  it('undo names the change; feedback sends both answers; a document is the next version with LF line breaks', () => {
+  it('undo names the change; a document is the next version with LF line breaks', () => {
     expect(undoRequest(form({ revisionId: 'rev_01ABC' }))).toEqual({ kind: 'undo', revisionId: 'rev_01ABC' });
-    expect(briefFeedbackRequest(form({ briefId: ID, useful: 'on' }))).toEqual({
-      kind: 'brief_feedback',
-      briefId: ID,
-      useful: true,
-      newInfo: false,
-    });
     expect(
       docRequest(form({ productId: ID, doc: 'playbook', baseVersion: '3', markdown: '# Play\r\n\r\n- one  \r\n' })),
     ).toEqual({
@@ -80,6 +74,31 @@ describe('the other review forms', () => {
     expect(() => docRequest(form({ productId: ID, doc: 'secrets', baseVersion: '0', markdown: 'x' }))).toThrow(
       FormError,
     );
-    expect(() => briefFeedbackRequest(form({ briefId: 'not-an-id' }))).toThrow(FormError);
+  });
+
+  it('brief feedback sends only the answers changed on the page (F1)', () => {
+    const shown = (useful: string, newInfo: string, extra: Record<string, string> = {}) =>
+      form({ briefId: ID, usefulShown: useful, newInfoShown: newInfo, ...extra });
+    // Both unanswered on the page; 💡 ticked → only newInfo, so a 👍 given on Telegram meanwhile stays.
+    expect(briefFeedbackRequest(shown('', '', { newInfo: 'on' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      newInfo: true,
+    });
+    // 👍 shown ticked and left ticked; 💡 shown ticked and unticked → only newInfo: false.
+    expect(briefFeedbackRequest(shown('on', 'on', { useful: 'on' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      newInfo: false,
+    });
+    // Both changed → both sent.
+    expect(briefFeedbackRequest(shown('', 'on', { useful: 'on' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      useful: true,
+      newInfo: false,
+    });
+    expect(() => briefFeedbackRequest(shown('on', '', { useful: 'on' }))).toThrow(FormError); // nothing changed
+    expect(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'on' }))).toThrow(FormError);
   });
 });
