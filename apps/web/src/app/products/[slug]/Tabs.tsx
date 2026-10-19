@@ -1,19 +1,26 @@
-// The product's screens.
+// The product's screens: what the agent did (M10b) and its settings (M10a).
 import type { ProductRow } from '../../../lib/views.ts';
 
+export const TABS = [
+  ['overview', 'Overview'],
+  ['proposals', 'Proposals'],
+  ['changes', 'Changes'],
+  ['checks', 'Checks'],
+  ['briefs', 'Briefs'],
+  ['docs', 'Docs'],
+  ['settings', 'Settings'],
+  ['history', 'Settings history'],
+  ['facts', 'Facts'],
+] as const;
+
 export function ProductHeader({ product, current }: { product: ProductRow; current: string }) {
-  const tabs = [
-    ['settings', 'Settings'],
-    ['history', 'Settings history'],
-    ['facts', 'Facts'],
-  ] as const;
   return (
     <>
       <h1>
         {product.name} <span className="muted">· {product.status}</span>
       </h1>
       <nav className="tabs">
-        {tabs.map(([path, label]) =>
+        {TABS.map(([path, label]) =>
           path === current ? (
             <strong key={path}>{label}</strong>
           ) : (
@@ -26,3 +33,27 @@ export function ProductHeader({ product, current }: { product: ProductRow; curre
     </>
   );
 }
+
+/** A form the worker never saw because it was incomplete: the reason, from the redirect (shown as text). */
+export function FormNotice({ error }: { error: string | undefined }) {
+  if (error === undefined || error === '') return null;
+  return (
+    <section className="card">
+      <p className="bad">Not sent: {error.slice(0, 300)}</p>
+    </section>
+  );
+}
+
+/** The hidden fields every review form carries: which screen to come back to if the form is incomplete. */
+export function Back({ slug, screen }: { slug: string; screen: string }) {
+  return (
+    <>
+      <input type="hidden" name="slug" value={slug} />
+      <input type="hidden" name="screen" value={screen} />
+    </>
+  );
+}
+
+/** The `?error=` of a review screen's URL. */
+export const errorOf = (q: Record<string, string | string[] | undefined>): string | undefined =>
+  typeof q['error'] === 'string' ? q['error'] : undefined;

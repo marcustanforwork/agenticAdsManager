@@ -147,3 +147,17 @@ pre {
 .issues li {
   color: var(--bad);
 }
+.decide form {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0 16px 8px 0;
+}
+.decide label > span {
+  min-width: 0;
+  margin-right: 6px;
+}
+pre.brief {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: inherit;
+}

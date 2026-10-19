@@ -20,6 +20,9 @@ export const str = (f: Fields, name: string): string => (f.get(name)?.[0] ?? '')
 export const all = (f: Fields, name: string): string[] => [...(f.get(name) ?? [])];
 export const checked = (f: Fields, name: string): boolean => f.has(name);
 
+/** A version number as a form sends it; anything else becomes -1, which the worker refuses as stale. */
+export const versionOf = (text: string): number => (/^\d{1,9}$/.test(text) ? Number(text) : -1);
+
 /** One item per non-empty line. */
 export const lines = (text: string): string[] =>
   text

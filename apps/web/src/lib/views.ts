@@ -1,8 +1,8 @@
 // What the pages read. Settings are read as stored and validated here, so a broken document still shows (with its
 // problems) instead of breaking the page; a settings_patch can repair it.
 import { ProductSettings } from '@ads/contracts';
-import { schema } from '@ads/db';
-import { eq } from 'drizzle-orm';
+import { type DbOrTx, schema } from '@ads/db';
+import { type SQL, eq } from 'drizzle-orm';
 import { db } from './server.ts';
 
 export interface ProductRow {
@@ -11,6 +11,7 @@ export interface ProductRow {
   name: string;
   packId: string;
   currency: string;
+  timezone: string;
   status: 'active' | 'halted' | 'dormant';
   settingsVersion: number;
 }
@@ -24,6 +25,7 @@ export async function listProductRows(): Promise<ProductRow[]> {
       name: p.name,
       packId: p.packId,
       currency: p.currency,
+      timezone: p.timezone,
       status: p.status,
       settingsVersion: p.settingsVersion,
     })
@@ -38,15 +40,16 @@ export interface ProductView extends ProductRow {
 }
 
 /** A product with its settings as stored, validated here so a broken document still shows with its problems. */
-export async function getProductView(slug: string): Promise<ProductView | null> {
+export async function getProductView(slug: string, database: DbOrTx = db()): Promise<ProductView | null> {
   const p = schema.products;
-  const [row] = await db()
+  const [row] = await database
     .select({
       id: p.id,
       slug: p.slug,
       name: p.name,
       packId: p.packId,
       currency: p.currency,
+      timezone: p.timezone,
       status: p.status,
       settingsVersion: p.settingsVersion,
       stored: p.settings,
@@ -79,17 +82,60 @@ export async function listOfferingRows(productId: string) {
 }
 
 /** Where to go back to after a request: the screen it came from, from the request itself (never from the URL). */
-export async function requestOrigin(id: string): Promise<string> {
+export async function requestOrigin(id: string, database: DbOrTx = db()): Promise<string> {
   const r = schema.operatorRequests;
-  const [row] = await db()
+  const [row] = await database
     .select({ payload: r.payload, slug: schema.products.slug })
     .from(r)
     .leftJoin(schema.products, eq(schema.products.id, r.productId))
     .where(eq(r.id, id));
-  if (!row?.slug) return '/';
-  const payload = row.payload as { kind?: string; offeringKey?: string };
-  if (payload.kind === 'facts_put' && typeof payload.offeringKey === 'string') {
-    return `/products/${row.slug}/facts/${encodeURIComponent(payload.offeringKey)}`;
+  if (!row) return '/';
+  const payload = row.payload as {
+    kind?: string;
+    offeringKey?: string;
+    proposalId?: string;
+    revisionId?: string;
+    briefId?: string;
+    doc?: string;
+  };
+  const slugOf = async (
+    table: typeof schema.proposals | typeof schema.changeLog | typeof schema.briefs,
+    where: SQL,
+  ) => {
+    const [found] = await database
+      .select({ slug: schema.products.slug })
+      .from(table)
+      .innerJoin(schema.products, eq(schema.products.id, table.productId))
+      .where(where);
+    return found?.slug ?? null;
+  };
+  const at = (slug: string | null, path: string) => (slug === null ? '/' : `/products/${slug}/${path}`);
+  switch (payload.kind) {
+    case 'approve':
+    case 'reject':
+    case 'edit_approve':
+      return at(await slugOf(schema.proposals, eq(schema.proposals.id, String(payload.proposalId))), 'proposals');
+    case 'undo':
+      return at(await slugOf(schema.changeLog, eq(schema.changeLog.revisionId, String(payload.revisionId))), 'changes');
+    case 'brief_feedback':
+      return at(await slugOf(schema.briefs, eq(schema.briefs.id, String(payload.briefId))), 'briefs');
+    case 'product_doc_put':
+      return at(row.slug, `docs/${encodeURIComponent(String(payload.doc))}`);
+    case 'facts_put':
+      if (typeof payload.offeringKey === 'string') {
+        return at(row.slug, `facts/${encodeURIComponent(payload.offeringKey)}`);
+      }
+      return at(row.slug, 'facts');
+    default:
+      return at(row.slug, 'settings');
   }
-  return `/products/${row.slug}/settings`;
+}
+
+/** The text a document request sent, so a refused save (a stale version) never loses what was typed. Null for any
+ *  other request. */
+export async function sentDocument(id: string, database: DbOrTx = db()): Promise<string | null> {
+  const r = schema.operatorRequests;
+  const [row] = await database.select({ payload: r.payload }).from(r).where(eq(r.id, id));
+  const payload = row?.payload as { kind?: string; markdown?: unknown } | undefined;
+  return payload?.kind === 'product_doc_put' && typeof payload.markdown === 'string' ? payload.markdown : null;
 }

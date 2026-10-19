@@ -4,6 +4,20 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — M10b built ahead of the Phase 0 gate (the dashboard's review screens), reviewed
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20)
+- **Did:**
+  - Reset the branch onto `main` (its earlier commits were merged as PR #19); started M10b (D-090).
+  - DB: `packages/db/src/repos/dashboard.ts` (spend per day, outcomes through `dashboard_outcomes`, cycle and trust history, AI cost, drift, entities by ref, findings by id, decisions, document versions), tested as `agent_dashboard`.
+  - `apps/web`: Overview, Proposals, Changes, Checks, Briefs and Docs screens per product; the lib for the arithmetic, the loaders and each button's request; four new server actions; the request page goes back to the right screen and shows a document request's text.
+  - Tests: every screen rendered to HTML from a fixture database (`apps/web/test/views.test.ts`); the forms' requests; the web round trip for each new kind in core. A headless browser run against the built app covered every button (milestone file, Evidence).
+  - Code review (high): 10 findings, 8 fixed with tests, 2 left (milestone file). Playwright moved to M16b.
+  - 1064 tests pass; typecheck, lint, boundaries, build and format are green.
+- **Decided:** D-091 (build choices).
+- **Learned:** GOTCHAS: a GROUP BY that repeats a bound parameter; how `react-dom/server` renders a server-action form.
+- **Next:** Marcus reviews the PR; Phase 0 setup this weekend. No milestone may start before the gate (M11a onwards).
+- **Open:** the Phase 0 setup and live steps (no ticks yet).
+
 ## 2026-10-19 — PR #18 (M10a) merged; M10b approved to build ahead of the gate
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#18](https://github.com/marcustanforwork/agenticAdsManager/pull/18)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "let's merge this PR first"; squash-merged PR #18 (D-057). Recorded his go-ahead for M10b (D-090; BLUEPRINT v3.27). Explained Q13; Marcus answered "A" → D-071 adopted (service accounts; BLUEPRINT v3.28, PROPOSAL v3.10).
