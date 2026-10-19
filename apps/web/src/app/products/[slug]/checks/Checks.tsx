@@ -3,7 +3,23 @@ import { formatUsd, localTime } from '../../../../lib/review.ts';
 import type { ChecksData } from '../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 
-const RESULT_CLASS: Record<string, string | undefined> = { fail: 'bad', warn: 'bad', ok: 'ok', pass: 'ok' };
+// A cycle's trust result is ok, degraded or fail; a check's is pass, warn, fail or no_signal (too little data to
+// judge: shown, but not as a problem).
+const RESULT_CLASS: Record<string, string | undefined> = {
+  fail: 'bad',
+  warn: 'bad',
+  degraded: 'bad',
+  ok: 'ok',
+  pass: 'ok',
+  no_signal: 'muted',
+};
+
+/** "all 5 passed", or "4 passed, 1 no signal" when some checks had too little data to judge. */
+function allClear(checks: { result: string }[]): string {
+  if (checks.length === 0) return 'no checks';
+  const quiet = checks.filter((c) => c.result === 'no_signal').length;
+  return quiet === 0 ? `all ${checks.length} passed` : `${checks.length - quiet} passed, ${quiet} no signal`;
+}
 
 const shown = (v: unknown): string => {
   const inner = v !== null && typeof v === 'object' && 'value' in v ? v.value : v;
@@ -58,7 +74,7 @@ export function Checks({ product, data }: { product: ProductView; data: ChecksDa
                       <td className={RESULT_CLASS[cycle.trustResult ?? '']}>{cycle.trustResult ?? '—'}</td>
                       <td>
                         {problems.length === 0 ? (
-                          <span className="muted">{checks.length === 0 ? 'no checks' : `all ${checks.length} OK`}</span>
+                          <span className="muted">{allClear(checks)}</span>
                         ) : (
                           problems.map((c) => (
                             <div key={c.id} className={RESULT_CLASS[c.result]}>

@@ -2,8 +2,8 @@
 // the approved ones waiting to be made by hand; the latest decisions; and the agree rate the Phase 1 gate measures.
 // Every button records a request (approve, reject or edit_approve) on the version shown here.
 import { microsToInput } from '../../../../lib/forms.ts';
-import { describeAction, editableFields, localTime, ratePct } from '../../../../lib/review.ts';
-import { type ProposalItem, type ProposalsData, nameLookup } from '../../../../lib/reviewViews.ts';
+import { countOf, describeAction, editableFields, formatMoney, localTime, ratePct } from '../../../../lib/review.ts';
+import { type ProposalItem, type ProposalsData, entityLookup } from '../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 import type { WriteOp } from '@ads/contracts';
 import { decideProposal } from '../../../actions.ts';
@@ -93,19 +93,31 @@ function Decide({ item, product }: { item: ProposalItem; product: ProductView })
 
 function Card({ item, data, product }: { item: ProposalItem; data: ProposalsData; product: ProductView }) {
   const p = item.proposal;
-  const { headline, change } = describeAction(p.action, product.currency, nameLookup(data.names), p.undo);
+  const { headline, change } = describeAction(p.action, product.currency, entityLookup(data.names), {
+    undo: p.undo,
+    live: item.open,
+  });
+  const e = item.finding?.evidence ?? null;
   const expired = p.status === 'pending' && !item.open;
   return (
     <section className="card">
       <h2>
         Proposal {p.shortId} <span className="muted">· v{p.version}</span>
-        {item.findingType === null ? null : <span className="muted"> · {item.findingType}</span>}
+        {item.finding === null ? null : <span className="muted"> · {item.finding.type}</span>}
         {p.origin === 'operator' ? <span className="muted"> · your own request</span> : null}
       </h2>
       <p>
         <strong>{headline}</strong>
         {change === null ? null : <span className="muted"> · {change}</span>}
       </p>
+      {e === null ? null : (
+        <p className="muted">
+          Evidence ({e.from} to {e.to}, {countOf(e.windowDays, 'day')}): spend{' '}
+          {formatMoney(BigInt(e.spendMicros), product.currency)} · {countOf(e.clicks, 'click')} ·{' '}
+          {countOf(e.impressions, 'impression')}
+          {Object.entries(e.outcomesByStage).map(([stage, n]) => ` · ${countOf(n, stage)}`)}
+        </p>
+      )}
       <p>
         <strong>Why:</strong> {p.rationale}
       </p>
@@ -148,7 +160,7 @@ function AgreeRate({ agree }: { agree: ProposalsData['agree'] }) {
 }
 
 export function Proposals({ product, data }: { product: ProductView; data: ProposalsData }) {
-  const nameOf = nameLookup(data.names);
+  const entityOf = entityLookup(data.names);
   return (
     <>
       <AgreeRate agree={data.agree} />
@@ -186,7 +198,7 @@ export function Proposals({ product, data }: { product: ProductView; data: Propo
                   <tr key={`${d.proposalId}:${d.version}`}>
                     <td>{localTime(d.decidedAt, product.timezone)}</td>
                     <td>
-                      {d.shortId} v{d.version}: {describeAction(d.action as WriteOp, product.currency, nameOf).headline}
+                      {d.shortId} v{d.version}: {describeAction(d.action as WriteOp, product.currency, entityOf).headline}
                     </td>
                     <td className={d.decision === 'approve' ? 'ok' : 'bad'}>
                       {d.decision === 'approve' ? 'approved' : 'rejected'}

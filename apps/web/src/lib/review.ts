@@ -1,7 +1,7 @@
 // The review views' arithmetic and wording (M10b): pure functions over what the loaders read. Every number comes
 // from SQL; these only add up, divide (in bigint micros, invariant 6) and format. Display only: nothing here feeds
 // back into a decision.
-import { type EntityRef, type WriteOp, daysFrom, formatSgd, minusDays, targetRefOf } from '@ads/contracts';
+import { type EntityRef, type WriteOp, formatSgd, minusDays, targetRefOf } from '@ads/contracts';
 import type { DayStageCount, DaySpend, StageAttribution } from '@ads/db';
 
 // ── Numbers ───────────────────────────────────────────────────────────────────────────────────
@@ -41,10 +41,11 @@ export function costPer(spendMicros: bigint, outcomes: number): bigint | null {
 export const ratePct = (part: number, whole: number): number | null =>
   whole === 0 ? null : Math.round((part * 1000) / whole) / 10;
 
-/** "1 signup" / "3 signups" from a stage label. Labels are written by Marcus (trusted). */
-export function countOf(n: number, label: string): string {
-  const word = label.toLowerCase();
-  return `${n} ${n === 1 || word.endsWith('s') ? word : `${word}s`}`;
+/** "1 signup" / "3 signups" from one word or a stage id ("pool_request" → "pool requests"). Not for stage labels,
+ *  which can carry a note ("Signup (email link clicked)"): say those as `<n> × <label>`. */
+export function countOf(n: number, word: string): string {
+  const w = word.replaceAll('_', ' ').toLowerCase();
+  return `${n} ${n === 1 || w.endsWith('s') ? w : `${w}s`}`;
 }
 
 // ── Spend ─────────────────────────────────────────────────────────────────────────────────────
@@ -84,36 +85,40 @@ export interface TrendRow {
   costMicros: bigint | null;
 }
 
-/** The KPI trend over the `weeks` × 7 days ending `lastDay`: one row per week (oldest first), and one per day. */
+/** The KPI trend over the `weeks` × 7 days ending `lastDay`: one row per day, and one per week (oldest first),
+ *  each week the sum of its seven days. */
 export function kpiTrend(input: {
   spend: readonly DaySpend[];
   outcomes: readonly DayStageCount[];
   kpiStage: string;
   lastDay: string;
-  weeks?: number;
+  weeks: number;
 }): { weeks: TrendRow[]; days: TrendRow[] } {
-  const weeks = input.weeks ?? 4;
   const spend = new Map(input.spend.map((s) => [s.day, s.spendMicros]));
   const kpi = new Map<string, number>();
   for (const o of input.outcomes) if (o.stage === input.kpiStage) kpi.set(o.day, (kpi.get(o.day) ?? 0) + o.outcomes);
-  const row = (from: string, to: string): TrendRow => {
-    let spendMicros = 0n;
-    let count = 0;
-    for (let d = from; daysFrom(d, to) >= 0; d = minusDays(d, -1)) {
-      spendMicros += spend.get(d) ?? 0n;
-      count += kpi.get(d) ?? 0;
-    }
-    return { from, to, spendMicros, kpi: count, costMicros: costPer(spendMicros, count) };
-  };
-  const first = minusDays(input.lastDay, weeks * 7 - 1);
-  const days: TrendRow[] = [];
-  for (let d = first; daysFrom(d, input.lastDay) >= 0; d = minusDays(d, -1)) days.push(row(d, d));
-  const weekRows: TrendRow[] = [];
-  for (let w = 0; w < weeks; w++) {
-    const from = minusDays(first, -7 * w);
-    weekRows.push(row(from, minusDays(from, -6)));
-  }
-  return { weeks: weekRows, days };
+  const total = (from: string, to: string, spendMicros: bigint, count: number): TrendRow => ({
+    from,
+    to,
+    spendMicros,
+    kpi: count,
+    costMicros: costPer(spendMicros, count),
+  });
+  const first = minusDays(input.lastDay, input.weeks * 7 - 1);
+  const days = Array.from({ length: input.weeks * 7 }, (_, i) => {
+    const d = minusDays(first, -i);
+    return total(d, d, spend.get(d) ?? 0n, kpi.get(d) ?? 0);
+  });
+  const weeks = Array.from({ length: input.weeks }, (_, w) => {
+    const week = days.slice(w * 7, w * 7 + 7);
+    return total(
+      week[0]!.from,
+      week[6]!.to,
+      week.reduce((n, d) => n + d.spendMicros, 0n),
+      week.reduce((n, d) => n + d.kpi, 0),
+    );
+  });
+  return { weeks, days };
 }
 
 // ── Outcomes and attribution ──────────────────────────────────────────────────────────────────
@@ -175,18 +180,26 @@ export function entityText(ref: EntityRef, name: string | null): string {
   return `${words}${shown} (${ref.platform}:${ref.accountId}:${ref.type}:${ref.externalId})`;
 }
 
-/** A write action in words: what it does, and before → after. `nameOf` gives a synced entity's name. */
+/** A synced entity, as the views know it. */
+export type EntityLookup = (ref: EntityRef) => { name: string; status: string } | null;
+
+/** A write action in words: what it does, and before → after. `entityOf` gives a synced entity's name and status;
+ *  `live` says the action is still to be decided, so a pause's "before" is the entity's status now (as the Telegram
+ *  card shows it). A past change's before is what it was then, not now. */
 export function describeAction(
   op: WriteOp,
   currency: string,
-  nameOf: (ref: EntityRef) => string | null,
-  undo: WriteOp | null = null,
+  entityOf: EntityLookup,
+  options: { undo?: WriteOp | null; live?: boolean } = {},
 ): { headline: string; change: string | null } {
-  const target = (ref: EntityRef) => entityText(ref, nameOf(ref));
+  const target = (ref: EntityRef) => entityText(ref, entityOf(ref)?.name ?? null);
   const money = (micros: string) => formatMoney(BigInt(micros), currency);
+  const undo = options.undo ?? null;
   switch (op.action) {
-    case 'pause_entity':
-      return { headline: `Pause ${target(op.target)}`, change: 'status active → paused' };
+    case 'pause_entity': {
+      const before = options.live === true ? (entityOf(op.target)?.status ?? 'active') : 'active';
+      return { headline: `Pause ${target(op.target)}`, change: `status ${before} → paused` };
+    }
     case 'resume_entity':
       return { headline: `Turn back on ${target(op.target)}`, change: 'status paused → active' };
     case 'add_negative_keyword':

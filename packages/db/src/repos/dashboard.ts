@@ -11,6 +11,7 @@ import {
   cycles,
   dashboardOutcomes,
   driftEvents,
+  findings,
   metricsDaily,
   operatorRequests,
   productDocs,
@@ -298,4 +299,17 @@ export async function listProductDocVersions(
     .where(and(eq(productDocs.productId, input.productId), eq(productDocs.doc, input.doc)))
     .orderBy(desc(productDocs.version))
     .limit(input.limit ?? 50);
+}
+
+/** The findings behind proposals, by id, in one query: their type and evidence (computed from SQL, M06a). */
+export async function findingsById(
+  db: DbOrTx,
+  ids: readonly string[],
+): Promise<Map<string, { type: string; evidence: unknown }>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: findings.id, type: findings.type, evidence: findings.evidence })
+    .from(findings)
+    .where(inArray(findings.id, [...new Set(ids)]));
+  return new Map(rows.map((r) => [r.id, { type: r.type, evidence: r.evidence }]));
 }

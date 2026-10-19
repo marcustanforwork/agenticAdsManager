@@ -6,7 +6,7 @@ import { type OperatorRequest, jsonSchemaIssues } from '@ads/contracts';
 import { getLatestPackManifest, recordWebRequest } from '@ads/db';
 import { redirect } from 'next/navigation';
 import { factsFromForm, nodeOf } from '../lib/factsForm.ts';
-import { fieldsOf, str } from '../lib/forms.ts';
+import { fieldsOf, str, versionOf } from '../lib/forms.ts';
 import { db, requireOperator } from '../lib/server.ts';
 import { FormError, briefFeedbackRequest, docRequest, proposalRequest, undoRequest } from '../lib/reviewForms.ts';
 import { isSection, patchFromForm } from '../lib/settingsForm.ts';
@@ -17,8 +17,6 @@ async function record(request: OperatorRequest): Promise<never> {
   const id = await recordWebRequest(db(), { request, email: operator.email });
   redirect(`/requests/${id}`);
 }
-
-const versionOf = (text: string): number => (/^\d{1,9}$/.test(text) ? Number(text) : -1);
 
 /** One settings screen → a settings_patch based on the version the screen showed. */
 export async function submitSettings(form: FormData): Promise<void> {

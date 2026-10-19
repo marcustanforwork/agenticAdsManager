@@ -2,7 +2,7 @@
 // for exactly the right thing; actions.ts records the result. The worker decides: a stale version, an expired
 // proposal or a change already undone is refused there, with the reason.
 import { OperatorRequest } from '@ads/contracts';
-import { type Fields, checked, moneyToMicros, str } from './forms.ts';
+import { type Fields, checked, moneyToMicros, str, versionOf } from './forms.ts';
 
 /** A form the contract rejects: its message is shown to Marcus, in plain words. */
 export class FormError extends Error {
@@ -20,8 +20,6 @@ function parsed(request: unknown, what: string): OperatorRequest {
   }
   return result.data;
 }
-
-const versionOf = (text: string): number => (/^\d{1,9}$/.test(text) ? Number(text) : -1);
 
 /** A proposal card's buttons: approve, reject (with a reason), or edit one field and approve. Each names the
  *  version the screen showed, so a decision on an older version is refused. */

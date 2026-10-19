@@ -1,7 +1,7 @@
 // What each review screen reads (M10b), one loader per screen. Each takes the database, so tests run them under the
 // dashboard's role against a fixture database; the pages pass `db()`. Settings come from the validated product
 // view: a product whose stored settings are broken shows the numbers without its ceilings and stages.
-import { type EntityRef, type WriteOp, localDate, minusDays, targetRefOf } from '@ads/contracts';
+import { ComputedEvidence, type WriteOp, daysFrom, localDate, minusDays, targetRefOf } from '@ads/contracts';
 import {
   type Account,
   type Brief,
@@ -15,7 +15,7 @@ import {
   attributionByStage,
   entitiesByRef,
   entityRefKey,
-  getFinding,
+  findingsById,
   listAccounts,
   listBriefs,
   listChanges,
@@ -27,11 +27,11 @@ import {
   outcomesByDay,
   spendByDay,
   sumModelCost,
-  sumMetrics,
 } from '@ads/db';
 import {
   type MonthProjection,
   type StageSummary,
+  type EntityLookup,
   type TrendRow,
   kpiTrend,
   projectMonth,
@@ -47,11 +47,11 @@ export const AGREE_WINDOW_DAYS = 21;
 export const AI_COST_DAYS = 30;
 
 type Names = Map<string, { name: string; status: string }>;
-/** A lookup of synced entity names for `describeAction`. */
-export const nameLookup =
-  (names: Names) =>
-  (ref: EntityRef): string | null =>
-    names.get(entityRefKey(ref))?.name ?? null;
+/** The synced entities for `describeAction`. */
+export const entityLookup =
+  (names: Names): EntityLookup =>
+  (ref) =>
+    names.get(entityRefKey(ref)) ?? null;
 
 async function namesFor(db: DbOrTx, productId: string, ops: (WriteOp | null)[]): Promise<Names> {
   const refs = ops.flatMap((op) => {
@@ -85,13 +85,11 @@ export async function loadOverview(db: DbOrTx, product: ProductView, now: Date):
   const day = minusDays(localDate(now, tz), 1);
   const month = day.slice(0, 7);
   const from = minusDays(day, TREND_DAYS - 1);
+  const monthStart = `${month}-01`;
   const productId = product.id;
-  const spendOn = async (a: string, b: string) =>
-    (await sumMetrics(db, { productId, scope: { kind: 'product' }, from: a, to: b, timeZone: tz })).spendMicros;
-  const [dayMicros, monthMicros, spend, outcomes, attribution, accounts] = await Promise.all([
-    spendOn(day, day),
-    spendOn(`${month}-01`, day),
-    spendByDay(db, { productId, from, to: day }),
+  // One spend query covers the trend and the month to date, whichever starts first.
+  const [spend, outcomes, attribution, accounts] = await Promise.all([
+    spendByDay(db, { productId, from: daysFrom(monthStart, from) > 0 ? monthStart : from, to: day }),
     outcomesByDay(db, { productId, from, to: day, timeZone: tz }),
     attributionByStage(db, { productId, from, to: day, timeZone: tz }),
     listAccounts(db, productId),
@@ -100,6 +98,8 @@ export async function loadOverview(db: DbOrTx, product: ProductView, now: Date):
   const ceiling = (json: string | null | undefined): bigint | null => (json == null ? null : BigInt(json));
   const stages = s?.outcomes.stages ?? [];
   const kpiStage = s?.outcomes.primaryKpiStage ?? '';
+  const dayMicros = spend.find((x) => x.day === day)?.spendMicros ?? 0n;
+  const monthMicros = spend.filter((x) => x.day >= monthStart).reduce((n, x) => n + x.spendMicros, 0n);
   return {
     day,
     spend: {
@@ -110,7 +110,7 @@ export async function loadOverview(db: DbOrTx, product: ProductView, now: Date):
       projection: projectMonth(monthMicros, day),
     },
     kpi: { stage: kpiStage, label: stages.find((x) => x.id === kpiStage)?.label ?? kpiStage },
-    trend: kpiTrend({ spend, outcomes, kpiStage, lastDay: day }),
+    trend: kpiTrend({ spend, outcomes, kpiStage, lastDay: day, weeks: TREND_DAYS / 7 }),
     stages: summariseStages(attribution, stages, kpiStage),
     accounts,
   };
@@ -120,8 +120,8 @@ export async function loadOverview(db: DbOrTx, product: ProductView, now: Date):
 
 export interface ProposalItem {
   proposal: ProposalRecord;
-  /** The finding it came from (agent proposals): its type. */
-  findingType: string | null;
+  /** The finding it came from (agent proposals): its type, and its evidence when it reads as evidence. */
+  finding: { type: string; evidence: ComputedEvidence | null } | null;
   /** Still open: pending and before its expiry. Only these can be decided. */
   open: boolean;
 }
@@ -148,16 +148,24 @@ export async function loadProposals(db: DbOrTx, product: ProductView, now: Date)
       to: now,
     }),
   ]);
-  const item = async (proposal: ProposalRecord): Promise<ProposalItem> => ({
-    proposal,
-    findingType: proposal.findingId === null ? null : (await getFinding(db, proposal.findingId)).type,
-    open: proposal.status === 'pending' && proposal.expiresAt.getTime() > now.getTime(),
-  });
+  const found = await findingsById(
+    db,
+    [...pending, ...approved].flatMap((p) => (p.findingId === null ? [] : [p.findingId])),
+  );
+  const item = (proposal: ProposalRecord): ProposalItem => {
+    const f = proposal.findingId === null ? undefined : found.get(proposal.findingId);
+    const evidence = f === undefined ? null : ComputedEvidence.safeParse(f.evidence);
+    return {
+      proposal,
+      finding: f === undefined ? null : { type: f.type, evidence: evidence?.success === true ? evidence.data : null },
+      open: proposal.status === 'pending' && proposal.expiresAt.getTime() > now.getTime(),
+    };
+  };
   const ops = [...pending, ...approved].map((p) => p.action);
   for (const d of decisions) ops.push(d.action as WriteOp);
   return {
-    pending: await Promise.all(pending.map(item)),
-    approved: await Promise.all(approved.map(item)),
+    pending: pending.map(item),
+    approved: approved.map(item),
     decisions,
     names: await namesFor(db, product.id, ops),
     agree: { days: AGREE_WINDOW_DAYS, ...agree },

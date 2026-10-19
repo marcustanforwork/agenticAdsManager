@@ -130,3 +130,12 @@ export async function requestOrigin(id: string, database: DbOrTx = db()): Promis
       return at(row.slug, 'settings');
   }
 }
+
+/** The text a document request sent, so a refused save (a stale version) never loses what was typed. Null for any
+ *  other request. */
+export async function sentDocument(id: string, database: DbOrTx = db()): Promise<string | null> {
+  const r = schema.operatorRequests;
+  const [row] = await database.select({ payload: r.payload }).from(r).where(eq(r.id, id));
+  const payload = row?.payload as { kind?: string; markdown?: unknown } | undefined;
+  return payload?.kind === 'product_doc_put' && typeof payload.markdown === 'string' ? payload.markdown : null;
+}

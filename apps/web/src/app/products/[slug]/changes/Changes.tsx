@@ -2,7 +2,7 @@
 // answers with the change's stored undo (in Phase 1 you make it by hand; from M11b the gateway makes it).
 import type { Change } from '@ads/db';
 import { describeAction, localTime } from '../../../../lib/review.ts';
-import { nameLookup } from '../../../../lib/reviewViews.ts';
+import { entityLookup } from '../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 import { requestUndo } from '../../../actions.ts';
 import { Back } from '../Tabs.tsx';
@@ -14,7 +14,7 @@ export function Changes({
   product: ProductView;
   data: { changes: Change[]; names: Map<string, { name: string; status: string }> };
 }) {
-  const nameOf = nameLookup(data.names);
+  const entityOf = entityLookup(data.names);
   if (data.changes.length === 0) {
     return (
       <section className="card">
@@ -41,7 +41,7 @@ export function Changes({
           </thead>
           <tbody>
             {data.changes.map((c) => {
-              const { headline, change } = describeAction(c.action, product.currency, nameOf, c.undo);
+              const { headline, change } = describeAction(c.action, product.currency, entityOf, { undo: c.undo });
               return (
                 <tr key={c.revisionId}>
                   <td>
@@ -66,7 +66,7 @@ export function Changes({
                         <button type="submit" className="secondary">
                           Request undo
                         </button>
-                        <div className="muted">{describeAction(c.undo, product.currency, nameOf).headline}</div>
+                        <div className="muted">{describeAction(c.undo, product.currency, entityOf).headline}</div>
                       </form>
                     )}
                   </td>

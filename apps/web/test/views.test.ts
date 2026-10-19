@@ -14,7 +14,7 @@ import { Doc } from '../src/app/products/[slug]/docs/[doc]/Doc.tsx';
 import { Overview } from '../src/app/products/[slug]/overview/Overview.tsx';
 import { Proposals } from '../src/app/products/[slug]/proposals/Proposals.tsx';
 import { loadBriefs, loadChanges, loadChecks, loadDoc, loadOverview, loadProposals } from '../src/lib/reviewViews.ts';
-import { type ProductView, getProductView, requestOrigin } from '../src/lib/views.ts';
+import { type ProductView, getProductView, requestOrigin, sentDocument } from '../src/lib/views.ts';
 import { NOW, type World, seedWorld } from './support/world.ts';
 
 let t: TestDatabase;
@@ -69,6 +69,28 @@ describe('overview', () => {
     expect(s).toContain(`${w.account.externalId} “Main account” active 2026-10-16 08:30 (Asia/Singapore)`);
   });
 
+  it('speaks of the KPI by its stage id, so a label with a note reads well', async () => {
+    const settings = product.settings!;
+    const labelled: ProductView = {
+      ...product,
+      settings: {
+        ...settings,
+        outcomes: {
+          ...settings.outcomes,
+          stages: settings.outcomes.stages.map((x) =>
+            x.id === 'signup' ? { ...x, label: 'Signup (email link clicked)' } : x,
+          ),
+        },
+      },
+    };
+    const data = await asDashboard((db) => loadOverview(db, labelled, NOW));
+    const s = text(renderToStaticMarkup(createElement(Overview, { product: labelled, data })));
+    expect(s).toContain('Cost per signup, last 28 days');
+    expect(s).toContain('S$162.00 spent, 3 signups: S$54.00 each');
+    expect(s).toContain('Signup (email link clicked) · KPI');
+    expect(s).not.toContain('clicked)s');
+  });
+
   it('says so when no ceiling is set, and when the stored settings are broken', async () => {
     const data = await asDashboard((db) => loadOverview(db, product, NOW));
     const broken: ProductView = { ...product, settings: null, issues: ['spend: required'] };
@@ -97,6 +119,7 @@ describe('proposals', () => {
     expect(s).toContain('50% agreed: 1 approved (edits included), 1 rejected, 0 expired, 3 waiting, of 5');
     expect(s).toContain('Waiting for you (3)');
     expect(s).toContain(`Proposal ${w.proposals.pausePending.shortId} · v1 · zero_outcome_spend`);
+    expect(s).toContain('Evidence (2026-10-05 to 2026-10-11, 7 days): spend S$20.00 · 40 clicks · 600 impressions');
     expect(s).toContain(
       `Pause ad group “Pool group” (google:${w.account.externalId}:ad_group:222) · status active → paused`,
     );
@@ -163,6 +186,23 @@ describe('checks', () => {
     expect(s).toContain('campaign “Pool <b>Search</b>”');
     expect(s).toContain('not yet');
   });
+
+  it('marks a degraded cycle, and counts checks without a signal apart from passes', async () => {
+    const data = await asDashboard((db) => loadChecks(db, product, NOW));
+    const [first] = data.cycles;
+    const quiet = {
+      ...data,
+      cycles: [
+        {
+          cycle: { ...first!.cycle, trustResult: 'degraded' as const },
+          checks: first!.checks.map((c) => ({ ...c, result: c.result === 'warn' ? ('no_signal' as const) : c.result })),
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(createElement(Checks, { product, data: quiet }));
+    expect(html).toContain('<td class="bad">degraded</td>');
+    expect(text(html)).toContain('1 passed, 1 no signal');
+  });
 });
 
 describe('briefs', () => {
@@ -217,5 +257,20 @@ describe('requestOrigin', () => {
     );
     expect(await at({ kind: 'halt', productId: w.product.id })).toBe(`${base}/settings`);
     expect(await at({ kind: 'undo', revisionId: 'rev_unknown' })).toBe('/');
+  });
+
+  it("keeps a document request's text for its page, and nothing for other requests", async () => {
+    const record = (request: Parameters<typeof recordWebRequest>[1]['request']) =>
+      asDashboard((db) => recordWebRequest(db, { request, email: 'marcus@example.com' }));
+    const doc = await record({
+      kind: 'product_doc_put',
+      productId: w.product.id,
+      doc: 'strategy',
+      baseVersion: 0,
+      markdown: '# Ten minutes of edits',
+    });
+    const halt = await record({ kind: 'halt', productId: w.product.id });
+    expect(await asDashboard((db) => sentDocument(doc, db))).toBe('# Ten minutes of edits');
+    expect(await asDashboard((db) => sentDocument(halt, db))).toBeNull();
   });
 });

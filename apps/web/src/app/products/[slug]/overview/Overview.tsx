@@ -25,7 +25,7 @@ function TrendTable({ rows, label, currency }: { rows: TrendRow[]; label: string
             <th>Days</th>
             <th>Spend</th>
             <th>{label}</th>
-            <th>Cost per {label.toLowerCase()}</th>
+            <th>Cost per one</th>
           </tr>
         </thead>
         <tbody>
@@ -100,10 +100,10 @@ export function Overview({ product, data }: { product: ProductView; data: Overvi
 
       <section className="card">
         <h2>
-          Cost per {kpi.label.toLowerCase() || 'outcome'}, last {TREND_DAYS} days
+          Cost per {kpi.stage.replaceAll('_', ' ') || 'outcome'}, last {TREND_DAYS} days
         </h2>
         <p>
-          {formatMoney(total.spend, c)} spent, {countOf(total.kpi, kpi.label || 'outcome')}
+          {formatMoney(total.spend, c)} spent, {countOf(total.kpi, kpi.stage || 'outcome')}
           {totalCost === null ? '' : `: ${formatMoney(totalCost, c)} each`}.
         </p>
         <TrendTable rows={trend.weeks} label={kpi.label || 'Outcomes'} currency={c} />

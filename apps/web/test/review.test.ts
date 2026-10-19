@@ -3,6 +3,7 @@ import type { EntityRef } from '@ads/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   costPer,
+  countOf,
   describeAction,
   editableFields,
   formatMoney,
@@ -31,6 +32,12 @@ describe('money', () => {
     expect(costPer(10n, 0)).toBeNull();
     expect(ratePct(1, 3)).toBe(33.3);
     expect(ratePct(0, 0)).toBeNull();
+  });
+
+  it('counts with a word or a stage id, never a stage label', () => {
+    expect(countOf(1, 'signup')).toBe('1 signup');
+    expect(countOf(3, 'pool_request')).toBe('3 pool requests');
+    expect(countOf(2, 'Clicks')).toBe('2 clicks');
   });
 });
 
@@ -62,6 +69,7 @@ describe('kpiTrend', () => {
       ],
       kpiStage: 'signup',
       lastDay: '2026-10-15',
+      weeks: 4,
     });
     expect(trend.days).toHaveLength(28);
     expect(trend.days[0]).toEqual({
@@ -106,9 +114,9 @@ describe('summariseStages', () => {
 
 describe('describeAction', () => {
   const ref: EntityRef = { platform: 'meta', accountId: 'act_1', type: 'ad_group', externalId: '9' };
-  const named = () => '  Pool\n set ';
+  const synced = () => ({ name: '  Pool\n set ', status: 'paused' });
   it('says what each action does, with the synced name (spaces collapsed) or none', () => {
-    expect(describeAction({ action: 'pause_entity', target: ref }, 'SGD', named)).toEqual({
+    expect(describeAction({ action: 'pause_entity', target: ref }, 'SGD', synced)).toEqual({
       headline: 'Pause ad group “Pool set” (meta:act_1:ad_group:9)',
       change: 'status active → paused',
     });
@@ -123,11 +131,21 @@ describe('describeAction', () => {
     };
     expect(describeAction(budget, 'SGD', () => null).change).toBe('? → S$45.00 a day');
     expect(
-      describeAction(budget, 'SGD', () => null, { ...budget, newDailyBudgetMicros: '30000000', netIncrease: false })
-        .change,
+      describeAction(budget, 'SGD', () => null, {
+        undo: { ...budget, newDailyBudgetMicros: '30000000', netIncrease: false },
+      }).change,
     ).toBe('S$30.00 → S$45.00 a day');
     expect(describeAction({ action: 'mark_abandoned', target: ref }, 'SGD', () => null).headline).toBe(
       'mark abandoned on ad group (meta:act_1:ad_group:9)',
+    );
+  });
+
+  it("shows a pause still to decide from the entity's status now, as the Telegram card does", () => {
+    expect(describeAction({ action: 'pause_entity', target: ref }, 'SGD', synced, { live: true }).change).toBe(
+      'status paused → paused',
+    );
+    expect(describeAction({ action: 'pause_entity', target: ref }, 'SGD', () => null, { live: true }).change).toBe(
+      'status active → paused',
     );
   });
 
