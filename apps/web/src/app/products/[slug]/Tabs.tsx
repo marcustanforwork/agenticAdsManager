@@ -1,4 +1,5 @@
 // The product's screens: what the agent did (M10b) and its settings (M10a).
+import { formErrorText } from '../../../lib/reviewForms.ts';
 import type { ProductRow } from '../../../lib/views.ts';
 
 export const TABS = [
@@ -34,12 +35,13 @@ export function ProductHeader({ product, current }: { product: ProductRow; curre
   );
 }
 
-/** A form the worker never saw because it was incomplete: the reason, from the redirect (shown as text). */
+/** A form the worker never saw because it was incomplete. The redirect carries only a code; the words are ours
+ *  (`formErrorText`), so a crafted `?error=` shows the generic line, never its own text (F1). */
 export function FormNotice({ error }: { error: string | undefined }) {
   if (error === undefined || error === '') return null;
   return (
     <section className="card">
-      <p className="bad">Not sent: {error.slice(0, 300)}</p>
+      <p className="bad">Not sent: {formErrorText(error)}</p>
     </section>
   );
 }
