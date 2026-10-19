@@ -367,9 +367,9 @@ export function templateProse(numbers: BriefNumbers): BriefProse {
   const { spend, kpi, findings } = numbers;
   const headline =
     findings.standingCount > 0
-      ? `${findings.standingCount} finding${findings.standingCount === 1 ? '' : 's'} to look at this week.`
+      ? `${countOf(findings.standingCount, 'finding')} to look at this week.`
       : findings.unreviewedCount > 0
-        ? `The rules flagged ${findings.unreviewedCount} item${findings.unreviewedCount === 1 ? '' : 's'}, not reviewed by the analyst.`
+        ? `The rules flagged ${countOf(findings.unreviewedCount, 'item')}, not reviewed by the analyst.`
         : 'Nothing stood out this week.';
   const kpiOutcomes = numbers.outcomes.find((o) => o.stage === kpi.stage);
   const paragraphs = [
@@ -473,9 +473,7 @@ function checkLines(numbers: BriefNumbers): string[] {
     );
   }
   if (numbers.drift > 0)
-    out.push(
-      `- ${numbers.drift} change${numbers.drift === 1 ? '' : 's'} made outside the agent, not yet acknowledged.`,
-    );
+    out.push(`- ${countOf(numbers.drift, 'change')} made outside the agent, not yet acknowledged.`);
   out.push(`- Open proposals: ${numbers.openProposals}`);
   const a = numbers.agreeRate;
   if (a != null) {

@@ -25,7 +25,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     <>
       <h1>Request: {status.kind}</h1>
       <p className="muted">
-        Recorded {localTime(status.createdAt, 'UTC')} UTC · id {status.id}
+        Recorded {localTime(status.createdAt, status.timezone ?? 'UTC')} ({status.timezone ?? 'UTC'}) · id {status.id}
       </p>
       <section className="card">
         <Verdict id={status.id} initial={{ status: status.status, result: status.result }} />

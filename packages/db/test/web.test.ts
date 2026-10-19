@@ -127,11 +127,24 @@ describe('getRequestStatus', () => {
     const id = await asDashboard((tx) =>
       recordWebRequest(tx, { request: { kind: 'halt', productId: null }, email: 'm@example.com' }),
     );
-    expect(await asDashboard((tx) => getRequestStatus(tx, id))).toMatchObject({ id, status: 'queued', result: null });
+    expect(await asDashboard((tx) => getRequestStatus(tx, id))).toMatchObject({
+      id,
+      status: 'queued',
+      result: null,
+      timezone: null, // a global request: no product
+    });
     await completeOperatorRequest(t.db, { id, status: 'refused', result: { reason: 'because' } });
     const status = await asDashboard((tx) => getRequestStatus(tx, id));
     expect(status).toMatchObject({ status: 'refused', result: { reason: 'because' } });
     expect(status.processedAt).toBeInstanceOf(Date);
+  });
+
+  it("carries the product's timezone, for showing its times (F2)", async () => {
+    const p = await makeProduct(t.db);
+    const id = await asDashboard((tx) =>
+      recordWebRequest(tx, { request: { kind: 'halt', productId: p.id }, email: 'm@example.com' }),
+    );
+    expect((await asDashboard((tx) => getRequestStatus(tx, id))).timezone).toBe(p.timezone);
   });
 
   it('throws NotFoundError for an unknown id', async () => {

@@ -53,7 +53,8 @@ describe('formatMoney', () => {
       1_000_000n,
       1_000n,
     ]);
-    expect([moneyPrefix('SGD'), moneyPrefix('USD')]).toEqual(['S$', 'USD ']);
+    expect([moneyPrefix('SGD'), moneyPrefix('USD'), moneyPrefix('sgd')]).toEqual(['S$', 'USD ', 'S$']);
+    expect(formatMoney(1_000_000n, 'jpy')).toBe('JPY 1');
   });
 
   it('a whole number of minor units prints exactly, in any currency', () => {

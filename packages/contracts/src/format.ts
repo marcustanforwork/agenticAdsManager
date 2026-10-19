@@ -46,7 +46,8 @@ export function microsPerMinorUnit(currency: string): bigint {
 
 /** What goes before an amount: "S$" for SGD (both products' currency), else the code and a space ("USD "). */
 export function moneyPrefix(currency: string): string {
-  return currency === 'SGD' ? 'S$' : `${currency} `;
+  const code = currency.toUpperCase();
+  return code === 'SGD' ? 'S$' : `${code} `;
 }
 
 const groupThousands = (whole: bigint): string => whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');

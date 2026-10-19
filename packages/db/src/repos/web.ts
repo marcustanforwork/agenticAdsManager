@@ -5,7 +5,7 @@ import { OperatorRequest } from '@ads/contracts';
 import { desc, eq, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client.ts';
 import { NotFoundError } from '../errors.ts';
-import { operatorRequests, packManifests, settingsHistory } from '../schema.ts';
+import { operatorRequests, packManifests, products, settingsHistory } from '../schema.ts';
 
 /** The actor the dashboard records for a verified Access email: `web:<email>`, in lower case. */
 export function webActor(email: string): string {
@@ -38,6 +38,8 @@ export interface RequestStatus {
   result: Record<string, unknown> | null;
   createdAt: Date;
   processedAt: Date | null;
+  /** The request's product's timezone, for showing its times; null for a global request (halt all). */
+  timezone: string | null;
 }
 
 /** A request's status and the worker's verdict, for the page that polls it. */
@@ -50,8 +52,10 @@ export async function getRequestStatus(db: DbOrTx, id: string): Promise<RequestS
       result: operatorRequests.result,
       createdAt: operatorRequests.createdAt,
       processedAt: operatorRequests.processedAt,
+      timezone: products.timezone,
     })
     .from(operatorRequests)
+    .leftJoin(products, eq(products.id, operatorRequests.productId))
     .where(eq(operatorRequests.id, id));
   if (!row) throw new NotFoundError('operator request', id);
   return { ...row, result: (row.result as Record<string, unknown> | null) ?? null };

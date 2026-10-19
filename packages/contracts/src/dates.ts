@@ -25,18 +25,25 @@ export function daysFrom(from: string, to: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
+const TIME_FORMATS = new Map<string, Intl.DateTimeFormat>();
+
 /** `2026-10-21 10:00`: a moment as the date and the 24-hour time in an IANA timezone (the product's). Every surface
  *  shows times this way, with the timezone named nearby. */
 export function localTime(at: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at);
+  let format = TIME_FORMATS.get(timeZone);
+  if (format === undefined) {
+    format = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    TIME_FORMATS.set(timeZone, format); // a handful of timezones: building a formatter is the slow part
+  }
+  const parts = format.formatToParts(at);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
 }

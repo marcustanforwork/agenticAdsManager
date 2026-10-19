@@ -184,7 +184,7 @@ export function renderDigest(data: DigestData): string {
   for (const f of data.trust?.flagged ?? []) {
     flags.push(`${f.check} ${f.result}${f.account === null ? '' : ` (${f.account})`}`);
   }
-  if (data.drift > 0) flags.push(`${data.drift} change${data.drift === 1 ? '' : 's'} made outside the agent`);
+  if (data.drift > 0) flags.push(`${countOf(data.drift, 'change')} made outside the agent`);
   lines.push(`Checks: ${flags.length === 0 ? 'all OK' : flags.join('; ')}`);
   return lines.join('\n');
 }

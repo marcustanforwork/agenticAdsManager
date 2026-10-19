@@ -1,7 +1,7 @@
 // The read-only commands (BLUEPRINT M09b): `/status`, `/proposals`, `/brief`, `/drift` and `/changes`, and `/undo`,
 // which in Phase 1 only shows the undo for Marcus to make by hand. Every figure comes from the database; platform text
 // (names, keywords) is escaped. Nothing here changes anything except `/undo <rev>`, which records an `undo` request.
-import { type EntityRef, type WriteOp, SET_AT_APPLY, formatMoney, localTime } from '@ads/contracts';
+import { type EntityRef, type WriteOp, SET_AT_APPLY, formatMoney, localTime, countOf } from '@ads/contracts';
 import { entityRefOf } from '@ads/core';
 import {
   type Db,
@@ -197,9 +197,7 @@ export async function driftCommand(ctx: BotContext, args: string): Promise<Comma
     const events = await listUnacknowledgedDrift(ctx.db, product.id);
     if (events.length === 0) continue;
     const accounts = new Map((await listAccounts(ctx.db, product.id)).map((a) => [a.id, a.externalId] as const));
-    lines.push(
-      `<b>${escapeHtml(product.slug)}</b>: ${events.length} change${events.length === 1 ? '' : 's'} made outside the agent`,
-    );
+    lines.push(`<b>${escapeHtml(product.slug)}</b>: ${countOf(events.length, 'change')} made outside the agent`);
     for (const e of events.slice(0, MAX_LINES)) {
       const entity = await getEntity(ctx.db, e.adEntityId);
       const ref = entityRefOf(entity, { externalId: accounts.get(entity.accountId) ?? '?' });

@@ -142,12 +142,17 @@ export async function completeOperatorRequest(
   }
 }
 
-/** Counts one fault against a request that is still queued (F2) and returns the row with its new count; null when
- *  it is no longer queued (another worker finished it meanwhile). */
+/** Counts one fault against a request that is still queued (F2) and holds it back until `retry_after`: 1 min ×
+ *  2^(n−1) after the n-th fault, as the job queue backs off, so a short outage doesn't use up its tries. Returns the
+ *  row with its new count; null when it is no longer queued (another worker finished it meanwhile). */
 export async function addRequestAttempt(db: DbOrTx, id: string): Promise<OperatorRequestRow | null> {
   const [row] = await db
     .update(operatorRequests)
-    .set({ attempts: sql`${operatorRequests.attempts} + 1` })
+    .set({
+      attempts: sql`${operatorRequests.attempts} + 1`,
+      // The right-hand side reads the row before the update: `attempts` is the count before this fault.
+      retryAfter: sql`now() + make_interval(mins => (2 ^ least(${operatorRequests.attempts}, 10))::int)`,
+    })
     .where(and(eq(operatorRequests.id, id), eq(operatorRequests.status, 'queued')))
     .returning();
   return row ?? null;

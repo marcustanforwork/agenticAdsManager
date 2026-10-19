@@ -1,5 +1,5 @@
 // Checks: the AI cost, the trust-check history per cycle, and drift (changes made outside the agent).
-import { formatUsdExact, localTime } from '@ads/contracts';
+import { formatUsdExact, localTime, countOf } from '@ads/contracts';
 import type { ChecksData } from '../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 
@@ -38,7 +38,7 @@ export function Checks({ product, data }: { product: ProductView; data: ChecksDa
       <section className="card">
         <h2>AI cost, last {data.aiCost.days} days</h2>
         <p>
-          {formatUsdExact(data.aiCost.costMicros)} over {data.aiCost.cycles} cycle{data.aiCost.cycles === 1 ? '' : 's'}{' '}
+          {formatUsdExact(data.aiCost.costMicros)} over {countOf(data.aiCost.cycles, 'cycle')}{' '}
           that used the AI. <span className="muted">Each cycle&apos;s cost is in the table below; Langfuse has the detail.</span>
         </p>
       </section>

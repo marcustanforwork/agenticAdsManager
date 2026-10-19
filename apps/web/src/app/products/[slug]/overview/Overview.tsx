@@ -1,6 +1,6 @@
 // The overview: spend against the ceilings with the month's projection, the KPI trend, outcomes by stage with the
 // attribution rate, and the accounts with their last sync. Numbers only, all from SQL (reviewViews.ts).
-import { costPer, countOf, formatMoney, localTime, percentOf } from '@ads/contracts';
+import { costPer, countOf, formatMoney, localTime, percentOf, stageWord } from '@ads/contracts';
 import { type OverviewData, TREND_DAYS } from '../../../../lib/reviewViews.ts';
 import { type TrendRow } from '../../../../lib/review.ts';
 import type { ProductView } from '../../../../lib/views.ts';
@@ -101,7 +101,7 @@ export function Overview({ product, data }: { product: ProductView; data: Overvi
 
       <section className="card">
         <h2>
-          Cost per {kpi.stage.replaceAll('_', ' ') || 'outcome'}, last {TREND_DAYS} days
+          Cost per {stageWord(kpi.stage) || 'outcome'}, last {TREND_DAYS} days
         </h2>
         <p>
           {formatMoney(total.spend, c)} spent, {countOf(total.kpi, kpi.stage || 'outcome')}
