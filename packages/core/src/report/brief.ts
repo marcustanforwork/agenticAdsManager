@@ -2,7 +2,7 @@
 // around it; the number check holds every numeric token of that prose to the table, and if one doesn't match, a
 // plain template replaces the prose (`used_template_fallback`). The table, the findings list and the checks are
 // rendered by code. A failed trust check gives the diagnostic variant instead: template only, no AI.
-import { minusDays } from '@ads/contracts';
+import { costPer, countOf, formatMoney, minusDays, percentOf, stageWord } from '@ads/contracts';
 import {
   type Account,
   type AdEntity,
@@ -26,7 +26,7 @@ import { accountRefText, findingRefText, findingTargetOf, microsToDecimal } from
 import { FINDING_TYPES } from '../findings/registry.ts';
 import type { ComputedEvidence, FindingTypeId } from '@ads/contracts';
 import { type AgreeRate, MAX_EXPIRED_PCT, agreeRate } from '../draft/agreeRate.ts';
-import { costPer, countOf, formatMoney, percentOf, plainText, stageWord } from './format.ts';
+import { plainText } from './format.ts';
 
 export const BRIEF_WEEK_DAYS = 7;
 /** Campaigns listed in the brief, most spend first. */
@@ -367,9 +367,9 @@ export function templateProse(numbers: BriefNumbers): BriefProse {
   const { spend, kpi, findings } = numbers;
   const headline =
     findings.standingCount > 0
-      ? `${findings.standingCount} finding${findings.standingCount === 1 ? '' : 's'} to look at this week.`
+      ? `${countOf(findings.standingCount, 'finding')} to look at this week.`
       : findings.unreviewedCount > 0
-        ? `The rules flagged ${findings.unreviewedCount} item${findings.unreviewedCount === 1 ? '' : 's'}, not reviewed by the analyst.`
+        ? `The rules flagged ${countOf(findings.unreviewedCount, 'item')}, not reviewed by the analyst.`
         : 'Nothing stood out this week.';
   const kpiOutcomes = numbers.outcomes.find((o) => o.stage === kpi.stage);
   const paragraphs = [
@@ -473,9 +473,7 @@ function checkLines(numbers: BriefNumbers): string[] {
     );
   }
   if (numbers.drift > 0)
-    out.push(
-      `- ${numbers.drift} change${numbers.drift === 1 ? '' : 's'} made outside the agent, not yet acknowledged.`,
-    );
+    out.push(`- ${countOf(numbers.drift, 'change')} made outside the agent, not yet acknowledged.`);
   out.push(`- Open proposals: ${numbers.openProposals}`);
   const a = numbers.agreeRate;
   if (a != null) {

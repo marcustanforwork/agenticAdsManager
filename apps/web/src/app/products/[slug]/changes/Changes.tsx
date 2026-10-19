@@ -1,7 +1,8 @@
 // The change log: every change the gateway made, with its undo. "Request undo" records an `undo` request; the worker
 // answers with the change's stored undo (in Phase 1 you make it by hand; from M11b the gateway makes it).
+import { localTime } from '@ads/contracts';
 import type { Change } from '@ads/db';
-import { describeAction, localTime } from '../../../../lib/review.ts';
+import { describeAction } from '../../../../lib/review.ts';
 import { entityLookup } from '../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 import { requestUndo } from '../../../actions.ts';

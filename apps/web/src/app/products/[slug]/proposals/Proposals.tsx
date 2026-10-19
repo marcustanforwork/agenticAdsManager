@@ -1,8 +1,9 @@
 // Proposals: the open ones, each with Approve, Reject (with a reason) and, for a budget or a negative keyword, Edit;
 // the approved ones waiting to be made by hand; the latest decisions; and the agree rate the Phase 1 gate measures.
 // Every button records a request (approve, reject or edit_approve) on the version shown here.
+import { countOf, formatMoney, localTime } from '@ads/contracts';
 import { microsToInput } from '../../../../lib/forms.ts';
-import { countOf, describeAction, editableFields, formatMoney, localTime, ratePct } from '../../../../lib/review.ts';
+import { describeAction, editableFields, ratePct } from '../../../../lib/review.ts';
 import { type ProposalItem, type ProposalsData, entityLookup } from '../../../../lib/reviewViews.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 import type { WriteOp } from '@ads/contracts';

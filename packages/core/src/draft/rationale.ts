@@ -1,11 +1,10 @@
 // The words on a proposal (BLUEPRINT M08): the AI writes only the rationale and the expected effect; the action,
 // its numbers and its undo come from core. Every number in the AI's words is checked against the DATA block it was
 // given (as the brief's are, §5.14); a proposal whose words fail the check, or a failed call, gets the template.
-import type { ComputedEvidence, WriteOp } from '@ads/contracts';
+import { type ComputedEvidence, type WriteOp, countOf, formatMoney } from '@ads/contracts';
 import { z } from 'zod';
 import { evidenceForAnalyst, entityRefText, microsToDecimal } from '../analyst/refs.ts';
 import { allowedValues, checkNumbers } from '../report/numberCheck.ts';
-import { countOf, formatMoney } from '../report/format.ts';
 
 export const DRAFTER_INSTRUCTIONS_VERSION = 'drafter-v1';
 

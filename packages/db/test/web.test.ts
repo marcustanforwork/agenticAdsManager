@@ -77,6 +77,49 @@ describe('recordWebRequest', () => {
       await client.end();
     }
   });
+
+  it('wakes nobody for a request processed in the transaction that recorded it (F2: checked at commit)', async () => {
+    const client = new pg.Client({ connectionString: t.url });
+    await client.connect();
+    try {
+      const got: string[] = [];
+      let wake: () => void = () => undefined;
+      client.on('notification', (m) => {
+        got.push(m.payload ?? '');
+        wake();
+      });
+      await client.query('listen request_queued');
+      // Telegram and the CLIs: record and process in one transaction.
+      await t.db.transaction(async (tx) => {
+        const row = await recordOperatorRequest(tx, {
+          request: { kind: 'resume_agent', productId: null },
+          actor: 'telegram:1',
+          channel: 'telegram',
+        });
+        await completeOperatorRequest(tx, { id: row.id, status: 'done', result: {} });
+      });
+      // A rolled-back insert wakes nobody either.
+      await t.db
+        .transaction(async (tx) => {
+          await recordOperatorRequest(tx, {
+            request: { kind: 'halt', productId: null },
+            actor: 'cli:m',
+            channel: 'cli',
+          });
+          throw new Error('roll back');
+        })
+        .catch(() => undefined);
+      // Then a dashboard insert: the first (and only) wake-up is for it.
+      const arrived = new Promise<void>((resolve) => (wake = resolve));
+      const id = await asDashboard((tx) =>
+        recordWebRequest(tx, { request: { kind: 'resume_agent', productId: null }, email: 'm@example.com' }),
+      );
+      await arrived;
+      expect(got).toEqual([id]);
+    } finally {
+      await client.end();
+    }
+  });
 });
 
 describe('getRequestStatus', () => {
@@ -84,11 +127,24 @@ describe('getRequestStatus', () => {
     const id = await asDashboard((tx) =>
       recordWebRequest(tx, { request: { kind: 'halt', productId: null }, email: 'm@example.com' }),
     );
-    expect(await asDashboard((tx) => getRequestStatus(tx, id))).toMatchObject({ id, status: 'queued', result: null });
+    expect(await asDashboard((tx) => getRequestStatus(tx, id))).toMatchObject({
+      id,
+      status: 'queued',
+      result: null,
+      timezone: null, // a global request: no product
+    });
     await completeOperatorRequest(t.db, { id, status: 'refused', result: { reason: 'because' } });
     const status = await asDashboard((tx) => getRequestStatus(tx, id));
     expect(status).toMatchObject({ status: 'refused', result: { reason: 'because' } });
     expect(status.processedAt).toBeInstanceOf(Date);
+  });
+
+  it("carries the product's timezone, for showing its times (F2)", async () => {
+    const p = await makeProduct(t.db);
+    const id = await asDashboard((tx) =>
+      recordWebRequest(tx, { request: { kind: 'halt', productId: p.id }, email: 'm@example.com' }),
+    );
+    expect((await asDashboard((tx) => getRequestStatus(tx, id))).timezone).toBe(p.timezone);
   });
 
   it('throws NotFoundError for an unknown id', async () => {

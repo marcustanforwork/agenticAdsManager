@@ -1,4 +1,5 @@
-// Calendar-day helpers for metrics days (YYYY-MM-DD in an ad account's timezone, BLUEPRINT §5.7).
+// Calendar-day helpers for metrics days (YYYY-MM-DD in an ad account's timezone, BLUEPRINT §5.7), and the local time
+// every surface shows (F2).
 
 /** The calendar day of `now` in an IANA timezone, as YYYY-MM-DD. */
 export function localDate(now: Date, timeZone: string): string {
@@ -22,4 +23,27 @@ export function daysFrom(from: string, to: string): number {
   const a = Date.parse(`${minusDays(from, 0)}T00:00:00Z`);
   const b = Date.parse(`${minusDays(to, 0)}T00:00:00Z`);
   return Math.round((b - a) / 86_400_000);
+}
+
+const TIME_FORMATS = new Map<string, Intl.DateTimeFormat>();
+
+/** `2026-10-21 10:00`: a moment as the date and the 24-hour time in an IANA timezone (the product's). Every surface
+ *  shows times this way, with the timezone named nearby. */
+export function localTime(at: Date, timeZone: string): string {
+  let format = TIME_FORMATS.get(timeZone);
+  if (format === undefined) {
+    format = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    TIME_FORMATS.set(timeZone, format); // a handful of timezones: building a formatter is the slow part
+  }
+  const parts = format.formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
 }

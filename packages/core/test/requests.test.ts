@@ -29,7 +29,7 @@ import {
   schema,
 } from '@ads/db';
 import { fingerprintOf } from '@ads/contracts';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
 import { randomBytes, randomUUID } from 'node:crypto';
 import pg from 'pg';
@@ -451,6 +451,118 @@ describe('processing', () => {
       HANDLERS.resume_agent = original;
     }
     await processQueuedRequests(t.db, ctx); // clean up for later tests
+  });
+
+  /** As if the request's backoff had passed. */
+  const waitedOut = (requestId: string) =>
+    t.pool.query(`update operator_requests set retry_after = now() - interval '1 second' where id = $1`, [requestId]);
+
+  const alertsFor = async (requestId: string) =>
+    (
+      await t.pool.query<{ payload: Record<string, unknown> }>(
+        `select payload from notifications where kind = 'alert' and payload ->> 'requestId' = $1`,
+        [requestId],
+      )
+    ).rows.map((r) => r.payload);
+
+  it('a request that faults 5 times is refused with its last error and alerts Marcus, and is never tried again (F2)', async () => {
+    const p = await makeProduct();
+    const original = HANDLERS.resume_agent;
+    if (original === undefined) throw new Error('resume_agent has a handler');
+    let calls = 0;
+    HANDLERS.resume_agent = () => Promise.reject(new Error(`database hiccup ${++calls}`));
+    try {
+      const id = await queueInsert('resume_agent', { kind: 'resume_agent', productId: p.id });
+      for (let i = 1; i <= 4; i++) {
+        await processQueuedRequests(t.db, ctx);
+        const row = await getOperatorRequest(t.db, id);
+        expect([row.status, row.attempts]).toEqual(['queued', i]);
+        // Held back 1, 2, 4, 8 minutes: a drain meanwhile leaves it alone.
+        const { rows } = await t.pool.query<{ minutes: number }>(
+          `select round(extract(epoch from retry_after - now()) / 60)::int as minutes from operator_requests where id = $1`,
+          [id],
+        );
+        expect(rows[0]?.minutes).toBe(2 ** (i - 1));
+        await processQueuedRequests(t.db, ctx);
+        expect([(await getOperatorRequest(t.db, id)).attempts, calls]).toEqual([i, i]);
+        await waitedOut(id);
+      }
+      expect(await alertsFor(id)).toEqual([]);
+      await processQueuedRequests(t.db, ctx);
+      const row = await getOperatorRequest(t.db, id);
+      expect(row.status).toBe('refused');
+      expect(row.attempts).toBe(5);
+      expect(row.result).toEqual({
+        reason: 'failed 5 times on our side; the last error: database hiccup 5',
+        attempts: 5,
+      });
+      expect(await alertsFor(id)).toEqual([
+        {
+          alert: 'request_failed',
+          key: `request_failed:${id}`,
+          requestId: id,
+          kind: 'resume_agent',
+          attempts: 5,
+          error: 'database hiccup 5',
+        },
+      ]);
+      await waitedOut(id);
+      await processQueuedRequests(t.db, ctx);
+      expect(await processRequest(t.db, id, ctx)).toBeNull();
+      expect(calls).toBe(5);
+      expect((await getOperatorRequest(t.db, id)).attempts).toBe(5);
+    } finally {
+      HANDLERS.resume_agent = original;
+    }
+  });
+
+  it("stores a database fault's own error, never drizzle's query text and parameters (F2)", async () => {
+    const p = await makeProduct();
+    const original = HANDLERS.halt;
+    if (original === undefined) throw new Error('halt has a handler');
+    // A real Postgres error, wrapped by drizzle as "Failed query: … params: …".
+    HANDLERS.halt = (tx) => tx.execute(sql`select 1 / ${0} as secret_param`).then(() => ({}));
+    try {
+      const id = await queueInsert('halt', { kind: 'halt', productId: p.id });
+      for (let i = 1; i <= 5; i++) {
+        await processQueuedRequests(t.db, ctx);
+        await waitedOut(id);
+      }
+      const row = await getOperatorRequest(t.db, id);
+      expect(row.status).toBe('refused');
+      expect(row.result).toEqual({
+        reason: 'failed 5 times on our side; the last error: division by zero',
+        attempts: 5,
+      });
+      expect(JSON.stringify(await alertsFor(id))).not.toMatch(/Failed query|secret_param|params/);
+      expect((await getProduct(t.db, p.id)).status).toBe('active');
+    } finally {
+      HANDLERS.halt = original;
+    }
+  });
+
+  it('processRequest throws a fault without counting it: the drain is the one path that counts (F2)', async () => {
+    const p = await makeProduct();
+    const original = HANDLERS.halt;
+    if (original === undefined) throw new Error('halt has a handler');
+    HANDLERS.halt = () => Promise.reject(new Error('still broken'));
+    try {
+      const id = await queueInsert('halt', { kind: 'halt', productId: p.id });
+      await expect(processRequest(t.db, id, ctx)).rejects.toThrow('still broken');
+      expect((await getOperatorRequest(t.db, id)).attempts).toBe(0);
+    } finally {
+      HANDLERS.halt = original;
+    }
+    await processQueuedRequests(t.db, ctx); // clean up for later tests
+  });
+
+  it('a refusal is final at once and costs no attempt (F2)', async () => {
+    const id = await queueInsert('halt', { kind: 'halt', productId: 'not-a-uuid' });
+    await processQueuedRequests(t.db, ctx);
+    const row = await getOperatorRequest(t.db, id);
+    expect([row.status, row.attempts]).toEqual(['refused', 0]);
+    expect(await processRequest(t.db, id, ctx)).toBeNull();
+    expect(await alertsFor(id)).toEqual([]);
   });
 });
 

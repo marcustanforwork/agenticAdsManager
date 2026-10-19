@@ -198,8 +198,11 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
 /** An alert's details: the known shapes (M09a) as plain lines, anything else generically. The dedupe key is left
  *  out. */
 function alertLines(payload: Record<string, unknown>): string[] {
-  const { alert: _alert, key: _key, failed, entities, ...rest } = payload;
+  const { alert, key: _key, failed, entities, ...rest } = payload;
   const lines: string[] = [];
+  if (alert === 'request_failed') {
+    lines.push('Nothing was changed. Ask again once the cause is fixed; the worker log has the details.');
+  }
   if (Array.isArray(failed)) {
     for (const f of failed as { check?: unknown; account?: unknown }[]) {
       lines.push(

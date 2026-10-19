@@ -1,10 +1,13 @@
 // The operator-request processor (BLUEPRINT §5.4): the one place that validates and acts on what a human asks
 // for, from any surface. Each request is handled in one transaction: lock the row (SKIP LOCKED, so any worker
 // replica can process), validate the schema, check the actor, check freshness, act, write `result`, and
-// NOTIFY request_done. A refusal is recorded with its reason and changes nothing else.
+// NOTIFY request_done. A refusal is recorded with its reason and changes nothing else. A fault (anything else that
+// throws) rolls back and leaves the request queued; the drain retries it with backoff and, after MAX_REQUEST_ATTEMPTS
+// faults, refuses it with its last error and alerts Marcus (F2).
 import { GuardLoosenedError, OperatorRequest } from '@ads/contracts';
 import {
   InvalidSettingsError,
+  addRequestAttempt,
   NotFoundError,
   RefusedError,
   StaleVersionError,
@@ -15,7 +18,8 @@ import {
   type OperatorRequestRow,
   type Tx,
 } from '@ads/db';
-import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, lte, notInArray, or, sql } from 'drizzle-orm';
+import { raiseRequestFailedAlert } from '../alerts.ts';
 import { HANDLERS, NOT_AVAILABLE_UNTIL, type HandlerContext, type RequestHandler } from './handlers.ts';
 import { FactsError } from './facts.ts';
 import { SettingsPatchError } from './settingsPatch.ts';
@@ -46,8 +50,11 @@ export function actorsFromEnv(text: string | undefined): ReadonlySet<string> {
   );
 }
 
+/** How many faults a request gets before it is refused (F2). */
+export const MAX_REQUEST_ATTEMPTS = 5;
+
 /** Errors that mean "refuse this request, with this reason". Anything else is a fault: the transaction rolls
- *  back, the request stays queued, and it is retried on the next pass. */
+ *  back, the request stays queued, and it is retried on the next pass, up to MAX_REQUEST_ATTEMPTS. */
 const isRefusal = (e: unknown): e is Error =>
   e instanceof RefusedError ||
   e instanceof InvalidSettingsError ||
@@ -112,7 +119,41 @@ async function handleLocked(tx: Tx, row: OperatorRequestRow, ctx: RequestContext
   return outcome;
 }
 
-/** Processes one queued request. Returns null if it's already processed or another worker holds it. */
+/** A fault's message for Marcus: the innermost cause's. A database error reaches us wrapped by drizzle, whose own
+ *  message is the query and its parameters (request text, an actor's email): never shown or stored. */
+export function faultMessage(error: unknown): string {
+  let inner = error;
+  for (let depth = 0; depth < 10 && inner instanceof Error && inner.cause !== undefined; depth++) inner = inner.cause;
+  const text = inner instanceof Error ? inner.message : String(inner);
+  return text.replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
+/** Counts a fault against a queued request, in its own transaction (the faulting one rolled back), and holds it back
+ *  for a while (`addRequestAttempt`). At MAX_REQUEST_ATTEMPTS the request is refused with the error and Marcus is
+ *  alerted; returns that outcome, or null while it has tries left (or is no longer queued). */
+export async function recordRequestFault(db: Db, requestId: string, error: unknown): Promise<RequestOutcome | null> {
+  return db.transaction(async (tx) => {
+    const row = await addRequestAttempt(tx, requestId);
+    if (row === null || row.attempts < MAX_REQUEST_ATTEMPTS) return null;
+    const message = faultMessage(error);
+    const outcome = refused(`failed ${row.attempts} times on our side; the last error: ${message}`, {
+      attempts: row.attempts,
+    });
+    await completeOperatorRequest(tx, { id: row.id, status: outcome.status, result: outcome.result });
+    await raiseRequestFailedAlert(tx, {
+      productId: row.productId,
+      requestId: row.id,
+      kind: row.kind,
+      attempts: row.attempts,
+      error: message,
+    });
+    await tx.execute(sql`select pg_notify(${REQUEST_DONE_CHANNEL}, ${row.id})`);
+    return outcome;
+  });
+}
+
+/** Processes one queued request now, whatever its backoff. Returns null if it's already processed or another worker
+ *  holds it. A fault is thrown, not counted: the drain (`processQueuedRequests`) is the one path that counts. */
 export async function processRequest(db: Db, requestId: string, ctx: RequestContext): Promise<RequestOutcome | null> {
   return db.transaction(async (tx) => {
     const [row] = await tx
@@ -126,8 +167,8 @@ export async function processRequest(db: Db, requestId: string, ctx: RequestCont
 
 /** Drains the queue: processes queued requests, oldest first, until none is left or `limit` is reached.
  *  Rows another worker holds are skipped (SKIP LOCKED), not waited for or counted. A request whose processing
- *  faults is left queued, reported through `onFault`, and skipped for the rest of this pass.
- *  Returns how many requests this call processed. */
+ *  faults is reported through `onFault` and counted (`recordRequestFault`: refused at the limit, else held back
+ *  until its `retry_after`). Returns how many requests this call processed (refusals at the limit included). */
 export async function processQueuedRequests(
   db: Db,
   ctx: RequestContext,
@@ -146,6 +187,7 @@ export async function processQueuedRequests(
           .where(
             and(
               eq(operatorRequests.status, 'queued'),
+              or(isNull(operatorRequests.retryAfter), lte(operatorRequests.retryAfter, sql`now()`)),
               skip.size === 0 ? undefined : notInArray(operatorRequests.id, [...skip]),
             ),
           )
@@ -163,6 +205,11 @@ export async function processQueuedRequests(
       opts.onFault?.(current, error);
       if (current === null) break; // couldn't even look: try again on the next pass
       skip.add(current);
+      try {
+        if ((await recordRequestFault(db, current, error)) !== null) processed++;
+      } catch (countError) {
+        opts.onFault?.(current, countError); // counted on a later pass instead
+      }
     }
   }
   return processed;

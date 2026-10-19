@@ -1,7 +1,7 @@
 // Briefs: the latest weekly and diagnostic briefs as they were sent, each with 👍 useful / 💡 new to me (the Phase 0
 // gate's measure). Saving records a `brief_feedback` request with only the answers changed on the page (F1).
+import { localTime } from '@ads/contracts';
 import type { Brief } from '@ads/db';
-import { localTime } from '../../../../lib/review.ts';
 import type { ProductView } from '../../../../lib/views.ts';
 import { sendBriefFeedback } from '../../../actions.ts';
 import { Back } from '../Tabs.tsx';

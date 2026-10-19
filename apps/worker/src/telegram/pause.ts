@@ -3,6 +3,7 @@
 // version and action hash on the card). Phase 1 applies nothing: Marcus pauses it by hand once confirmed; from M11b
 // the gateway applies it at once. Entities are found by a fragment of their name or by their id; when more than one
 // matches, the bot lists them as buttons. It never guesses.
+import { countOf } from '@ads/contracts';
 import { OPERATOR_CONFIRM_MS, type OperatorProposalRef, PAUSABLE_TYPES, entityRefOf, entityRefText } from '@ads/core';
 import {
   type AdEntity,
@@ -199,7 +200,7 @@ export async function renderPauseAll(
   const anyOpen = lines.some((l) => l.open);
   const slug = escapeHtml(product?.slug ?? '?');
   const html = [
-    `<b>Pause everything in ${slug}?</b> ${lines.length} active campaign${lines.length === 1 ? '' : 's'}:`,
+    `<b>Pause everything in ${slug}?</b> ${countOf(lines.length, 'active campaign')}:`,
     ...lines.map((l) => `• ${l.html} · ${escapeHtml(l.status)}`),
     '',
     anyOpen

@@ -1,7 +1,7 @@
 // The daily digest (BLUEPRINT §5.14, M07): about six lines, numbers only, no AI. Every figure comes from SQL here;
 // `renderDigest` only formats them. The daily cycle's `reported` stage builds it and, when the send rule says so,
 // queues it in the notifications outbox for the worker's bot.
-import { localDate, minusDays } from '@ads/contracts';
+import { costPer, countOf, formatMoney, localDate, minusDays, percentOf, stageWord } from '@ads/contracts';
 import {
   type DbOrTx,
   type Product,
@@ -14,7 +14,6 @@ import {
   trustSignalsOf,
 } from '@ads/db';
 import { accountRefText } from '../analyst/refs.ts';
-import { costPer, countOf, formatMoney, percentOf, stageWord } from './format.ts';
 
 /** Days the digest's cost per KPI covers: one day is too noisy at low volume. */
 export const DIGEST_KPI_DAYS = 7;
@@ -185,7 +184,7 @@ export function renderDigest(data: DigestData): string {
   for (const f of data.trust?.flagged ?? []) {
     flags.push(`${f.check} ${f.result}${f.account === null ? '' : ` (${f.account})`}`);
   }
-  if (data.drift > 0) flags.push(`${data.drift} change${data.drift === 1 ? '' : 's'} made outside the agent`);
+  if (data.drift > 0) flags.push(`${countOf(data.drift, 'change')} made outside the agent`);
   lines.push(`Checks: ${flags.length === 0 ? 'all OK' : flags.join('; ')}`);
   return lines.join('\n');
 }

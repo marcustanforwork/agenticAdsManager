@@ -51,13 +51,3 @@ export function microsToMetaMinor(micros: bigint, currencyOffset: bigint): bigin
   if (micros % perMinor !== 0n) throw new RangeError(`${micros} micros is not a whole number of minor units`);
   return micros / perMinor;
 }
-
-/** Display only: "S$1,234.57". Rounds half away from zero to cents. Never feed the result back into maths. */
-export function formatSgd(micros: bigint): string {
-  const negative = micros < 0n;
-  const abs = negative ? -micros : micros;
-  const cents = (abs + 5_000n) / 10_000n;
-  const whole = (cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const frac = (cents % 100n).toString().padStart(2, '0');
-  return `${negative && cents !== 0n ? '-' : ''}S$${whole}.${frac}`;
-}

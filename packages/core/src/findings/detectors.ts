@@ -7,10 +7,12 @@ import {
   type ComputedEvidence,
   type FindingTypeId,
   type PackManifest,
+  countOf,
   daysFrom,
-  formatSgd,
+  formatMoney,
   localDate,
   minusDays,
+  stageWord,
 } from '@ads/contracts';
 import {
   type Account,
@@ -70,15 +72,9 @@ export const COST_SPIKE_RATIO_PCT = 150n;
 export const COST_SPIKE_WEEKS = 4;
 export const COST_SPIKE_MIN_WEEKS = 2;
 
-/** Money for a summary, rounded to the cent in bigint (invariant 6): S$ for SGD, else the currency code. */
-const money = (micros: bigint, currency: string): string =>
-  currency === 'SGD' ? formatSgd(micros) : formatSgd(micros).replace('S$', `${currency} `);
-
 /** The KPI stage for summaries, from its id ("signup", "form fill"): pack labels are descriptive phrases that don't
  *  take a plural. */
 const kpiName = (product: Product): string => product.settings.outcomes.primaryKpiStage.replaceAll('_', ' ');
-
-const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** The product's active accounts, and their active entities of one type. */
 async function activeEntities(ctx: DetectorContext, type: AdEntity['type']): Promise<AdEntity[]> {
@@ -139,7 +135,7 @@ export const zeroOutcomeSpend: Detector = {
         target,
         evidence,
         summary:
-          `Spent ${money(spend, ctx.product.currency)} for ${plural(evidence.clicks, 'click')} over ` +
+          `Spent ${formatMoney(spend, ctx.product.currency)} for ${countOf(evidence.clicks, 'click')} over ` +
           `${evidence.windowDays} days, with no ${kpiName(ctx.product)} outcomes.`,
       });
     }
@@ -183,7 +179,7 @@ export const trackingGap: Detector = {
       const platform = account.platform === 'google' ? 'Google' : 'Meta';
       const why =
         found.tracking !== undefined
-          ? `${platform} recorded no conversions in ${TRUST_WINDOW_DAYS} days despite ${plural(num(found.tracking.clicks) ?? 0, 'click')}`
+          ? `${platform} recorded no conversions in ${TRUST_WINDOW_DAYS} days despite ${countOf(num(found.tracking.clicks) ?? 0, 'click')}`
           : `${platform} counts ${detail.platformConversions ?? 0} ${kpiName(ctx.product)} conversions and we can credit ` +
             `${detail.attributedOutcomes ?? 0} to its campaigns (${detail.attributionGapPct ?? 0}% apart)`;
       out.push({
@@ -238,8 +234,8 @@ export const pacingRisk: Detector = {
         target,
         evidence,
         summary: over
-          ? `On course to spend ${money(projected, c)} this month, ${pct}% of the ${money(ceiling, c)} ceiling.`
-          : `On course to spend only ${money(projected, c)} this month, ${pct}% of the ${money(ceiling, c)} ceiling.`,
+          ? `On course to spend ${formatMoney(projected, c)} this month, ${pct}% of the ${formatMoney(ceiling, c)} ceiling.`
+          : `On course to spend only ${formatMoney(projected, c)} this month, ${pct}% of the ${formatMoney(ceiling, c)} ceiling.`,
       },
     ];
   },
@@ -291,8 +287,8 @@ export const wastefulSearchTerm: Detector = {
         evidence,
         params: { negativeText: term.term }, // untrusted platform text: data only
         summary:
-          `A search term in this ad group cost ${money(term.spendMicros, ctx.product.currency)} for ` +
-          `${plural(term.clicks, 'click')} over ${evidence.windowDays} days, with no ${kpiName(ctx.product)} conversions.`,
+          `A search term in this ad group cost ${formatMoney(term.spendMicros, ctx.product.currency)} for ` +
+          `${countOf(term.clicks, 'click')} over ${evidence.windowDays} days, with no ${kpiName(ctx.product)} conversions.`,
       });
     }
     return out;
@@ -421,8 +417,8 @@ export const costSpike: Detector = {
         target,
         evidence,
         summary:
-          `Cost per ${kpiName(ctx.product)} in the last 7 days was ${money(cost, c)}, ${ratioPct}% of the ` +
-          `${money(median, c)} median over the ${plural(earlier.length, 'week')} before.`,
+          `Cost per ${stageWord(ctx.product.settings.outcomes.primaryKpiStage)} in the last 7 days was ${formatMoney(cost, c)}, ${ratioPct}% of the ` +
+          `${formatMoney(median, c)} median over the ${countOf(earlier.length, 'week')} before.`,
       });
     }
     return out;

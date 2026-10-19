@@ -1,4 +1,5 @@
 // The product's offerings (projects, plans…), each with its fact base.
+import { localDate } from '@ads/contracts';
 import { notFound } from 'next/navigation';
 import { requireOperator } from '../../../../lib/server.ts';
 import { getProductView, listOfferingRows } from '../../../../lib/views.ts';
@@ -24,7 +25,7 @@ export default async function FactsPage({ params }: { params: Promise<{ slug: st
             <li key={o.key}>
               <a href={`/products/${product.slug}/facts/${encodeURIComponent(o.key)}`}>{o.name}</a>{' '}
               <span className="muted">
-                ({o.kind}, facts v{o.factsVersion}, updated {o.updatedAt.toISOString().slice(0, 10)})
+                ({o.kind}, facts v{o.factsVersion}, updated {localDate(o.updatedAt, product.timezone)})
               </span>
             </li>
           ))}

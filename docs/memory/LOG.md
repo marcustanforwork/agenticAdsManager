@@ -4,6 +4,19 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — F2 built: request faults stop at 5, shared formatters
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23)
+- **Did:**
+  - Merged PR #22 (F1) on Marcus's word (CI green), reset the branch onto `main`; `start-milestone F2` (`docs/milestones/F2-requests-formatting.md`).
+  - Migration `0008`: `operator_requests.attempts`, `retry_after`; the `request_queued` trigger is a deferred constraint trigger that notifies only for a row still queued at commit.
+  - Request faults: `addRequestAttempt` (`packages/db/src/repos/plumbing.ts`, backoff 1 min × 2^(n−1)); `recordRequestFault`, `faultMessage`, `MAX_REQUEST_ATTEMPTS` (`packages/core/src/requests/processor.ts`); `raiseRequestFailedAlert` (`packages/core/src/alerts.ts`); the bot's alert text.
+  - Formatters in `packages/contracts/src/format.ts` (`formatMoney` by ISO 4217 minor unit, `formatUsdExact`, `countOf`, `stageWord`, `percentOf`, `costPer`) and `localTime` (`dates.ts`); core's reports and detectors, the Telegram bot and the dashboard use them; the copies are gone. Dashboard history, facts and request pages show local times.
+  - Code review (high): 9 findings, 8 fixed (backoff, the innermost error instead of drizzle's query text, remaining plurals, Overview heading, one counting path, formatter cache, request page timezone, currency case), 1 not (detectors' adjective KPI name). Full checks green: 1,089 tests.
+- **Decided:** D-094 (F2 build choices); BLUEPRINT v3.32.
+- **Learned:** GOTCHAS: ISO 4217 vs `Intl` currency digits; a deferred constraint trigger's `NEW` is the row as inserted.
+- **Next:** Marcus merges F2's PR; then a fresh session runs `start-milestone F3`.
+- **Open:** the Phase 0 setup (after F3).
+
 ## 2026-10-19 — F1 built and reviewed (wording and feedback fixes)
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#22](https://github.com/marcustanforwork/agenticAdsManager/pull/22)
 - **Did:**

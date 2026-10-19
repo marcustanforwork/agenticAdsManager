@@ -1,4 +1,5 @@
 // A recorded request and the worker's verdict on it.
+import { localTime } from '@ads/contracts';
 import { getRequestStatus, NotFoundError } from '@ads/db';
 import { notFound } from 'next/navigation';
 import { db, requireOperator } from '../../../lib/server.ts';
@@ -24,7 +25,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     <>
       <h1>Request: {status.kind}</h1>
       <p className="muted">
-        Recorded {status.createdAt.toISOString()} · id {status.id}
+        Recorded {localTime(status.createdAt, status.timezone ?? 'UTC')} ({status.timezone ?? 'UTC'}) · id {status.id}
       </p>
       <section className="card">
         <Verdict id={status.id} initial={{ status: status.status, result: status.result }} />

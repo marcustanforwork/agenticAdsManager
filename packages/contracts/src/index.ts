@@ -1,6 +1,7 @@
 // The seams between packages (BLUEPRINT §3). Later milestones may ADD fields; renaming or removing one
 // requires updating every user in the same PR.
 export * from './money.ts';
+export * from './format.ts';
 export * from './hash.ts';
 export * from './dates.ts';
 export * from './platform.ts';

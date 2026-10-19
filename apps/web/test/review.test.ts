@@ -1,49 +1,13 @@
 // The review views' arithmetic and wording (M10b): bigint money, the month projection, the KPI trend, attribution.
 import type { EntityRef } from '@ads/contracts';
 import { describe, expect, it } from 'vitest';
-import {
-  costPer,
-  countOf,
-  describeAction,
-  editableFields,
-  formatMoney,
-  formatUsd,
-  kpiTrend,
-  percentOf,
-  projectMonth,
-  ratePct,
-  summariseStages,
-} from '../src/lib/review.ts';
+import { describeAction, editableFields, kpiTrend, projectMonth, ratePct, summariseStages } from '../src/lib/review.ts';
 
-describe('money', () => {
-  it('formats SGD as the digest does, other currencies with their code, and USD exactly', () => {
-    expect(formatMoney(1_234_567_890n, 'SGD')).toBe('S$1,234.57');
-    expect(formatMoney(1_234_565_000n, 'USD')).toBe('USD 1,234.57');
-    expect(formatMoney(5_000n, 'MYR')).toBe('MYR 0.01');
-    expect(formatMoney(-12_500_000n, 'MYR')).toBe('MYR -12.50');
-    expect(formatUsd(23_400n)).toBe('US$0.0234');
-    expect(formatUsd(2_000_000n)).toBe('US$2.00');
-  });
-
-  it('divides in bigint: percentages round down, cost per rounds half up, rates to one place', () => {
-    expect(percentOf(1n, 3n)).toBe(33);
-    expect(percentOf(5n, 0n)).toBeNull();
-    expect(costPer(10_000_001n, 2)).toBe(5_000_001n);
-    expect(costPer(10n, 0)).toBeNull();
+describe('rates', () => {
+  // Money, counts and times are contracts' (F2): packages/contracts/test/format.test.ts.
+  it('rates to one place', () => {
     expect(ratePct(1, 3)).toBe(33.3);
     expect(ratePct(0, 0)).toBeNull();
-  });
-
-  it('counts with a word or a stage id, never a stage label', () => {
-    expect(countOf(1, 'signup')).toBe('1 signup');
-    expect(countOf(3, 'pool_request')).toBe('3 pool requests');
-    expect(countOf(2, 'Clicks')).toBe('2 clicks');
-    // A stage named for a state becomes a noun: the KPI switched to `paid` reads "3 paid outcomes", not "3 paids".
-    expect(countOf(3, 'paid')).toBe('3 paid outcomes');
-    expect(countOf(1, 'booked')).toBe('1 booked outcome');
-    expect(countOf(4, 'qualified_viewing')).toBe('4 qualified viewings');
-    expect(countOf(2, 'enquiry')).toBe('2 enquiries');
-    expect(countOf(2, 'search')).toBe('2 searches');
   });
 });
 
@@ -141,6 +105,12 @@ describe('describeAction', () => {
         undo: { ...budget, newDailyBudgetMicros: '30000000', netIncrease: false },
       }).change,
     ).toBe('S$30.00 → S$45.00 a day');
+    // In whole yen, as the Telegram card and the digest print it (contracts' formatMoney, F2).
+    expect(
+      describeAction({ ...budget, newDailyBudgetMicros: '1234500000' }, 'JPY', () => null, {
+        undo: { ...budget, newDailyBudgetMicros: '1000000000', netIncrease: false },
+      }).change,
+    ).toBe('JPY 1,000 → JPY 1,235 a day');
     expect(describeAction({ action: 'mark_abandoned', target: ref }, 'SGD', () => null).headline).toBe(
       'mark abandoned on ad group (meta:act_1:ad_group:9)',
     );

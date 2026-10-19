@@ -1,4 +1,5 @@
 // Every settings version, newest first: who asked for it, from where, and what changed from the version before.
+import { localTime } from '@ads/contracts';
 import { listSettingsChanges } from '@ads/db';
 import { notFound } from 'next/navigation';
 import { changedPaths } from '../../../../lib/history.ts';
@@ -22,7 +23,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ slug: 
         return (
           <section className="card" key={v.version}>
             <h2>
-              Version {v.version} <span className="muted">· {v.changedAt.toISOString()}</span>
+              Version {v.version} <span className="muted">· {localTime(v.changedAt, product.timezone)}</span>
             </h2>
             <p className="muted">
               {v.requestId === null ? 'Initial settings (seed)' : `By ${v.actor ?? '?'} via ${v.channel ?? '?'}`}

@@ -1,7 +1,7 @@
 // The report stage (M07): the digest's send rules and size, the brief's numbers table, the number check with its
 // template fallback, the diagnostic variant, and idempotency on resume. Every figure is worked out by hand from the
 // rows the tests write.
-import type { ProductSettings } from '@ads/contracts';
+import { type ProductSettings, countOf, stageWord } from '@ads/contracts';
 import {
   advance,
   getBrief,
@@ -25,12 +25,10 @@ import {
   buildDigest,
   canonicalNumber,
   checkNumbers,
-  countOf,
   renderBrief,
   renderDigest,
   reportStage,
   shouldSendDigest,
-  stageWord,
   templateProse,
   templateWords,
 } from '../src/index.ts';
@@ -268,6 +266,25 @@ describe('counts by stage id (F1)', () => {
       'Spend without outcomes: S$105.00 spent, 105 clicks and 0 signups over 14 days (2026-09-24 to 2026-10-07).',
     );
     noLabelPlural(`${words.rationale} ${words.expectedEffect}`);
+  });
+
+  it("prints money in the product's currency by its minor unit, as the cards and the dashboard do (F2)", () => {
+    const words = templateWords(
+      {
+        key: 'p1',
+        label: 'Spend without outcomes',
+        action: {
+          action: 'pause_entity',
+          target: { platform: 'google', accountId: '1', type: 'campaign', externalId: '10' },
+        },
+        currentDailyBudgetMicros: null,
+        targetName: 'campaign 10',
+        evidence: { ...evidence(1_234_500_000n, 105), outcomesByStage: { signup: 0 } },
+        findingSummary: 'JPY 1,235 over 14 days with no signups.',
+      },
+      { currency: 'JPY', kpiStage: 'signup', kpiLabel: 'Signup' },
+    );
+    expect(words.rationale).toContain('JPY 1,235 spent');
   });
 });
 
