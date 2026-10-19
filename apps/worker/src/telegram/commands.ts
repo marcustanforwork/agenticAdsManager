@@ -5,7 +5,7 @@
 // `/pause-all` and `/resume-agent` are accepted too. To add a command: the `add-telegram-command` skill.
 import { decimalToMicros, microsToJson } from '@ads/contracts';
 import { formatMoney } from '@ads/core';
-import { getProduct, getStoredSettings } from '@ads/db';
+import { getStoredSettings } from '@ads/db';
 import type { BotContext } from './bot.ts';
 import { escapeHtml } from './format.ts';
 import { pauseAllCommand, pauseCommand } from './pause.ts';
@@ -143,9 +143,12 @@ async function ceilingCommand(ctx: BotContext, args: string): Promise<CommandOut
     await reply(ctx, pick.html);
     return 'usage';
   }
-  const product = await getProduct(ctx.db, pick.product.id);
+  const product = pick.product;
   const key = which === 'daily' ? 'dailyCeilingMicros' : 'monthlyCeilingMicros';
-  const before = product.settings.spend[key];
+  // Read loosely: a patch may be what repairs stored settings that fail validation.
+  const stored = (await getStoredSettings(ctx.db, product.id)).settings as { spend?: Record<string, unknown> };
+  const previous = stored.spend?.[key];
+  const before = typeof previous === 'string' ? previous : null;
   const result = await patchSettings(ctx, product.id, { spend: { [key]: microsToJson(micros) } });
   if (!result.ok) {
     await reply(ctx, `Not changed: ${escapeHtml(result.reason)}`);
@@ -281,7 +284,17 @@ export async function handleCommand(ctx: BotContext, text: string): Promise<Comm
     await reply(ctx, `I don't know /${escapeHtml(parsed.name)}. /help lists the commands.`);
     return 'unknown';
   }
-  return command.run(ctx, parsed.args);
+  try {
+    return await command.run(ctx, parsed.args);
+  } catch (error) {
+    // A fault, not a refusal (those are answered by the command): Marcus still gets an answer.
+    ctx.logger?.error({ err: error, command: command.name }, 'a command failed');
+    await reply(
+      ctx,
+      `/${command.name} failed on our side; the worker log has the error. /status shows what is in place.`,
+    );
+    return 'refused';
+  }
 }
 
 /** The menu Telegram shows under "/" (`setMyCommands`). */

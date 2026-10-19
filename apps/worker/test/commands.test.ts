@@ -476,6 +476,33 @@ describe('messages', () => {
     for (const c of COMMANDS) expect(b.last()).toContain(`/${c.name}`);
   });
 
+  it('a command that faults still answers Marcus, and the fault is logged', async () => {
+    const b = bot();
+    const errors: string[] = [];
+    const broken = new Proxy(t.db, {
+      get: (target, key, receiver) =>
+        key === 'select'
+          ? () => {
+              throw new Error('database down');
+            }
+          : Reflect.get(target, key, receiver),
+    });
+    const ctx: BotContext = {
+      ...b.ctx,
+      db: broken,
+      logger: { info: () => undefined, error: (_o, msg) => void errors.push(msg) },
+    };
+    const outcome = await handleMessage(ctx, {
+      message_id: 1,
+      from: { id: OWNER },
+      chat: { id: OWNER, type: 'private' },
+      text: '/status',
+    });
+    expect(outcome).toBe('command:refused');
+    expect(b.last()).toContain('/status failed on our side');
+    expect(errors).toEqual(['a command failed']);
+  });
+
   it('a command doesn’t end a question the bot asked: its reply still counts afterwards', async () => {
     const b = bot();
     const p = (await listProposals(t.db, main.id, ['pending']))[0];

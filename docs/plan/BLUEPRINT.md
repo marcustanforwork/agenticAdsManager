@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.23 — 2026-10-19 (M09b is built before the Phase 0 gate, D-086) |
+| **Version** | v3.24 — 2026-10-19 (M09b as built: the Telegram command grammar, D-087) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1951,6 +1951,24 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built 
 **Leave behind:** the full command grammar.
 
 **Skills to create:** `add-telegram-command`.
+
+**As built (D-087):** the command grammar (`apps/worker/src/telegram/commands.ts`, one table; the menu is set with `setMyCommands` for Marcus's chat). Telegram's menu allows only `[a-z0-9_]`, so `/pause_all` and `/resume_agent` are the names and `/pause-all`, `/resume-agent` are accepted too; `/name@bot` works. `[product]` may be left out when exactly one product isn't dormant; otherwise the bot asks.
+
+| Command | Does | Records |
+|---|---|---|
+| `/pause <name or id>` | Finds a campaign, ad set / ad group or ad (not removed) by its ref, its exact id, or a fragment of its name (≥ 2 characters, any case); an exact ref or id wins. One active match → its confirm card; several → up to 8 buttons (`v1:pick:<entity uuid>:0`); only inactive matches or none → says so | `pause`, then `approve` (Confirm) or `reject` (Cancel, reason "cancelled from Telegram") |
+| `/pause_all <product>` | One card listing a pause for every active campaign (a halted or dormant product too), buttons `v1:allok\|allno:<request uuid>:0`; each still-pending proposal is confirmed or cancelled with its own request | `pause_all`, then one `approve` / `reject` each |
+| `/undo <rev_…>` | Phase 1: shows the change's stored undo, to make by hand (M11b: the undo proposal) | `undo` |
+| `/undo <proposal id>` | Shows the planned undo of an approved proposal Marcus made by hand (Phase 1 has no revisions) | — |
+| `/changes [product]` | The change log's revisions, then the approved proposals to make by hand | — |
+| `/halt <product\|all>` · `/resume_agent [product\|all]` | Stop or restart the agent (no cycles; its proposals wait); pauses still work while halted | `halt` · `resume_agent` |
+| `/ceiling [product] daily\|monthly <amount>` | The spend ceiling, in the product's currency (`25`, `25.50`, `S$1,000`; up to 10,000,000), on the current settings version | `settings_patch` |
+| `/digest [product] auto\|always\|off` | When the daily digest comes | `settings_patch` |
+| `/status` · `/proposals [product]` · `/brief [product]` · `/drift [product]` | Phase, products, last cycle, waiting and approved counts · the waiting cards (up to 10) · the latest brief with its buttons · unacknowledged drift | — |
+| `/budget` | "Budget changes are available in Phase 3." | — |
+| `/help` (`/start`) · `/cancel` | The list · ends a question the bot asked | — |
+
+A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (planned undo; fingerprint from the synced state, `preconditionOf`) with `origin = 'operator'`, no cycle or finding, and a 30-minute expiry; an open proposal with the same action (any origin) is returned instead of a second one. Operator cards show **Confirm / Cancel** on the existing `approve` / `reject` verbs; Cancel asks no reason. A command doesn't end an open question (a reject reason can still follow it); a command that faults answers "failed on our side" and logs. Nothing was cut.
 
 ---
 
