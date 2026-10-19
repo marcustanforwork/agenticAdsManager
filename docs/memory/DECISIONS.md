@@ -697,3 +697,27 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** each is the simplest way to meet M09a's builds and tests without a new mechanism; keeping the precondition on edit keeps the fingerprint meaning "the state Marcus's decision was based on".
 - **Instead of:** separate edit and approve steps (two taps, and a window where an edited version sits unapproved); a precondition re-taken at edit time (would hide drift between drafting and the edit); alerting every degraded trust check or every drift (noise; both are in the brief).
 - **See:** BLUEPRINT M09a "As built", §4, §5.16 · `docs/milestones/M09a-telegram-bot-cards.md`
+
+### D-086 — Build M09b before the Phase 0 gate
+- **When / who / status:** 2026-10-19 · Marcus · adopted. He hasn't had time for the Phase 0 setup yet and said "let's continue with M09b next".
+- **Decision:**
+  - M09b (Telegram operator commands) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082 and D-084 did for M08 and M09a. M10a onwards still wait for the gate unless Marcus says otherwise.
+  - Nothing in M09b changes an ad account: `/pause`, `/pause-all` and `/undo` make operator proposals that Marcus applies by hand until the gateway exists (M11b). `/halt`, `/resume-agent`, the read-only commands and the two quick settings are useful in Phase 0 too, once M07 is live.
+- **Why:** the Phase 0 setup and gate take calendar time; building ahead uses it.
+- **Risk:** as D-082: fixes from the live checklist may touch code M09b builds on, and more unverified code piles up before the first real run.
+- **Supersedes:** D-084's line "M09b onwards still wait for the gate" (only for M09b).
+- **See:** BLUEPRINT M09b
+
+### D-087 — M09b build choices: the command grammar, operator confirm cards, Phase 1 undo
+- **When / who / status:** 2026-10-19 · Claude (build choices within the plan) · adopted
+- **Decision:**
+  - **One command table** (`apps/worker/src/telegram/commands.ts`). Names follow Telegram's menu rule (`[a-z0-9_]`): `/pause_all`, `/resume_agent`; the plan's `/pause-all`, `/resume-agent` are accepted as typed. When a command's product is left out, the single non-dormant product is used; with several, the bot asks.
+  - **Operator pauses** are proposals built like drafted ones (planned undo, fingerprint from the synced state) with `origin = 'operator'` and a 30-minute expiry. An open proposal with the same action (any origin, e.g. a drafted pause) is returned instead of a second one. The card's **Confirm / Cancel** reuse the `approve` / `reject` verbs, so no new callback data for single pauses; Cancel records reason "cancelled from Telegram" without asking (nothing to learn from it; operator proposals make no eval case).
+  - **`/pause_all`** makes one proposal per **active campaign** (pausing a campaign stops all under it), including for a halted or dormant product, and shows one card. Its buttons carry the `pause_all` request's id (`v1:allok|allno:<uuid>:0`); a press approves or rejects each still-pending proposal with its own request, bound to the version and hash in the request's result.
+  - **Entity resolution:** a ref, an exact external id, or a name fragment of at least 2 characters (any case, spaces collapsed); an exact ref or id wins over names; only campaigns, ad sets / ad groups and ads, never removed ones. Several active matches → up to 8 buttons (`v1:pick:<entity uuid>:0`). Never a guess.
+  - **Phase 1 undo:** the change log is empty until the gateway (M11b), so `/undo <rev>` records an `undo` request that returns the stored undo (no proposal yet), and `/undo <proposal id>` shows the planned undo of an approved proposal Marcus made by hand. `/changes` lists both.
+  - **Quick settings** read the current settings version and send a `settings_patch`; amounts up to 10,000,000 in the product's currency, 2 decimals. A raised ceiling isn't asked to be confirmed (ceilings matter from Phase 3; the processor validates).
+  - A command doesn't end an open question (a reject reason can follow it). A command that faults replies "failed on our side" and logs.
+- **Why:** the simplest way to meet M09b's builds and tests with the M09a card and processor unchanged in shape; pausing campaigns is the fastest whole-product stop; Phase 1 has nothing in the change log to undo.
+- **Instead of:** a new callback verb per operator card (old cards would have two formats); pausing every ad set and ad in `/pause_all` (many more proposals, same effect); guessing the closest name.
+- **See:** BLUEPRINT M09b "As built" · `docs/milestones/M09b-telegram-operator-commands.md`

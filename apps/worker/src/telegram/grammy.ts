@@ -3,6 +3,7 @@
 // consumer per bot).
 import { Api, Bot } from 'grammy';
 import { type BotContext, type TelegramApi, handleCallback } from './bot.ts';
+import { MENU } from './commands.ts';
 import { handleMessage } from './decide.ts';
 
 export function grammyApi(token: string): TelegramApi {
@@ -28,6 +29,10 @@ export function startGrammyPolling(token: string, ctx: BotContext): { stop(): Pr
     ctx.logger?.info({ outcome }, 'message handled');
   });
   bot.catch((err) => ctx.logger?.error({ err: err.error }, 'Telegram update failed'));
+  // The menu under "/" in Marcus's chat. Best effort: the commands work without it.
+  bot.api
+    .setMyCommands(MENU, { scope: { type: 'chat', chat_id: ctx.ownerId } })
+    .catch((err: unknown) => ctx.logger?.error({ err }, 'setting the command menu failed'));
   bot
     .start({ allowed_updates: ['callback_query', 'message'] })
     .catch((err: unknown) => ctx.logger?.error({ err }, 'Telegram polling stopped with an error'));

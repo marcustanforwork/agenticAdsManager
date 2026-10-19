@@ -4,6 +4,27 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — M09b built ahead of the Phase 0 gate (Telegram operator commands) and code-reviewed
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#17](https://github.com/marcustanforwork/agenticAdsManager/pull/17)
+- **Did:**
+  - Processor: `pause`, `pause_all`, `undo` (Phase 1 behaviour) in `core/src/requests/operator.ts`; operator pauses are proposals like drafted ones (planned undo, fingerprint) with a 30-minute expiry; a halted product still takes pauses.
+  - Bot: one command table (`apps/worker/src/telegram/commands.ts`) with `/pause`, `/pause_all`, `/undo`, `/changes`, `/halt`, `/resume_agent`, `/status`, `/proposals`, `/brief`, `/drift`, `/ceiling`, `/digest`, `/budget`, `/help`; entity resolution with buttons when ambiguous (`pause.ts`); Confirm / Cancel on operator cards; the menu via `setMyCommands`.
+  - Tests: golden shape (operator vs drafted pause), halt vs pause, settings history, ambiguity; 956 tests pass. Fixed an M08 test that had started failing on 2026-10-15 (a test-clock proposal expired in real time).
+  - Code review (high): 10 findings, all confirmed; 9 fixed (notably: `/pause_all` Cancel no longer rejects an agent's drafted pause; confirmed pauses stay "made by hand" after their expiry), 1 noted.
+  - Docs: BLUEPRINT v3.24 (M09b "As built": the command grammar), the `add-telegram-command` skill.
+- **Decided:** D-087 (M09b build choices).
+- **Learned:** GOTCHAS: Telegram `BotCommand` names allow only `[a-z0-9_]` (1–32), descriptions 1–256.
+- **Next:** Marcus reviews and merges PR #17; then the Phase 0 setup and gate (M10a onwards wait for it).
+- **Open:** Q13; the Phase 0 setup (no ticks yet).
+
+## 2026-10-19 — PR #16 merged; M09b approved to build ahead of the gate
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#16](https://github.com/marcustanforwork/agenticAdsManager/pull/16)
+- **Did:** checked status: PR #16 green, the Phase 0 checklist has no ticks yet. Marcus said "merge #16"; squash-merged it (D-057). Recorded his go-ahead for M09b (D-086; BLUEPRINT v3.23).
+- **Decided:** D-086 (Marcus).
+- **Learned:** —
+- **Next:** a fresh session starts M09b.
+- **Open:** Q13; the Phase 0 setup (no ticks yet).
+
 ## 2026-10-14 — PR #15 (M09a) merged
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge the PR once CI passes"; squash-merged PR #15 on his instruction (D-057).

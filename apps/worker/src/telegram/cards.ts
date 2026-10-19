@@ -4,7 +4,13 @@
 // refuses it if the proposal changed, was decided or expired since (PROPOSAL §6.3). Every figure on a card comes
 // from the database; the words (rationale, expected effect) are the drafter's, already number-checked (M08).
 // Platform text (entity names, a negative keyword) is escaped: it is shown, never interpreted.
-import { type ComputedEvidence, ComputedEvidence as EvidenceSchema, type WriteOp, targetRefOf } from '@ads/contracts';
+import {
+  type ComputedEvidence,
+  ComputedEvidence as EvidenceSchema,
+  type EntityRef,
+  type WriteOp,
+  targetRefOf,
+} from '@ads/contracts';
 import { countOf, entityRefText, formatMoney } from '@ads/core';
 import {
   type AdEntity,
@@ -15,7 +21,7 @@ import {
   getProduct,
   getProposal,
 } from '@ads/db';
-import { escapeHtml } from './format.ts';
+import { clip, escapeHtml } from './format.ts';
 import type { InlineKeyboard } from './bot.ts';
 
 // ── Callback data ─────────────────────────────────────────────────────────────────────────────
@@ -42,14 +48,16 @@ export function parseCardData(data: string): { verb: CardVerb; shortId: string; 
   return { verb: m[1] as CardVerb, shortId: m[2] as string, version: Number(m[3]) };
 }
 
-/** Approve / Reject, and Edit when the action has something to edit (not a pause). */
-export function cardKeyboard(p: Pick<ProposalRecord, 'shortId' | 'version' | 'action'>): InlineKeyboard {
+/** Approve / Reject, and Edit when the action has something to edit (not a pause). Marcus's own requests (M09b) get
+ *  Confirm / Cancel on the same verbs: confirming is the approval, and cancelling asks no reason. */
+export function cardKeyboard(p: Pick<ProposalRecord, 'shortId' | 'version' | 'action' | 'origin'>): InlineKeyboard {
+  const own = p.origin === 'operator';
   return {
     inline_keyboard: [
       [
-        { text: '✅ Approve', callback_data: cardData('approve', p.shortId, p.version) },
-        { text: '❌ Reject', callback_data: cardData('reject', p.shortId, p.version) },
-        ...(editHint(p.action) === null
+        { text: own ? '✅ Confirm' : '✅ Approve', callback_data: cardData('approve', p.shortId, p.version) },
+        { text: own ? '✖ Cancel' : '❌ Reject', callback_data: cardData('reject', p.shortId, p.version) },
+        ...(own || editHint(p.action) === null
           ? []
           : [{ text: '✏️ Edit', callback_data: cardData('edit', p.shortId, p.version) }]),
       ],
@@ -89,13 +97,14 @@ const STATUS_WORDS: Partial<Record<ProposalRecord['status'], string>> = {
   expired: '⌛ expired',
 };
 
-/** Shortens platform text for a card line (before escaping). */
-const clip = (text: string, max = 80): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
-
-function targetLine(view: CardView, ref: { type: string } & Parameters<typeof entityRefText>[0]): string {
-  const name = view.entity === null ? '' : ` “${escapeHtml(clip(view.entity.name.replaceAll(/\s+/g, ' ')))}”`;
-  return `${escapeHtml(ref.type.replaceAll('_', ' '))}${name} <code>${escapeHtml(entityRefText(ref))}</code>`;
+/** An entity on one line: `campaign “name” <code>google:1:campaign:2</code>`. The name is the platform's (escaped,
+ *  spaces collapsed, clipped); null when it isn't synced. Every Telegram message shows entities this way. */
+export function entityLine(name: string | null, ref: EntityRef, max = 80): string {
+  const shown = name === null ? '' : ` “${escapeHtml(clip(name.replaceAll(/\s+/g, ' '), max))}”`;
+  return `${escapeHtml(ref.type.replaceAll('_', ' '))}${shown} <code>${escapeHtml(entityRefText(ref))}</code>`;
 }
+
+const targetLine = (view: CardView, ref: EntityRef): string => entityLine(view.entity?.name ?? null, ref);
 
 /** The change in words: the headline and the before → after line. */
 function changeLines(view: CardView): string[] {
@@ -158,11 +167,16 @@ export function localTime(at: Date, timezone: string): string {
 export function renderCard(view: CardView): { html: string; keyboard: InlineKeyboard | null } {
   const p = view.proposal;
   const pending = p.status === 'pending' && p.expiresAt.getTime() > view.now.getTime();
+  const own = p.origin === 'operator';
   const status = pending
-    ? STATUS_WORDS.pending
+    ? own
+      ? '⏳ waiting for your confirmation'
+      : STATUS_WORDS.pending
     : p.status === 'pending'
       ? STATUS_WORDS.expired
-      : (STATUS_WORDS[p.status] ?? p.status.replaceAll('_', ' '));
+      : own && p.status === 'rejected'
+        ? '✖ cancelled'
+        : (STATUS_WORDS[p.status] ?? p.status.replaceAll('_', ' '));
   const lines = [
     `<b>Proposal ${p.shortId}</b> · v${p.version} · ${escapeHtml(view.product.slug)}${
       view.finding === null ? '' : ` · ${escapeHtml(view.finding.type)}`
@@ -175,6 +189,7 @@ export function renderCard(view: CardView): { html: string; keyboard: InlineKeyb
     '',
     `Expires ${localTime(p.expiresAt, view.product.timezone)} (${escapeHtml(view.product.timezone)})`,
     `Status: ${escapeHtml(status ?? '')}`,
+    own && pending ? 'Confirming is your approval. Phase 1 applies nothing: once confirmed, make it by hand.' : null,
   ].filter((l): l is string => l !== null);
   return { html: lines.join('\n'), keyboard: pending ? cardKeyboard(p) : null };
 }

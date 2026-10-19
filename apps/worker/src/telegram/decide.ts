@@ -11,6 +11,8 @@ import type { BotContext } from './bot.ts';
 import { editHint, loadCard, parseCardData, renderCard } from './cards.ts';
 import { EDIT_HELP, parseEdit } from '../editGrammar.ts';
 import { escapeHtml } from './format.ts';
+import { handleCommand } from './commands.ts';
+import { CANCEL_REASON, type CommandOutcome } from './reply.ts';
 
 /** What the bot is waiting for in a chat. Read back through this schema: a row from an older build that doesn't
  *  match counts as no conversation. */
@@ -33,7 +35,8 @@ export interface ChatMessage {
   text?: string;
 }
 
-export type MessageOutcome = 'ignored' | 'no_conversation' | 'cancelled' | 'retry' | 'recorded' | 'refused';
+export type MessageOutcome =
+  'ignored' | 'no_conversation' | 'cancelled' | 'retry' | 'recorded' | 'refused' | `command:${CommandOutcome}`;
 
 const reasonOf = (result: Record<string, unknown>): string =>
   typeof result['reason'] === 'string' ? result['reason'] : 'refused';
@@ -105,6 +108,19 @@ export async function handleCardPress(
     await refreshCard(ctx, proposal.id, messageId);
     return 'refused';
   }
+  // Cancelling Marcus's own confirm card (M09b) needs no reason: nothing is learnt from it.
+  if (parsed.verb === 'reject' && proposal.origin === 'operator') {
+    const { outcome } = await decideRequest(
+      ctx,
+      { kind: 'reject', proposalId: proposal.id, version: parsed.version, reason: CANCEL_REASON },
+      query.from.id,
+    );
+    await ctx.api.answerCallbackQuery(query.id, {
+      text: outcome.status === 'done' ? 'Cancelled' : `Not cancelled: ${reasonOf(outcome.result)}`,
+    });
+    await refreshCard(ctx, proposal.id, messageId);
+    return outcome.status === 'done' ? 'recorded' : 'refused';
+  }
   const hint = editHint(proposal.action);
   if (parsed.verb === 'edit' && hint === null) {
     await ctx.api.answerCallbackQuery(query.id, { text: 'This change has nothing to edit: approve or reject it.' });
@@ -133,7 +149,8 @@ export async function handleCardPress(
   return 'asked';
 }
 
-/** A text message from Marcus: the reply a card asked for, `/cancel`, or anything else (a short help). */
+/** A text message from Marcus: `/cancel`, a command (M09b), the reply a card asked for, or anything else (a short
+ *  help). A command doesn't end an open question: its reply can still follow, until the 10 minutes are up. */
 export async function handleMessage(ctx: BotContext, message: ChatMessage): Promise<MessageOutcome> {
   if (message.from?.id !== ctx.ownerId || message.chat.type !== 'private') return 'ignored';
   const text = (message.text ?? '').trim();
@@ -145,9 +162,11 @@ export async function handleMessage(ctx: BotContext, message: ChatMessage): Prom
     await reply(had ? 'Cancelled. The card is unchanged.' : 'Nothing to cancel.');
     return 'cancelled';
   }
+  const command = await handleCommand(ctx, text);
+  if (command !== null) return `command:${command}`;
   const stored = ConversationState.safeParse(await getConversation(ctx.db, ctx.ownerId, now));
   if (!stored.success) {
-    await reply('Use the buttons on a proposal card to decide it. Commands arrive in a later update.');
+    await reply('Use the buttons on a proposal card to decide it, or a command: /help lists them.');
     return 'no_conversation';
   }
   const state = stored.data;

@@ -1,6 +1,6 @@
 // The worker's Telegram bot (BLUEPRINT §5.15): it sends the notifications outbox (digests, briefs, alerts, proposal
 // cards) to Marcus's private chat, and handles the buttons and replies: the brief feedback (👍 useful / 💡 new to me,
-// M07) and the proposal cards' Approve / Reject / Edit (M09a, decide.ts). Each is an operator request through the
+// M07), the proposal cards' Approve / Reject / Edit (M09a, decide.ts), and Marcus's commands (M09b, commands.ts). Each is an operator request through the
 // one processor. Updates are accepted only from Marcus's user id in a private chat; everything else is ignored.
 // Only the leader polls and sends (§5.2).
 import {
@@ -23,7 +23,9 @@ import {
 } from '@ads/db';
 import { loadCard, parseCardData, renderCard } from './cards.ts';
 import { handleCardPress } from './decide.ts';
-import { chunkHtml, escapeHtml, markdownLiteToHtml } from './format.ts';
+import { handlePausePress, parsePauseData } from './pause.ts';
+import { briefMessage, feedbackKeyboard, parseFeedbackData } from './feedback.ts';
+import { chunkHtml, escapeHtml, htmlToPlain, isBadRequest, markdownLiteToHtml } from './format.ts';
 
 export interface InlineButton {
   text: string;
@@ -65,34 +67,9 @@ export interface BotLogger {
   error(obj: object, msg: string): void;
 }
 
-// ── Brief feedback buttons ────────────────────────────────────────────────────────────────────
+// ── Brief feedback buttons (feedback.ts) ──────────────────────────────────────────────────────
 
-/** Callback data `v1:<verb>:<briefId>:<version>` (§5.15): at most 49 bytes, under Telegram's 64. Stable: old cards
- *  must keep working. Briefs have no versions; it is always 0. */
-export const FEEDBACK_VERBS = { useful: 'useful', newInfo: 'new' } as const;
-
-export function feedbackData(verb: 'useful' | 'new', briefId: string): string {
-  return `v1:${verb}:${briefId}:0`;
-}
-
-export function parseFeedbackData(data: string): { verb: 'useful' | 'new'; briefId: string } | null {
-  const m = /^v1:(useful|new):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):0$/.exec(data);
-  return m === null ? null : { verb: m[1] as 'useful' | 'new', briefId: m[2] as string };
-}
-
-export function feedbackKeyboard(
-  briefId: string,
-  state: { useful: boolean | null; newInfo: boolean | null } = { useful: null, newInfo: null },
-): InlineKeyboard {
-  return {
-    inline_keyboard: [
-      [
-        { text: `${state.useful === true ? '✅' : '👍'} useful`, callback_data: feedbackData('useful', briefId) },
-        { text: `${state.newInfo === true ? '✅' : '💡'} new to me`, callback_data: feedbackData('new', briefId) },
-      ],
-    ],
-  };
-}
+export { FEEDBACK_VERBS, briefMessage, feedbackData, feedbackKeyboard, parseFeedbackData } from './feedback.ts';
 
 export interface CallbackQuery {
   id: string;
@@ -112,7 +89,8 @@ export interface BotContext {
   now?: () => Date;
 }
 
-/** Handles a button press: a proposal card's (decide.ts) or a brief's feedback. Returns what happened, for logs and
+/** Handles a button press: a proposal card's (decide.ts), a pause pick or pause-all confirm (pause.ts), or a brief's
+ *  feedback. Returns what happened, for logs and
  *  tests. */
 export async function handleCallback(
   ctx: BotContext,
@@ -120,6 +98,7 @@ export async function handleCallback(
 ): Promise<'ignored' | 'unknown' | 'recorded' | 'refused' | 'asked'> {
   if (query.from.id !== ctx.ownerId || query.message?.chat.type !== 'private') return 'ignored';
   if (parseCardData(query.data ?? '') !== null) return handleCardPress(ctx, query);
+  if (parsePauseData(query.data ?? '') !== null) return handlePausePress(ctx, query);
   return handleFeedback(ctx, { ...query, message: query.message });
 }
 
@@ -196,12 +175,7 @@ export async function renderNotification(db: Db, n: Notification): Promise<Rende
     return { chunks: chunkHtml(html), ...(keyboard === null ? {} : { keyboard }) };
   }
   if (n.kind === 'brief' && typeof payload['briefId'] === 'string') {
-    const brief = await getBrief(db, payload['briefId']);
-    return {
-      chunks: chunkHtml(markdownLiteToHtml(brief.markdown)),
-      keyboard: feedbackKeyboard(brief.id, { useful: brief.feedbackUseful, newInfo: brief.feedbackNewInfo }),
-      briefId: brief.id,
-    };
+    return briefMessage(await getBrief(db, payload['briefId']));
   }
   const product = n.productId === null ? null : await getStoredSettings(db, n.productId);
   const where = product === null ? '' : ` (${product.slug})`;
@@ -240,10 +214,6 @@ function alertLines(payload: Record<string, unknown>): string[] {
   }
   return [...lines, ...genericLines(rest)];
 }
-
-/** Telegram refused the message itself (bad markup, too long): retrying the same text won't help. */
-const isBadRequest = (error: unknown): boolean =>
-  typeof error === 'object' && error !== null && 'error_code' in error && error.error_code === 400;
 
 export interface OutboxPass {
   sent: number;
@@ -290,11 +260,7 @@ export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {})
             { err: error, notificationId: n.id },
             'Telegram refused the message; sending it as plain text',
           );
-          const plain = chunk
-            .replaceAll(/<\/?b>/g, '')
-            .replaceAll('&lt;', '<')
-            .replaceAll('&gt;', '>')
-            .replaceAll('&amp;', '&');
+          const plain = htmlToPlain(chunk);
           const { parse_mode: _html, ...rest } = options;
           await ctx.api.sendMessage(ctx.ownerId, plain, rest).catch((again: unknown) => {
             if (!isBadRequest(again)) throw again;

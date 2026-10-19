@@ -2,14 +2,14 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-14 · cloud session · **M09a squash-merged into `main` through PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)** on Marcus's instruction, after every check passed (D-057). M08 (PR [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14)) and M09a were both built ahead of the Phase 0 gate (D-082, D-084). Marcus's Phase 0 to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (his ticks are in its `progress` collection: read them with `ArtifactData` `list`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
+**Last updated:** 2026-10-19 · cloud session · **M09b built** (Telegram operator commands, ahead of the Phase 0 gate, D-086), code-reviewed; PR [#17](https://github.com/marcustanforwork/agenticAdsManager/pull/17) ready for Marcus's review. M08 and M09a are merged, also built ahead of the gate (D-082, D-084). Marcus's Phase 0 to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (no ticks yet on 2026-10-19; read them with `ArtifactData` `list`, collection `progress`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
 
 ## Where we are
 - **Phase:** 0.
-- **Active milestones:** **M09a** (`docs/milestones/M09a-telegram-bot-cards.md`, awaiting live acceptance after M07's deploy and the gate): Telegram proposal cards (Approve / Reject with a reason / Edit with a tiny grammar), conversation state in the DB, `edit_approve` and `ads proposals edit`, alerts (trust check failed, drift on a pending proposal's entity, a scheduled cycle failed). **M07** (Phase 0 exit) and **M08** (draft stage, proposals, replay v0), both **awaiting live acceptance**. M08 (`docs/milestones/M08-draft-proposals-replay.md`): weekly and manual cycles draft proposals from confirmed findings, with exact action, planned undo, fingerprint and expiry; the AI writes only the words (number-checked); `ads proposals`, `ads phase`, `ads eval replay`; the agree rate in the brief.
-- **D-082 (Marcus, 2026-10-13):** M08 is built before the Phase 0 gate. The stored phase (`system_flags.phase`) is 0, so nothing is drafted on production; Marcus sets phase 1 (`ads phase set 1 --note …`) when he records the gate as passed. **D-084 (Marcus, 2026-10-14):** M09a is built before the gate too; **M09b onwards still wait for it.**
+- **Active milestones:** **M09b** (`docs/milestones/M09b-telegram-operator-commands.md`, built; PR #17 awaiting review, then live acceptance after M07's deploy and the gate): `/pause` and `/pause_all` confirm cards (the confirm tap is the approval), `/undo`, `/changes`, `/halt`, `/resume_agent`, `/status`, `/proposals`, `/brief`, `/drift`, `/ceiling`, `/digest`, `/budget` (Phase 3). **M09a** (`docs/milestones/M09a-telegram-bot-cards.md`, awaiting live acceptance after M07's deploy and the gate): Telegram proposal cards (Approve / Reject with a reason / Edit with a tiny grammar), conversation state in the DB, `edit_approve` and `ads proposals edit`, alerts (trust check failed, drift on a pending proposal's entity, a scheduled cycle failed). **M07** (Phase 0 exit) and **M08** (draft stage, proposals, replay v0), both **awaiting live acceptance**. M08 (`docs/milestones/M08-draft-proposals-replay.md`): weekly and manual cycles draft proposals from confirmed findings, with exact action, planned undo, fingerprint and expiry; the AI writes only the words (number-checked); `ads proposals`, `ads phase`, `ads eval replay`; the agree rate in the brief.
+- **D-082 (Marcus, 2026-10-13):** M08 is built before the Phase 0 gate. The stored phase (`system_flags.phase`) is 0, so nothing is drafted on production; Marcus sets phase 1 (`ads phase set 1 --note …`) when he records the gate as passed. **D-084 (Marcus, 2026-10-14):** M09a is built before the gate too. **D-086 (Marcus, 2026-10-19):** so is M09b; **M10a onwards still wait for the gate.**
 - **M00–M07** are merged; all but M01b await live acceptance (below).
-- **Status:** BLUEPRINT v3.22, PROPOSAL v3.9. **D-085:** M09a build choices (cards queued with each proposal; callback data; `telegram_conversations`; `edit_approve` keeps the precondition; the edit grammar; alert routing). **D-083:** M08 build choices (pauses and negatives proposed from phase 1; drafting rules; planned undo and fingerprint at draft time; eval cases and `analyst_runs`; the agree rate). **D-081:** M07 build choices (a daily cycle no longer analyses; reports cover the days before the cycle's date; the brief's AI writes prose only, with every number checked, sign included; the outbox and worker service). **D-080:** M06b build choices (analyst targets as `FindingTargetRef`; the input, look-ups and validation; the analyst may add only `zero_outcome_spend`, `wasteful_search_term`, `no_delivery`, and only when their rule holds; replay case v0). **D-079:** M06a build choices. **D-078:** AI SDK 7 + Langfuse. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). D-069 to D-077: earlier build choices (see DECISIONS).
+- **Status:** BLUEPRINT v3.24, PROPOSAL v3.9. **D-087:** M09b build choices (one command table; operator pauses as proposals with a 30-minute expiry; Confirm / Cancel on the card verbs; `/pause_all` = active campaigns, one card; entity resolution never guesses; Phase 1 undo shows the undo; quick settings via `settings_patch`). **D-085:** M09a build choices (cards queued with each proposal; callback data; `telegram_conversations`; `edit_approve` keeps the precondition; the edit grammar; alert routing). **D-083:** M08 build choices (pauses and negatives proposed from phase 1; drafting rules; planned undo and fingerprint at draft time; eval cases and `analyst_runs`; the agree rate). **D-081:** M07 build choices (a daily cycle no longer analyses; reports cover the days before the cycle's date; the brief's AI writes prose only, with every number checked, sign included; the outbox and worker service). **D-080:** M06b build choices (analyst targets as `FindingTargetRef`; the input, look-ups and validation; the analyst may add only `zero_outcome_spend`, `wasteful_search_term`, `no_delivery`, and only when their rule holds; replay case v0). **D-079:** M06a build choices. **D-078:** AI SDK 7 + Langfuse. **Open: Q13** (Google service accounts vs logins; can wait for the setup, D-074). D-069 to D-077: earlier build choices (see DECISIONS).
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
@@ -18,19 +18,27 @@
    - do the setup tasks: T1's optional part, then T2–T9 (T7 Telegram and T8 healthchecks are M07's), then the rest as the milestones need them;
    - run the live steps below in milestone order, M00 → M07, then M08's step 1 (migration `0005`; nothing visible changes); M07's live steps deploy to production on the SER9.
 2. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus records it and sets phase 1 (`ads phase set 1`, D-082); M08's live steps and the Phase 1 measuring start then.
-3. **Claude (next session):** read the checklist's ticks (`ArtifactData` `list`, collection `progress`), record live-step results in the milestone files and fix what they find. No new milestone until the gate passes (M09b needs it), unless Marcus says otherwise.
+3. **Marcus:** review PR #17 (M09b) and say when to merge (only after CI passes, D-057). **Claude (next session):** after the merge, nothing new to build until the Phase 0 gate: M10a onwards wait for it (D-086). Check the checklist's ticks (`ArtifactData` `list`, collection `progress`) and record any live-step results.
 4. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- Nothing. PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (M09a) was squash-merged into `main` on 2026-10-14.
+- **M09b** on `claude/elegant-goodall-ursfd8`, PR #17 (ready for review): built, tests green (956 passed), code review fixed. Waiting for Marcus to merge.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
-- Now (the end of Phase 0): Q13; setup tasks T1 (optional part), T2–T14 (T6b is already live); then the live steps of M00 through M07, and M08's step 1.
+- Now (the end of Phase 0): Q13; setup tasks T1 (optional part), T2–T14 (T6b is already live); then the live steps of M00 through M07, M08's and M09a's step 1, and M09b's steps 1–3 and 5; and reviewing PR #17.
 
 ## Live steps for Marcus
-_All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1. M08's and M09a's other steps wait for the Phase 0 gate._
+_All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1, then M09b's steps 1–3 and 5. The rest wait for the Phase 0 gate._
+
+**M09b** (after M07's deploy; no migration; steps 4 and 6 need phase 1). Full text in the M09b milestone file:
+1. Deploy (`git pull`, `docker compose up -d --build`) → typing `/` in the bot chat shows the menu. Report "menu seen".
+2. `/status` → phase, `snappool: ▶️ active`, `property-sg: 💤 dormant`. Paste it.
+3. `/ceiling snappool daily <lower amount>` → `S$… → S$… (settings vN)`. Report "ceiling lowered".
+4. A test ad set: `/pause <part of its name>` → ✅ Confirm → pause it by hand in Meta; `/changes snappool`, `/undo <id>` → turn it back on by hand. Report "pause and un-pause by hand OK".
+5. `/halt snappool`, then `/resume_agent` the same day (halted = no cycle, no digest). Report "halt and resume OK".
+6. A week at phase 1: decide the cards; try `/proposals`, `/brief`, `/drift`. Report days, approvals and rejections, "digests received".
 
 **M09a** (step 1 with M07's deploy; the rest after the gate, with M08's). Full text in the M09a milestone file:
 1. Migrate prod (`0006`: `telegram_conversations`) → `migrations and roles.sql applied`.
@@ -140,7 +148,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | **awaiting live acceptance** | [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (merged) | Live: deploy on the SER9, 7 days unattended (needs T7, T8) |
 | M08 | Draft stage, proposals, replay v0 | 1 | **awaiting live acceptance** | [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14) (merged) | Built before the gate (D-082); live: migrate now, the rest after the gate |
 | M09a | Telegram bot core and proposal cards | 1 | **awaiting live acceptance** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (merged) | Built before the gate (D-084); live: migrate now, cards after the gate |
-| M09b | Telegram operator commands | 1 | not started | — | |
+| M09b | Telegram operator commands | 1 | **awaiting live acceptance** | [#17](https://github.com/marcustanforwork/agenticAdsManager/pull/17) (open) | Built before the gate (D-086); live: a week run from Telegram |
 | M10a | Dashboard: app, sign-in, settings | 1 | not started | — | T10 (Vercel Pro, Cloudflare) |
 | M10b | Dashboard: review views | 1 | not started | — | |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | not started | — | Phase 1 gate |

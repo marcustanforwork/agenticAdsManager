@@ -4,6 +4,7 @@ export * from './requests/processor.ts';
 export * from './requests/settingsPatch.ts';
 export * from './requests/facts.ts';
 export * from './requests/edit.ts';
+export { OPERATOR_CONFIRM_MS, PAUSABLE_TYPES, type OperatorProposalRef } from './requests/operator.ts';
 export {
   HANDLERS,
   NOT_AVAILABLE_UNTIL,

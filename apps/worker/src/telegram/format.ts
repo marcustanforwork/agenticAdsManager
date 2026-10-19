@@ -9,6 +9,21 @@ export function escapeHtml(text: string): string {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
+/** Shortens text for one line (before escaping). */
+export const clip = (text: string, max = 80): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+/** Telegram refused the message itself (bad markup, too long): retrying the same text won't help. */
+export const isBadRequest = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && 'error_code' in error && error.error_code === 400;
+
+/** Our HTML (only `<b>` and `<code>` tags, and escaped text) as plain text, for a message Telegram refused. */
+export const htmlToPlain = (html: string): string =>
+  html
+    .replaceAll(/<\/?(?:b|code)>/g, '')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&');
+
 /** One markdown-lite line as Telegram HTML. `**` pairs become bold; an unpaired `**` stays as text. */
 function lineToHtml(line: string): string {
   const heading = /^#{1,3} (.*)$/.exec(line);
