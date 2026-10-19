@@ -181,7 +181,11 @@ export async function briefCommand(ctx: BotContext, args: string): Promise<Comma
 
 // ── /drift ────────────────────────────────────────────────────────────────────────────────────
 
-const valueText = (v: unknown): string => clip(typeof v === 'string' ? v : (JSON.stringify(v) ?? 'null'), 40);
+/** A drift value: stored as `{ value }` (`recordDrift`), shown short. */
+const valueText = (stored: unknown): string => {
+  const v = stored !== null && typeof stored === 'object' && 'value' in stored ? stored.value : stored;
+  return clip(typeof v === 'string' ? v : (JSON.stringify(v) ?? 'null'), 40);
+};
 
 /** Changes made outside this system that nobody has looked at yet (BLUEPRINT §5.7). */
 export async function driftCommand(ctx: BotContext, args: string): Promise<CommandOutcome> {
