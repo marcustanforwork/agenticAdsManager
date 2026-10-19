@@ -7,7 +7,7 @@ import {
   getProduct,
   getRequestStatus,
   recordWebRequest,
-  type Db,
+  type DbOrTx,
   type RequestStatus,
 } from '@ads/db';
 import { createTestDatabase, TEST_SETTINGS, type TestDatabase } from '@ads/db/testing';
@@ -58,10 +58,10 @@ const makeProduct = (packId = 'test-pack', status: 'active' | 'dormant' = 'activ
   });
 
 /** Runs `fn` as the dashboard's role. */
-const asDashboard = <T>(fn: (db: Db) => Promise<T>): Promise<T> =>
+const asDashboard = <T>(fn: (db: DbOrTx) => Promise<T>): Promise<T> =>
   t.db.transaction(async (tx) => {
     await tx.execute(sql`set local role agent_dashboard`);
-    return fn(tx as unknown as Db);
+    return fn(tx);
   });
 
 /** Records as the dashboard, lets the worker process it, and reads the verdict as the dashboard. */
