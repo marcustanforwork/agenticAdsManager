@@ -675,6 +675,9 @@ export const operatorRequests = pgTable(
       .default(sql`current_user`),
     status: text('status', { enum: REQUEST_STATUSES }).notNull().default('queued'),
     result: jsonb('result'), // what happened, or why it was refused (shown to Marcus)
+    // Faults so far (F2): processing that threw something other than a refusal. At MAX_REQUEST_ATTEMPTS the request
+    // is refused with its last error. The dashboard's role can't set it (roles.sql).
+    attempts: integer('attempts').notNull().default(0),
     createdAt: tstz('created_at').notNull().defaultNow(),
     processedAt: tstz('processed_at'),
   },

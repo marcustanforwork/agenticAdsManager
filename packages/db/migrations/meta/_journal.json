@@ -57,6 +57,13 @@
       "when": 1792388174481,
       "tag": "0007_operator_requests_inserted_by",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792417294765,
+      "tag": "0008_operator_requests_attempts",
+      "breakpoints": true
     }
   ]
 }

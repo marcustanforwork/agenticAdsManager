@@ -452,6 +452,83 @@ describe('processing', () => {
     }
     await processQueuedRequests(t.db, ctx); // clean up for later tests
   });
+
+  const alertsFor = async (requestId: string) =>
+    (
+      await t.pool.query<{ payload: Record<string, unknown> }>(
+        `select payload from notifications where kind = 'alert' and payload ->> 'requestId' = $1`,
+        [requestId],
+      )
+    ).rows.map((r) => r.payload);
+
+  it('a request that faults 5 times is refused with its last error and alerts Marcus, and is never tried again (F2)', async () => {
+    const p = await makeProduct();
+    const original = HANDLERS.resume_agent;
+    if (original === undefined) throw new Error('resume_agent has a handler');
+    let calls = 0;
+    HANDLERS.resume_agent = () => Promise.reject(new Error(`database hiccup ${++calls}`));
+    try {
+      const id = await queueInsert('resume_agent', { kind: 'resume_agent', productId: p.id });
+      for (let i = 1; i <= 4; i++) {
+        await processQueuedRequests(t.db, ctx);
+        const row = await getOperatorRequest(t.db, id);
+        expect([row.status, row.attempts]).toEqual(['queued', i]);
+      }
+      expect(await alertsFor(id)).toEqual([]);
+      await processQueuedRequests(t.db, ctx);
+      const row = await getOperatorRequest(t.db, id);
+      expect(row.status).toBe('refused');
+      expect(row.attempts).toBe(5);
+      expect(row.result).toEqual({
+        reason: 'failed 5 times on our side; the last error: database hiccup 5',
+        attempts: 5,
+      });
+      expect(await alertsFor(id)).toEqual([
+        {
+          alert: 'request_failed',
+          key: `request_failed:${id}`,
+          requestId: id,
+          kind: 'resume_agent',
+          attempts: 5,
+          error: 'database hiccup 5',
+        },
+      ]);
+      await processQueuedRequests(t.db, ctx);
+      expect(await processRequest(t.db, id, ctx)).toBeNull();
+      expect(calls).toBe(5);
+      expect((await getOperatorRequest(t.db, id)).attempts).toBe(5);
+    } finally {
+      HANDLERS.resume_agent = original;
+    }
+  });
+
+  it('processRequest counts its faults too: it throws until the last, which returns the refusal (F2)', async () => {
+    const p = await makeProduct();
+    const original = HANDLERS.halt;
+    if (original === undefined) throw new Error('halt has a handler');
+    HANDLERS.halt = () => Promise.reject(new Error('still broken'));
+    try {
+      const id = await queueInsert('halt', { kind: 'halt', productId: p.id });
+      for (let i = 1; i <= 4; i++) await expect(processRequest(t.db, id, ctx)).rejects.toThrow('still broken');
+      expect(await processRequest(t.db, id, ctx)).toEqual({
+        status: 'refused',
+        result: { reason: 'failed 5 times on our side; the last error: still broken', attempts: 5 },
+      });
+      expect(await alertsFor(id)).toHaveLength(1);
+      expect((await getProduct(t.db, p.id)).status).toBe('active');
+    } finally {
+      HANDLERS.halt = original;
+    }
+  });
+
+  it('a refusal is final at once and costs no attempt (F2)', async () => {
+    const id = await queueInsert('halt', { kind: 'halt', productId: 'not-a-uuid' });
+    await processQueuedRequests(t.db, ctx);
+    const row = await getOperatorRequest(t.db, id);
+    expect([row.status, row.attempts]).toEqual(['refused', 0]);
+    expect(await processRequest(t.db, id, ctx)).toBeNull();
+    expect(await alertsFor(id)).toEqual([]);
+  });
 });
 
 describe('draining with other workers', () => {

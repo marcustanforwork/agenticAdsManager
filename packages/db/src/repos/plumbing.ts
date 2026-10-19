@@ -142,6 +142,17 @@ export async function completeOperatorRequest(
   }
 }
 
+/** Counts one fault against a request that is still queued (F2) and returns the row with its new count; null when
+ *  it is no longer queued (another worker finished it meanwhile). */
+export async function addRequestAttempt(db: DbOrTx, id: string): Promise<OperatorRequestRow | null> {
+  const [row] = await db
+    .update(operatorRequests)
+    .set({ attempts: sql`${operatorRequests.attempts} + 1` })
+    .where(and(eq(operatorRequests.id, id), eq(operatorRequests.status, 'queued')))
+    .returning();
+  return row ?? null;
+}
+
 // ── Notifications: an outbox; anyone writes, the worker's bot sends ────────────────────────────
 
 export type Notification = typeof notifications.$inferSelect;

@@ -573,6 +573,18 @@ describe('alerts in Telegram', () => {
         failed: [{ check: 'data_fresh', account: 'meta:act_1' }],
       },
     });
+    await enqueueNotification(t.db, {
+      productId: w.product.id,
+      kind: 'alert',
+      payload: {
+        alert: 'request_failed',
+        key: 'request_failed:r1',
+        requestId: 'r1',
+        kind: 'halt',
+        attempts: 5,
+        error: 'a <b>bad</b> day',
+      },
+    });
     const { api, sent } = fakeApi();
     await sendOutbox(botFor(api));
     const texts = sent.map((s) => s.text);
@@ -589,6 +601,16 @@ describe('alerts in Telegram', () => {
         `<b>⚠️ Alert (${w.product.slug}): A trust check failed: this cycle stopped before the analysis</b>`,
         '• data_fresh (meta:act_1)',
         'cycleId: c2',
+      ].join('\n'),
+    );
+    expect(texts).toContainEqual(
+      [
+        `<b>⚠️ Alert (${w.product.slug}): A request kept failing on our side and was stopped</b>`,
+        'Nothing was changed. Ask again once the cause is fixed; the worker log has the details.',
+        'kind: halt',
+        'error: a &lt;b&gt;bad&lt;/b&gt; day',
+        'attempts: 5',
+        'requestId: r1', // jsonb keeps keys shortest first
       ].join('\n'),
     );
   });

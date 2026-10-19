@@ -136,13 +136,14 @@ describe('agent_dashboard', () => {
     }
   });
 
-  it('inserts only the request columns: never who inserted it, its status or its result (D-068)', async () => {
+  it('inserts only the request columns: never who inserted it, its status, result or attempts (D-068, F2)', async () => {
     const spoof = (column: string, value: string) =>
       `insert into operator_requests (kind, payload, actor, channel, ${column}) values ('halt', '{}', 'm', 'web', ${value})`;
     expect(await as('agent_dashboard', spoof('inserted_by', `'agent_worker'`))).toBe('denied');
     expect(await as('agent_dashboard', spoof('status', `'done'`))).toBe('denied');
     expect(await as('agent_dashboard', spoof('result', `'{}'`))).toBe('denied');
     expect(await as('agent_dashboard', spoof('processed_at', 'now()'))).toBe('denied');
+    expect(await as('agent_dashboard', spoof('attempts', '5'))).toBe('denied'); // F2
   });
 
   it('records the inserting role in inserted_by', async () => {

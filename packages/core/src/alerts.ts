@@ -24,6 +24,7 @@ export const ALERT_TITLES = {
   trust_check_failed: 'A trust check failed: this cycle stopped before the analysis',
   drift_on_open_proposal: 'Someone changed an ad entity that a pending proposal is about',
   cycle_failed: 'A scheduled cycle failed',
+  request_failed: 'A request kept failing on our side and was stopped',
 } as const;
 export type AlertKind = keyof typeof ALERT_TITLES;
 
@@ -62,19 +63,44 @@ export function routeCycleEvent(e: CycleEvent): Alert | null {
   }
 }
 
+/** Queues an alert once per `key`, sent or not. Returns whether it was queued now. */
+async function raiseAlertOnce(
+  db: DbOrTx,
+  input: { productId: string | null; key: string; alert: Alert; extra: Record<string, unknown> },
+): Promise<boolean> {
+  if ((await findAlertNotification(db, input.key)) !== null) return false;
+  await enqueueNotification(db, {
+    productId: input.productId,
+    kind: ALERT_NOTIFICATION,
+    payload: { alert: input.alert.alert, key: input.key, ...input.extra, ...input.alert.payload },
+  });
+  return true;
+}
+
 /** Queues the alert for the cycle, once per (alert, cycle). Returns whether it was queued now. */
 export async function raiseCycleAlert(
   db: DbOrTx,
   input: { productId: string; cycleId: string; alert: Alert },
 ): Promise<boolean> {
-  const key = `${input.alert.alert}:${input.cycleId}`;
-  if ((await findAlertNotification(db, key)) !== null) return false;
-  await enqueueNotification(db, {
+  return raiseAlertOnce(db, {
     productId: input.productId,
-    kind: ALERT_NOTIFICATION,
-    payload: { alert: input.alert.alert, key, cycleId: input.cycleId, ...input.alert.payload },
+    key: `${input.alert.alert}:${input.cycleId}`,
+    alert: input.alert,
+    extra: { cycleId: input.cycleId },
   });
-  return true;
+}
+
+/** Tells Marcus that an operator request was stopped after faulting again and again (F2), once per request. */
+export async function raiseRequestFailedAlert(
+  db: DbOrTx,
+  input: { productId: string | null; requestId: string; kind: string; attempts: number; error: string },
+): Promise<boolean> {
+  return raiseAlertOnce(db, {
+    productId: input.productId,
+    key: `request_failed:${input.requestId}`,
+    alert: { alert: 'request_failed', payload: { kind: input.kind, attempts: input.attempts, error: input.error } },
+    extra: { requestId: input.requestId },
+  });
 }
 
 /** Routes the event and raises its alert, if any. */
