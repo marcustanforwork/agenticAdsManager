@@ -40,5 +40,7 @@ grant insert, update on api_usage to agent_gateway;                    -- counts
 -- ── agent_dashboard: read, minus credentials and hashed contact details; its only write is a request.
 grant select on all tables in schema public to agent_dashboard;
 revoke select on credentials, credential_access, outcomes from agent_dashboard;
-grant insert on operator_requests to agent_dashboard;
+-- Only the request's own columns (M10a, D-068): never `inserted_by` (the database records who inserted the row),
+-- `status`, `result` or `processed_at` (the worker's verdict).
+grant insert (product_id, kind, payload, actor, channel) on operator_requests to agent_dashboard;
 revoke select on telegram_conversations from agent_dashboard;   -- the bot's own state (M09a)

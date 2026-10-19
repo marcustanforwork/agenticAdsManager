@@ -106,6 +106,64 @@ describe('agent_dashboard', () => {
     ).toBe('denied');
   });
 
+  it('cannot update, delete or truncate any table, nor insert anywhere but operator_requests (M10a)', async () => {
+    const { rows } = await t.pool.query<{
+      table_name: string;
+      ins: boolean;
+      upd: boolean;
+      del: boolean;
+      trunc: boolean;
+    }>(
+      `select table_name,
+              has_any_column_privilege('agent_dashboard', quote_ident(table_name), 'INSERT') as ins,
+              has_any_column_privilege('agent_dashboard', quote_ident(table_name), 'UPDATE') as upd,
+              has_table_privilege('agent_dashboard', quote_ident(table_name), 'DELETE') as del,
+              has_table_privilege('agent_dashboard', quote_ident(table_name), 'TRUNCATE') as trunc
+         from information_schema.tables where table_schema = 'public'`,
+    );
+    expect(rows.length).toBeGreaterThan(20);
+    for (const r of rows) {
+      expect({ table: r.table_name, upd: r.upd, del: r.del, trunc: r.trunc }).toEqual({
+        table: r.table_name,
+        upd: false,
+        del: false,
+        trunc: false,
+      });
+      expect({ table: r.table_name, ins: r.ins }).toEqual({
+        table: r.table_name,
+        ins: r.table_name === 'operator_requests',
+      });
+    }
+  });
+
+  it('inserts only the request columns: never who inserted it, its status or its result (D-068)', async () => {
+    const spoof = (column: string, value: string) =>
+      `insert into operator_requests (kind, payload, actor, channel, ${column}) values ('halt', '{}', 'm', 'web', ${value})`;
+    expect(await as('agent_dashboard', spoof('inserted_by', `'agent_worker'`))).toBe('denied');
+    expect(await as('agent_dashboard', spoof('status', `'done'`))).toBe('denied');
+    expect(await as('agent_dashboard', spoof('result', `'{}'`))).toBe('denied');
+    expect(await as('agent_dashboard', spoof('processed_at', 'now()'))).toBe('denied');
+  });
+
+  it('records the inserting role in inserted_by', async () => {
+    const client = await t.pool.connect();
+    try {
+      await client.query('begin');
+      await client.query('set local role agent_dashboard');
+      await client.query(
+        `insert into operator_requests (kind, payload, actor, channel) values ('halt', '{}', 'm', 'web')`,
+      );
+      await client.query('reset role');
+      const { rows } = await client.query<{ inserted_by: string }>(
+        `select inserted_by from operator_requests order by created_at desc limit 1`,
+      );
+      expect(rows[0]?.inserted_by).toBe('agent_dashboard');
+    } finally {
+      await client.query('rollback');
+      client.release();
+    }
+  });
+
   it('the view has no hashed_contact column', async () => {
     const { rows } = await t.pool.query(
       `select column_name from information_schema.columns where table_name = 'dashboard_outcomes'`,
