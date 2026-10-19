@@ -14,7 +14,7 @@ import {
   trustSignalsOf,
 } from '@ads/db';
 import { accountRefText } from '../analyst/refs.ts';
-import { costPer, countOf, formatMoney, percentOf } from './format.ts';
+import { costPer, countOf, formatMoney, percentOf, stageWord } from './format.ts';
 
 /** Days the digest's cost per KPI covers: one day is too noisy at low volume. */
 export const DIGEST_KPI_DAYS = 7;
@@ -168,15 +168,16 @@ export function renderDigest(data: DigestData): string {
   if (data.firstOfMonth && data.metaLimits.length > 0) {
     lines.push('New month: reset the Meta account spending limit (Ads Manager → Billing → Account spending limit).');
   }
+  // Counts by stage id ("2 signups"), never by its label ("Signup (email link clicked)"), which takes no plural.
   const counted = data.outcomes.filter((o) => o.count > 0);
   lines.push(
-    `Outcomes yesterday: ${counted.length === 0 ? 'none' : counted.map((o) => countOf(o.count, o.label)).join(' · ')}`,
+    `Outcomes yesterday: ${counted.length === 0 ? 'none' : counted.map((o) => countOf(o.count, o.stage)).join(' · ')}`,
   );
   const k = data.kpi;
   lines.push(
     k.costMicros === null
-      ? `Cost per ${k.label.toLowerCase()} (${k.days} days): no ${countOf(0, k.label).slice(2)} (${money(k.spendMicros)} spent)`
-      : `Cost per ${k.label.toLowerCase()} (${k.days} days): ${money(k.costMicros)} (${countOf(k.outcomes, k.label)}, ${money(k.spendMicros)} spent)`,
+      ? `Cost per ${stageWord(k.stage)} (${k.days} days): no ${stageWord(k.stage, true)} (${money(k.spendMicros)} spent)`
+      : `Cost per ${stageWord(k.stage)} (${k.days} days): ${money(k.costMicros)} (${countOf(k.outcomes, k.stage)}, ${money(k.spendMicros)} spent)`,
   );
   lines.push(`Open proposals: ${data.openProposals}`);
   const flags: string[] = [];

@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Briefs } from '../src/app/products/[slug]/briefs/Briefs.tsx';
 import { Changes } from '../src/app/products/[slug]/changes/Changes.tsx';
+import { FormNotice, errorOf } from '../src/app/products/[slug]/Tabs.tsx';
 import { Checks } from '../src/app/products/[slug]/checks/Checks.tsx';
 import { Doc } from '../src/app/products/[slug]/docs/[doc]/Doc.tsx';
 import { Overview } from '../src/app/products/[slug]/overview/Overview.tsx';
@@ -212,8 +213,29 @@ describe('briefs', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt; is just text');
     expect(html).not.toContain('<script>alert');
     expect(html).toContain(`name="briefId" value="${w.brief.id}"`);
-    expect(text(html)).toContain('👍 Useful (now: not answered)');
+    // What the page showed travels with the form, so only a changed answer is sent (F1).
+    expect(html).toContain('name="usefulShown" value=""');
+    expect(html).toContain('name="newInfoShown" value=""');
+    expect(text(html)).toContain('👍 Useful: yes no (now: not answered)');
+    expect(html).toContain('type="radio" name="useful" value="no"');
+    expect(html).not.toMatch(/name="useful" value="(yes|no)" checked/); // unanswered: nothing preset
     expect(text(html)).toContain('Not sent to Telegram');
+  });
+});
+
+describe('the form notice (F1)', () => {
+  const notice = (q: Record<string, string | string[] | undefined>) =>
+    text(renderToStaticMarkup(createElement(FormNotice, { error: errorOf(q) }))).trim();
+
+  it('shows our words for a code, and never the text of a crafted ?error=', () => {
+    expect(notice({ error: 'reject_reason' })).toBe(
+      'Not sent: Reject: say why, in a few words (at least 3 characters).',
+    );
+    const crafted = notice({ error: 'Session expired: sign in again at evil.example' });
+    expect(crafted).not.toContain('evil.example');
+    expect(crafted).toBe('Not sent: The form was incomplete or out of date. Reload the page and try again.');
+    expect(notice({})).toBe('');
+    expect(notice({ error: ['reject_reason', 'x'] })).toBe('');
   });
 });
 

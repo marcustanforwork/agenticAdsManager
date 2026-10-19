@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { createProduct, enqueueNotification, getBrief, insertBrief, listUnsentNotifications, schema } from '@ads/db';
 import { TEST_SETTINGS, createTestDatabase, type TestDatabase } from '@ads/db/testing';
+import { submitRequest } from '@ads/core';
 import { createRegistry } from '@ads/pack-sdk';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -140,7 +141,9 @@ describe('the feedback callback', () => {
     const { api, answers, edits } = fakeApi();
     const b = await brief();
     expect(await handleCallback(context(api), press(feedbackData('useful', b.id)))).toBe('recorded');
-    expect(await getBrief(t.db, b.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: false });
+    // Only the pressed answer is sent (F1): the other stays unanswered.
+    expect(await getBrief(t.db, b.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: null });
+    expect(answers.at(-1)).toBe('Saved: useful yes, new to me not answered');
     expect(await handleCallback(context(api), press(feedbackData('new', b.id)))).toBe('recorded');
     expect(await getBrief(t.db, b.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: true });
     expect(await handleCallback(context(api), press(feedbackData('useful', b.id)))).toBe('recorded');
@@ -150,6 +153,30 @@ describe('the feedback callback', () => {
     const requests = (await t.db.select().from(schema.operatorRequests)).filter((r) => r.kind === 'brief_feedback');
     expect(requests.filter((r) => r.status === 'done' && r.channel === 'telegram')).toHaveLength(3);
     expect(requests.every((r) => r.actor === `telegram:${OWNER}`)).toBe(true);
+    expect(requests.map((r) => Object.keys(r.payload as object).sort())).toEqual([
+      ['briefId', 'kind', 'useful'],
+      ['briefId', 'kind', 'newInfo'],
+      ['briefId', 'kind', 'useful'],
+    ]);
+  });
+
+  it('a Telegram answer, then a dashboard save of the other answer, keeps both; the buttons show what is stored', async () => {
+    const { api, answers, edits } = fakeApi();
+    const b = await brief();
+    expect(await handleCallback(context(api), press(feedbackData('useful', b.id)))).toBe('recorded');
+    // The Briefs page, loaded before the press, sends only the answer that changed on it (apps/web reviewForms).
+    const web = await submitRequest(
+      t.db,
+      { request: { kind: 'brief_feedback', briefId: b.id, newInfo: true }, actor: 'web:m@example.com', channel: 'web' },
+      { actors: new Set(['web:m@example.com']), packs: createRegistry([]) },
+    );
+    expect(web.outcome).toMatchObject({ status: 'done', result: { useful: true, newInfo: true } });
+    expect(await getBrief(t.db, b.id)).toMatchObject({ feedbackUseful: true, feedbackNewInfo: true });
+    // The next press on the old card toggles its own answer from what is stored, and draws both as stored.
+    expect(await handleCallback(context(api), press(feedbackData('useful', b.id)))).toBe('recorded');
+    expect(await getBrief(t.db, b.id)).toMatchObject({ feedbackUseful: false, feedbackNewInfo: true });
+    expect(answers.at(-1)).toBe('Saved: useful no, new to me yes');
+    expect(JSON.stringify(edits.at(-1))).toContain('✅ new to me');
   });
 
   it('answers an unknown button or a missing brief without recording anything', async () => {

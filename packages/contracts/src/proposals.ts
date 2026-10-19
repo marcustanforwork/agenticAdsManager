@@ -101,7 +101,18 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
     baseVersion: z.number().int(),
     markdown: z.string(),
   }),
-  z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean(), newInfo: z.boolean() }),
+  // One answer at a time (F1): only the fields given are stored, so an answer given on Telegram is never overwritten
+  // by a dashboard page loaded before it. Both at once stays valid.
+  z
+    .object({
+      kind: z.literal('brief_feedback'),
+      briefId: z.uuid(),
+      useful: z.boolean().optional(),
+      newInfo: z.boolean().optional(),
+    })
+    .refine((r) => r.useful !== undefined || r.newInfo !== undefined, {
+      message: 'give at least one answer: useful or newInfo',
+    }),
   z.object({
     kind: z.literal('resolve_attention'),
     proposalId: z.uuid(),

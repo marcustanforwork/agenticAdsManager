@@ -9,6 +9,7 @@ import {
   type DbOrTx,
   type Finding,
   type Product,
+  countPendingCycleProposals,
   countOutcomesByScope,
   getCycle,
   listAccounts,
@@ -25,7 +26,7 @@ import { accountRefText, findingRefText, findingTargetOf, microsToDecimal } from
 import { FINDING_TYPES } from '../findings/registry.ts';
 import type { ComputedEvidence, FindingTypeId } from '@ads/contracts';
 import { type AgreeRate, MAX_EXPIRED_PCT, agreeRate } from '../draft/agreeRate.ts';
-import { costPer, countOf, formatMoney, percentOf, plainText } from './format.ts';
+import { costPer, countOf, formatMoney, percentOf, plainText, stageWord } from './format.ts';
 
 export const BRIEF_WEEK_DAYS = 7;
 /** Campaigns listed in the brief, most spend first. */
@@ -102,6 +103,9 @@ export interface BriefNumbers {
   trust: { result: string | null; flagged: { check: string; result: string; account: string | null }[] };
   drift: number;
   openProposals: number;
+  /** This cycle's proposals still waiting for Marcus's decision when the brief was written (F1). Absent in briefs
+   *  stored before F1. */
+  newProposals?: number;
   /** The agree rate over the last 3 weeks (M08, PROPOSAL §12); absent or null when there were no agent proposals,
    *  as before Phase 1. */
   agreeRate?: AgreeRate | null;
@@ -197,11 +201,12 @@ export async function buildBriefNumbers(
     sumMetricsByEntity(db, { productId: product.id, from, to, recentFrom: from }),
     getCycle(db, input.cycleId),
   ]);
-  const [findingRows, checks, drift, proposals] = await Promise.all([
+  const [findingRows, checks, drift, proposals, newProposals] = await Promise.all([
     listFindings(db, input.cycleId),
     listTrustChecks(db, input.cycleId),
     listUnacknowledgedDrift(db, product.id),
     listProposals(db, product.id, ['pending']),
+    countPendingCycleProposals(db, { productId: product.id, cycleId: input.cycleId }),
   ]);
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const entitiesById = new Map(entities.map((e) => [e.id, e]));
@@ -311,6 +316,7 @@ export async function buildBriefNumbers(
     },
     drift: drift.length,
     openProposals: proposals.length,
+    newProposals,
     agreeRate: agree.proposals === 0 ? null : agree,
     modelCostUsd: microsToDecimal(cycle.modelCostMicros),
   };
@@ -368,8 +374,8 @@ export function templateProse(numbers: BriefNumbers): BriefProse {
   const kpiOutcomes = numbers.outcomes.find((o) => o.stage === kpi.stage);
   const paragraphs = [
     `From ${numbers.week.from} to ${numbers.week.to} the product spent ${m(spend.week)} (the week before: ${m(spend.previousWeek)}), ` +
-      `with ${numbers.traffic.clicks} clicks and ${countOf(kpiOutcomes?.week ?? 0, kpi.label)}.` +
-      (kpi.cost === null ? '' : ` Cost per ${kpi.label.toLowerCase()}: ${m(kpi.cost)}.`),
+      `with ${numbers.traffic.clicks} clicks and ${countOf(kpiOutcomes?.week ?? 0, kpi.stage)}.` +
+      (kpi.cost === null ? '' : ` Cost per ${stageWord(kpi.stage)}: ${m(kpi.cost)}.`),
   ];
   if (spend.monthlyCeiling !== null) {
     paragraphs.push(
@@ -381,13 +387,14 @@ export function templateProse(numbers: BriefNumbers): BriefProse {
 }
 
 // ── Rendering (markdown-lite, see format.ts) ───────────────────────────────────────────────────
+// Counts name a stage by its id ("2 signups"), never by its label ("Signup (email link clicked)"): see `stageWord`.
 
-function findingLine(f: BriefFinding, currency: string, kpiLabel: string): string {
+function findingLine(f: BriefFinding, currency: string, kpiStage: string): string {
   const what = f.targetName === null ? f.target : `${plainText(f.targetName)} (${f.target})`;
   const e = f.evidence;
   const figures =
     `${formatMoney(decimalMicros(e.spend), currency)} spent, ${e.clicks} clicks, ` +
-    `${countOf(e.kpiOutcomes, kpiLabel)} over ${e.days} days (${e.from} to ${e.to})`;
+    `${countOf(e.kpiOutcomes, kpiStage)} over ${e.days} days (${e.from} to ${e.to})`;
   const marks = [f.verdict === null ? 'not reviewed' : f.verdict, f.confidence].filter((x) => x !== null).join(', ');
   return `${f.n}. **${f.label}** · ${what}: ${figures} [${marks}]${f.summary === null ? '' : `\n   ${plainText(f.summary, 300)}`}`;
 }
@@ -403,35 +410,36 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
     `**${plainText(prose.headline, 300)}**`,
     '',
     ...prose.paragraphs.flatMap((p) => [p.replace(/\s*\n\s*/g, ' ').trim(), '']),
+    ...proposalLines(numbers),
     '## Numbers',
     `- Spend: ${m(spend.week)} (week before ${m(spend.previousWeek)}${pct(spend.changePct)})`,
     spend.monthlyCeiling === null
       ? `- Month ${spend.month}: ${m(spend.monthToDate)} (no monthly ceiling set)`
       : `- Month ${spend.month}: ${m(spend.monthToDate)} of ${m(spend.monthlyCeiling)}${spend.monthPct === null ? '' : ` (${spend.monthPct}%)`}`,
     `- Impressions ${traffic.impressions} (before ${traffic.previousImpressions}), clicks ${traffic.clicks} (before ${traffic.previousClicks})`,
-    `- Outcomes: ${numbers.outcomes.map((o) => `${countOf(o.week, o.label)} (before ${o.previousWeek})`).join(' · ')}`,
+    `- Outcomes: ${numbers.outcomes.map((o) => `${countOf(o.week, o.stage)} (before ${o.previousWeek})`).join(' · ')}`,
     kpi.cost === null
-      ? `- Cost per ${kpi.label.toLowerCase()}: none this week`
-      : `- Cost per ${kpi.label.toLowerCase()}: ${m(kpi.cost)}${kpi.previousCost === null ? '' : ` (before ${m(kpi.previousCost)}${pct(kpi.changePct)})`}`,
+      ? `- Cost per ${stageWord(kpi.stage)}: none this week`
+      : `- Cost per ${stageWord(kpi.stage)}: ${m(kpi.cost)}${kpi.previousCost === null ? '' : ` (before ${m(kpi.previousCost)}${pct(kpi.changePct)})`}`,
   ];
   if (numbers.campaigns.length > 0) {
     lines.push('', '## Top campaigns');
     for (const cpn of numbers.campaigns) {
       lines.push(
-        `- ${plainText(cpn.name)} (${cpn.platform}): ${m(cpn.spend)}, ${cpn.clicks} clicks, ${countOf(cpn.kpiOutcomes, kpi.label)}` +
+        `- ${plainText(cpn.name)} (${cpn.platform}): ${m(cpn.spend)}, ${cpn.clicks} clicks, ${countOf(cpn.kpiOutcomes, kpi.stage)}` +
           (cpn.costPerKpi === null ? '' : `, ${m(cpn.costPerKpi)} each`),
       );
     }
   }
   lines.push('', '## Findings');
   if (findings.standing.length === 0 && findings.unreviewed.length === 0) lines.push('None this week.');
-  for (const f of findings.standing) lines.push(findingLine(f, c, kpi.label));
+  for (const f of findings.standing) lines.push(findingLine(f, c, kpi.stage));
   if (findings.unreviewed.length > 0) {
     lines.push(
       '',
       `The analyst didn't review these (its run failed or was skipped), so they are the rules' candidates only:`,
     );
-    for (const f of findings.unreviewed) lines.push(findingLine(f, c, kpi.label));
+    for (const f of findings.unreviewed) lines.push(findingLine(f, c, kpi.stage));
   }
   const listed = findings.standing.length + findings.unreviewed.length;
   const total = findings.standingCount + findings.unreviewedCount;
@@ -440,6 +448,20 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
   lines.push('', '## Checks', ...checkLines(numbers));
   lines.push('', `Model cost this cycle: US$${numbers.modelCostUsd}`);
   return lines.join('\n');
+}
+
+/** What the cycle proposed that still waits for Marcus, and where to decide it (F1). Printed by code, so it shows
+ *  whoever wrote the prose. */
+function proposalLines(numbers: BriefNumbers): string[] {
+  const n = numbers.newProposals ?? 0;
+  if (n === 0) return [];
+  const one = n === 1;
+  return [
+    '## To decide',
+    `- ${countOf(n, 'change')} proposed this cycle ${one ? 'is' : 'are'} waiting for your decision: decide ` +
+      `${one ? 'it on its card' : 'them on the cards'} in Telegram (or /proposals), or on the dashboard's Proposals page.`,
+    '',
+  ];
 }
 
 function checkLines(numbers: BriefNumbers): string[] {

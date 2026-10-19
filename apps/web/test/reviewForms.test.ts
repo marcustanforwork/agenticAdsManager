@@ -1,7 +1,15 @@
 // The review screens' forms → the operator request each records (M10b).
 import { describe, expect, it } from 'vitest';
 import { fieldsOf } from '../src/lib/forms.ts';
-import { FormError, briefFeedbackRequest, docRequest, proposalRequest, undoRequest } from '../src/lib/reviewForms.ts';
+import {
+  FORM_ERRORS,
+  FormError,
+  briefFeedbackRequest,
+  docRequest,
+  formErrorText,
+  proposalRequest,
+  undoRequest,
+} from '../src/lib/reviewForms.ts';
 
 const ID = '7f1c2a7e-0d5e-4b8e-9a51-1f8f3a0c9d42';
 const form = (entries: Record<string, string | string[]>) =>
@@ -60,14 +68,8 @@ describe('proposalRequest', () => {
 });
 
 describe('the other review forms', () => {
-  it('undo names the change; feedback sends both answers; a document is the next version with LF line breaks', () => {
+  it('undo names the change; a document is the next version with LF line breaks', () => {
     expect(undoRequest(form({ revisionId: 'rev_01ABC' }))).toEqual({ kind: 'undo', revisionId: 'rev_01ABC' });
-    expect(briefFeedbackRequest(form({ briefId: ID, useful: 'on' }))).toEqual({
-      kind: 'brief_feedback',
-      briefId: ID,
-      useful: true,
-      newInfo: false,
-    });
     expect(
       docRequest(form({ productId: ID, doc: 'playbook', baseVersion: '3', markdown: '# Play\r\n\r\n- one  \r\n' })),
     ).toEqual({
@@ -80,6 +82,72 @@ describe('the other review forms', () => {
     expect(() => docRequest(form({ productId: ID, doc: 'secrets', baseVersion: '0', markdown: 'x' }))).toThrow(
       FormError,
     );
-    expect(() => briefFeedbackRequest(form({ briefId: 'not-an-id' }))).toThrow(FormError);
+  });
+
+  it('brief feedback sends only the answers changed on the page (F1)', () => {
+    const shown = (useful: string, newInfo: string, chosen: Record<string, string> = {}) =>
+      form({ briefId: ID, usefulShown: useful, newInfoShown: newInfo, ...chosen });
+    // Both unanswered on the page; 💡 yes → only newInfo, so a 👍 given on Telegram meanwhile stays.
+    expect(briefFeedbackRequest(shown('', '', { newInfo: 'yes' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      newInfo: true,
+    });
+    // An explicit "no" on an unanswered brief is sent.
+    expect(briefFeedbackRequest(shown('', '', { useful: 'no' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      useful: false,
+    });
+    // 👍 shown yes and left; 💡 shown yes, changed to no → only newInfo: false.
+    expect(briefFeedbackRequest(shown('yes', 'yes', { useful: 'yes', newInfo: 'no' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      newInfo: false,
+    });
+    // Both changed → both sent.
+    expect(briefFeedbackRequest(shown('', 'yes', { useful: 'yes', newInfo: 'no' }))).toEqual({
+      kind: 'brief_feedback',
+      briefId: ID,
+      useful: true,
+      newInfo: false,
+    });
+    expect(() => briefFeedbackRequest(shown('yes', '', { useful: 'yes' }))).toThrow(FormError); // nothing changed
+    expect(() => briefFeedbackRequest(shown('', '', { useful: 'maybe' }))).toThrow(FormError);
+    expect(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'yes' }))).toThrow(FormError);
+  });
+});
+
+describe('error codes (F1)', () => {
+  const codeOf = (fn: () => unknown): string => {
+    try {
+      fn();
+    } catch (error) {
+      if (error instanceof FormError) return error.code;
+      throw error;
+    }
+    throw new Error('no FormError');
+  };
+
+  it('each refused form goes back with a code, never the contract’s text', () => {
+    expect(codeOf(() => proposalRequest(card('reject', { reason: 'no' })))).toBe('reject_reason');
+    expect(codeOf(() => proposalRequest(card('edit_budget', { budget: 'ten' })))).toBe('budget');
+    expect(codeOf(() => proposalRequest(card('edit_text', { text: '' })))).toBe('negative_text');
+    expect(codeOf(() => proposalRequest(card('edit_match', { matchType: 'BROAD' })))).toBe('match_type');
+    // A field's own code only when that field is wrong: a broken card with good words is `invalid`.
+    const broken = form({ proposalId: 'not-an-id', version: '2', verb: 'edit_text', text: 'free pool party' });
+    expect(codeOf(() => proposalRequest(broken))).toBe('invalid');
+    expect(codeOf(() => proposalRequest(card('delete')))).toBe('invalid');
+    expect(codeOf(() => briefFeedbackRequest(form({ briefId: 'not-an-id', useful: 'yes' })))).toBe('invalid');
+    expect(codeOf(() => docRequest(form({ productId: ID, doc: 'secrets', baseVersion: '0' })))).toBe('invalid');
+    expect(codeOf(() => briefFeedbackRequest(form({ briefId: ID })))).toBe('feedback_unchanged');
+    for (const code of Object.keys(FORM_ERRORS)) expect(code).toMatch(/^[a-z_]+$/); // safe in a URL as is
+  });
+
+  it('a code shows our words; anything else shows the generic line', () => {
+    expect(formErrorText('reject_reason')).toBe(FORM_ERRORS.reject_reason);
+    for (const crafted of ['Your account is locked: call +65 0000 0000', '', 'toString', '__proto__', 'constructor']) {
+      expect(formErrorText(crafted)).toBe(FORM_ERRORS.invalid);
+    }
   });
 });

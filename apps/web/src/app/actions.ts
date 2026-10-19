@@ -93,8 +93,9 @@ export async function saveFacts(prev: FactsState, form: FormData): Promise<Facts
 
 const SCREENS = ['proposals', 'changes', 'briefs', 'docs'] as const;
 
-/** Records the request a review form asks for. A form the contract rejects goes back to its screen with the reason
- *  (the screen is named by the form; the product's slug is checked to exist, so the redirect stays on this site). */
+/** Records the request a review form asks for. A form the contract rejects goes back to its screen with the reason's
+ *  code, never its text (F1; the screen is named by the form; the product's slug is checked to exist, so the
+ *  redirect stays on this site). */
 async function recordReview(
   form: FormData,
   build: (f: ReturnType<typeof fieldsOf>) => OperatorRequest,
@@ -109,7 +110,7 @@ async function recordReview(
     const product = await getProductView(str(f, 'slug'));
     const screen = SCREENS.find((s) => s === str(f, 'screen'));
     if (product === null || screen === undefined) throw error;
-    redirect(`/products/${product.slug}/${screen}?error=${encodeURIComponent(error.message)}`);
+    redirect(`/products/${product.slug}/${screen}?error=${error.code}`);
   }
   return record(request);
 }

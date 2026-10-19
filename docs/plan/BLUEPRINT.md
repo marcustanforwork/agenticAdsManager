@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.30 — 2026-10-19 (fix sessions F1–F3 before the first live run, D-092) |
+| **Version** | v3.31 — 2026-10-19 (F1 as built: counts by stage id, one-answer brief feedback, error codes, new proposals in the brief, D-093) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -540,7 +540,9 @@ export const OperatorRequest = z.discriminatedUnion('kind', [
              facts: z.record(z.string(), z.unknown()) }),
   z.object({ kind: z.literal('product_doc_put'), productId: z.uuid(),
              doc: z.enum(['strategy', 'playbook', 'learnings']), baseVersion: z.number().int(), markdown: z.string() }),
-  z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean(), newInfo: z.boolean() }),
+  // One answer at a time (F1): only the given fields are stored; at least one is required.
+  z.object({ kind: z.literal('brief_feedback'), briefId: z.uuid(), useful: z.boolean().optional(), newInfo: z.boolean().optional() })
+    .refine((r) => r.useful !== undefined || r.newInfo !== undefined),
   z.object({ kind: z.literal('set_phase'), phase: z.number().int().min(0).max(5), note: z.string().min(3) }),   // M08, D-082
   z.object({ kind: z.literal('set_product_status'), productId: z.uuid(), status: z.enum(['active', 'dormant']) }), // M10a, D-089
   z.object({ kind: z.literal('resolve_attention'), proposalId: z.uuid(),
@@ -1242,6 +1244,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
   - The diagnostic brief (`kind = 'diagnostic'`) is template only: the failed and warning checks, what each means and what to do, and the week's spend for reference.
   - Reports are "markdown-lite" (`# `/`## ` headings, `- ` bullets, `**bold**`): `briefs.markdown` stores it; the worker turns it into Telegram HTML, escaping everything else.
   - Each report is queued in the `notifications` outbox (`digest`: the text; `brief`: the brief id), in one transaction with the brief. A rerun of the stage queues nothing new.
+- **As built (F1, D-093):** counts name a stage by its id in the digest, the brief and the proposals' template words ("12 signups", "Cost per signup"; a stage named for a state reads "paid outcomes"), never by pluralising its label. The numbers table gains `newProposals` (the cycle's proposals still pending); when there are some, a "To decide" section under the prose says how many and where to decide them.
 - **Digest.** About 6 lines, with no AI:
   - yesterday's spend vs the daily ceiling;
   - month-to-date spend vs the monthly ceiling;
@@ -1260,7 +1263,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 - **Who may use it:** updates are accepted only from Marcus's user id, in a private chat. Everything else is ignored.
 - **Conversation state** (e.g. waiting for a reject reason) is stored in the DB and expires after 10 minutes.
 - **Polling:** exactly one poller, the leader.
-- **As built (M07):** the outbox sender runs on the leader, one pass at a time, every 15 s and after each scheduled job. A notification is marked sent when all its messages went out; the messages sent so far are counted in its payload (`sentChunks`), so a retry continues. A message refused as malformed (400) is sent again as plain text; a notification that can't be rendered is dropped (logged); any other error stops the pass and the passes back off (15 s doubling to 15 min). Brief buttons: `v1:useful:<briefId>:0` and `v1:new:<briefId>:0`; each press toggles that answer and is recorded as a `brief_feedback` request (actor `telegram:<user id>`, which the worker adds to the allowed actors).
+- **As built (M07):** the outbox sender runs on the leader, one pass at a time, every 15 s and after each scheduled job. A notification is marked sent when all its messages went out; the messages sent so far are counted in its payload (`sentChunks`), so a retry continues. A message refused as malformed (400) is sent again as plain text; a notification that can't be rendered is dropped (logged); any other error stops the pass and the passes back off (15 s doubling to 15 min). Brief buttons: `v1:useful:<briefId>:0` and `v1:new:<briefId>:0`; each press toggles that answer and is recorded as a `brief_feedback` request with that answer only (F1; actor `telegram:<user id>`, which the worker adds to the allowed actors).
 
 ### 5.16 Heartbeats and alerts
 
@@ -2086,6 +2089,8 @@ Three sessions that fix what earlier code reviews and "Leave behind" notes defer
 **Done when (live):** folded into M07's and M10b's live steps (the digest and brief read right; feedback from both surfaces is kept).
 
 **Cut first:** item 4.
+
+**As built (D-093):** nothing cut. Counts use core's `stageWord` / `countOf` (stage id; state words become "… outcome(s)"); the dashboard's `countOf` has the same rule until F2. `brief_feedback` takes `useful` and/or `newInfo` and returns both as stored; Telegram sends the pressed answer; the Briefs page asks yes / no per answer and sends only a changed choice. Review screens redirect with `?error=<code>` and show our words for it (generic for anything else). `newProposals` counts the cycle's pending proposals; the brief's "To decide" section is printed by code.
 
 ### F2 — Request processor and shared formatting
 **Fix · Size ~300k · Needs:** F1 merged

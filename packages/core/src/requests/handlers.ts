@@ -159,9 +159,11 @@ const productDocPut: RequestHandler<RequestOf<'product_doc_put'>> = async (tx, r
   return { doc: request.doc, version };
 };
 
+/** brief_feedback (M07; F1): stores only the answers given; the result has both answers as stored, so a surface can
+ *  show the true state (the other answer may have come from elsewhere). */
 const briefFeedback: RequestHandler<RequestOf<'brief_feedback'>> = async (tx, request) => {
-  await setBriefFeedback(tx, request);
-  return { briefId: request.briefId, useful: request.useful, newInfo: request.newInfo };
+  const stored = await setBriefFeedback(tx, request);
+  return { briefId: request.briefId, useful: stored.useful, newInfo: stored.newInfo };
 };
 
 /** set_phase (D-082): the system's phase, raised by Marcus when he records a gate as passed. The note is kept
