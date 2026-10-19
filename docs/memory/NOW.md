@@ -23,7 +23,7 @@
 5. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- Nothing in code. M09b starts in the next session (D-086).
+- **M09b** (`docs/milestones/M09b-telegram-operator-commands.md`), started 2026-10-19 on `claude/elegant-goodall-ursfd8`, PR #17 (draft). First build: the processor's `pause`, `pause_all` and `undo` handlers.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -140,7 +140,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | **awaiting live acceptance** | [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (merged) | Live: deploy on the SER9, 7 days unattended (needs T7, T8) |
 | M08 | Draft stage, proposals, replay v0 | 1 | **awaiting live acceptance** | [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14) (merged) | Built before the gate (D-082); live: migrate now, the rest after the gate |
 | M09a | Telegram bot core and proposal cards | 1 | **awaiting live acceptance** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (merged) | Built before the gate (D-084); live: migrate now, cards after the gate |
-| M09b | Telegram operator commands | 1 | **next** (D-086) | — | Built before the gate |
+| M09b | Telegram operator commands | 1 | **in progress** | [#17](https://github.com/marcustanforwork/agenticAdsManager/pull/17) (draft) | Built before the gate (D-086) |
 | M10a | Dashboard: app, sign-in, settings | 1 | not started | — | T10 (Vercel Pro, Cloudflare) |
 | M10b | Dashboard: review views | 1 | not started | — | |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | not started | — | Phase 1 gate |
