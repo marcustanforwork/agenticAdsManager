@@ -1,4 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "test"]
+  "compilerOptions": {
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["node", "react", "react-dom"],
+    "declaration": false,
+    "declarationMap": false,
+    "allowJs": false,
+    "incremental": false,
+    "plugins": [{ "name": "next" }]
+  },
+  "include": ["src", "test", "next.config.ts"],
+  "exclude": ["node_modules", ".next"]
 }

@@ -6,6 +6,8 @@ fixtures/
 dist/
 coverage/
 .turbo/
+.next/
+next-env.d.ts
 scripts/test/fixtures/
 packages/db/migrations/
 
