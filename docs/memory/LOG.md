@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — PR #16 merged; M09b approved to build ahead of the gate
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#16](https://github.com/marcustanforwork/agenticAdsManager/pull/16)
+- **Did:** checked status: PR #16 green, the Phase 0 checklist has no ticks yet. Marcus said "merge #16"; squash-merged it (D-057). Recorded his go-ahead for M09b (D-086; BLUEPRINT v3.23).
+- **Decided:** D-086 (Marcus).
+- **Learned:** —
+- **Next:** a fresh session starts M09b.
+- **Open:** Q13; the Phase 0 setup (no ticks yet).
+
 ## 2026-10-14 — PR #15 (M09a) merged
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge the PR once CI passes"; squash-merged PR #15 on his instruction (D-057).

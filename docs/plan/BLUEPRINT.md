@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.22 — 2026-10-14 (M09a build choices: proposal cards, `edit_approve`, the conversation table, alerts; D-084, D-085) |
+| **Version** | v3.23 — 2026-10-19 (M09b is built before the Phase 0 gate, D-086) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1911,7 +1911,7 @@ After that, the **Phase 0 gate** runs for 4 weeks (PROPOSAL §12). M08 is built 
 ---
 
 ### M09b — Telegram operator commands
-**Phase 1 · Size ~400k · Needs:** M09a
+**Phase 1 · Size ~400k · Needs:** M09a. Built before the Phase 0 gate (D-086); its live steps wait for M07's deploy and the gate.
 
 **Goal:** pause, undo, halt, status and quick settings from the phone, all as operator requests. Nothing in the bot calls a platform.
 

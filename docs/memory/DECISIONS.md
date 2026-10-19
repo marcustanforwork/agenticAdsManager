@@ -697,3 +697,13 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** each is the simplest way to meet M09a's builds and tests without a new mechanism; keeping the precondition on edit keeps the fingerprint meaning "the state Marcus's decision was based on".
 - **Instead of:** separate edit and approve steps (two taps, and a window where an edited version sits unapproved); a precondition re-taken at edit time (would hide drift between drafting and the edit); alerting every degraded trust check or every drift (noise; both are in the brief).
 - **See:** BLUEPRINT M09a "As built", §4, §5.16 · `docs/milestones/M09a-telegram-bot-cards.md`
+
+### D-086 — Build M09b before the Phase 0 gate
+- **When / who / status:** 2026-10-19 · Marcus · adopted. He hasn't had time for the Phase 0 setup yet and said "let's continue with M09b next".
+- **Decision:**
+  - M09b (Telegram operator commands) is built in the cloud now, ahead of the Phase 0 → 1 gate, as D-082 and D-084 did for M08 and M09a. M10a onwards still wait for the gate unless Marcus says otherwise.
+  - Nothing in M09b changes an ad account: `/pause`, `/pause-all` and `/undo` make operator proposals that Marcus applies by hand until the gateway exists (M11b). `/halt`, `/resume-agent`, the read-only commands and the two quick settings are useful in Phase 0 too, once M07 is live.
+- **Why:** the Phase 0 setup and gate take calendar time; building ahead uses it.
+- **Risk:** as D-082: fixes from the live checklist may touch code M09b builds on, and more unverified code piles up before the first real run.
+- **Supersedes:** D-084's line "M09b onwards still wait for the gate" (only for M09b).
+- **See:** BLUEPRINT M09b
