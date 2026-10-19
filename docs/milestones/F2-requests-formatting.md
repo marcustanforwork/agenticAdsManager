@@ -10,7 +10,7 @@
 | **Phase** | fix (runs before the Phase 0 gate, D-092) |
 | **Started** | 2026-10-19 |
 | **Finished** | — |
-| **PRs** | — |
+| **PRs** | [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23) |
 
 ## Goal
 A request that keeps failing stops and tells Marcus, and money, dates and times look the same on every surface.

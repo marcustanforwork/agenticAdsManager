@@ -5,7 +5,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 ---
 
 ## 2026-10-19 — F2 built: request faults stop at 5, shared formatters
-- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR PRLINK
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23)
 - **Did:**
   - Merged PR #22 (F1) on Marcus's word (CI green), reset the branch onto `main`; `start-milestone F2` (`docs/milestones/F2-requests-formatting.md`).
   - Migration `0008`: `operator_requests.attempts`, `retry_after`; the `request_queued` trigger is a deferred constraint trigger that notifies only for a row still queued at commit.
