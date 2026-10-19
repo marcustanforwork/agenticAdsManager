@@ -199,6 +199,7 @@ export function analystLookupTools(ctx: LookupContext): ToolSet {
         const evidence = await computeEvidence(db, {
           productId: product.id,
           timeZone: product.timezone,
+          kpiStage: product.settings.outcomes.primaryKpiStage,
           target,
           window: { from, to },
         });

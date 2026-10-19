@@ -71,5 +71,5 @@ export function fakePlatforms(now: () => Date): FakePlatforms {
       return res;
     }
   };
-  return { fetch: answer as typeof fetch, calls };
+  return { fetch: answer, calls };
 }

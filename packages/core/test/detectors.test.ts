@@ -258,6 +258,7 @@ describe('the detect stage', () => {
     const computed = await computeEvidence(t.db, {
       productId: w.productId,
       timeZone: TZ,
+      kpiStage: 'signup',
       target: { kind: 'entity', entity: spender },
       window,
     });
