@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — PR #20 (M10b) merged; building ahead stops
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge #20"; squash-merged it (D-057). Every milestone allowed before the Phase 0 gate is now merged (M08 to M10b).
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus's Phase 0 setup this weekend (offered a click-by-click walk-through of T5, the Google service accounts). M11a waits for the gate.
+- **Open:** the Phase 0 setup (no ticks yet).
+
 ## 2026-10-19 — M10b built ahead of the Phase 0 gate (the dashboard's review screens), reviewed
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20)
 - **Did:**
