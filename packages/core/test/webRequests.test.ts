@@ -96,6 +96,18 @@ describe('round trips (M10a)', () => {
     expect((await getProduct(t.db, p.id)).settings.spend.dailyCeilingMicros).toBe('20000000');
   });
 
+  it('a patch that changes nothing makes no new version', async () => {
+    const p = await makeProduct();
+    const same = await roundTrip({
+      kind: 'settings_patch',
+      productId: p.id,
+      baseVersion: 1,
+      patch: { notifications: { digest: TEST_SETTINGS.notifications.digest } },
+    });
+    expect(same).toMatchObject({ status: 'done', result: { version: 1, unchanged: true } });
+    expect((await getProduct(t.db, p.id)).settingsVersion).toBe(1);
+  });
+
   it('a looser guard override is refused, with the reason', async () => {
     const p = await makeProduct();
     const status = await roundTrip({

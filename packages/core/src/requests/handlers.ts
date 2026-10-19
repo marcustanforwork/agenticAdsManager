@@ -2,7 +2,7 @@
 // throws RefusedError / StaleVersionError / NotFoundError / a settings or facts error to refuse.
 // To add a kind: write its handler here, add it to HANDLERS, remove it from NOT_AVAILABLE_UNTIL, and test it
 // in test/requests.test.ts (the milestone file's "Leave behind" has the checklist).
-import { type OperatorRequest, plannedUndo, platformOfOp } from '@ads/contracts';
+import { type OperatorRequest, canonicalJson, plannedUndo, platformOfOp } from '@ads/contracts';
 import {
   IllegalTransitionError,
   PHASE,
@@ -108,6 +108,8 @@ const settingsPatch: RequestHandler<RequestOf<'settings_patch'>> = async (tx, re
     request.patch,
     packGuardLayer(manifestOf(ctx.packs, stored.packId)),
   );
+  // Saving a screen without changing anything (M10a) makes no new version.
+  if (canonicalJson(settings) === canonicalJson(stored.settings)) return { version: stored.version, unchanged: true };
   const version = await updateSettings(tx, {
     productId: request.productId,
     baseVersion: request.baseVersion,

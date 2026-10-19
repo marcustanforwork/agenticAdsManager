@@ -5,7 +5,6 @@ import { nodeOf } from '../../../../../lib/factsForm.ts';
 import { db, requireOperator } from '../../../../../lib/server.ts';
 import { getProductView, listOfferingRows } from '../../../../../lib/views.ts';
 import { ProductHeader } from '../../Tabs.tsx';
-import { FactFields } from './FactFields.tsx';
 import { FactsEditor } from './FactsEditor.tsx';
 
 export default async function OfferingFactsPage({ params }: { params: Promise<{ slug: string; key: string }> }) {
@@ -30,10 +29,9 @@ export default async function OfferingFactsPage({ params }: { params: Promise<{ 
       ) : (
         <FactsEditor
           hidden={{ slug: product.slug, offeringKey: offering.key }}
-          json={JSON.stringify(offering.facts, null, 2)}
-        >
-          <FactFields node={nodeOf(jsonSchema)} value={offering.facts} path={[]} name="" required />
-        </FactsEditor>
+          node={nodeOf(jsonSchema)}
+          facts={(offering.facts ?? {}) as Record<string, unknown>}
+        />
       )}
       <p className="muted">From the {product.packId} pack, version {manifest?.version ?? '?'}.</p>
     </>

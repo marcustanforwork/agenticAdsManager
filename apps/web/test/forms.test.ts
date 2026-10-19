@@ -203,7 +203,8 @@ describe('the fact editor', () => {
     ['f:plans.1.id', 'pro'],
     ['f:plans.1.priceMicros', 'S$19.90'],
     ['f:plans.1.limits.guests', ''],
-    ['f:plans.2.id', ''],
+    ['f:plans.2.id', ''], // the empty "add one" item: its blank price would read as null (free)
+    ['f:plans.2.priceMicros', ''],
     ['f:plans.2.limits.guests', ''],
     ['f:pricing.phase', 'beta'],
     ['f:pricing.notes', ''],

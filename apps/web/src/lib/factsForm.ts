@@ -85,6 +85,15 @@ function itemIndices(f: Fields, path: readonly string[]): number[] {
   return [...found].sort((a, b) => a - b);
 }
 
+/** Whether anything was typed or ticked under a list item: the empty "add one" item isn't an item, even though a
+ *  blank nullable field in it (a price: blank = none) would read as null. */
+function hasInput(f: Fields, prefix: string): boolean {
+  for (const [name, values] of f) {
+    if (name.startsWith(prefix) && !name.endsWith('.__remove') && values.some((v) => v.trim() !== '')) return true;
+  }
+  return false;
+}
+
 /** The value the fields under `path` give for `node`, or undefined when they're all left empty. */
 export function valueFromForm(node: FactNode, f: Fields, path: readonly string[]): unknown {
   const name = fieldName(path);
@@ -104,7 +113,7 @@ export function valueFromForm(node: FactNode, f: Fields, path: readonly string[]
         return items.length === 0 ? undefined : items;
       }
       const items = itemIndices(f, path)
-        .filter((i) => !checked(f, `${name}.${i}.__remove`))
+        .filter((i) => !checked(f, `${name}.${i}.__remove`) && hasInput(f, `${name}.${i}.`))
         .map((i) => valueFromForm(node.item, f, [...path, String(i)]))
         .filter((v) => v !== undefined);
       return items.length === 0 ? undefined : items;

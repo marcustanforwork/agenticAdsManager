@@ -47,34 +47,45 @@ export async function submitStatus(form: FormData): Promise<void> {
 
 export interface FactsState {
   issues: string[];
+  /** What was submitted, so the editor shows it again after a refusal (React resets a form after its action). */
+  submitted?: { facts: Record<string, unknown> | null; json: string | null };
+  /** Counts refusals, so the editor's fields are rebuilt from `submitted` each time. */
+  attempt: number;
 }
 
 /** The fact editor: the facts are checked against the pack's published schema first, and refused here with the
  *  schema's reasons; only facts it accepts are recorded (the worker checks them again against the pack). */
-export async function saveFacts(_prev: FactsState, form: FormData): Promise<FactsState> {
+export async function saveFacts(prev: FactsState, form: FormData): Promise<FactsState> {
   await requireOperator();
   const f = fieldsOf(form.entries());
+  const json = str(f, 'mode') === 'json' ? str(f, 'json') : null;
+  const refuse = (issues: string[], facts: Record<string, unknown> | null): FactsState => ({
+    issues,
+    submitted: { facts, json },
+    attempt: prev.attempt + 1,
+  });
   const product = await getProductView(str(f, 'slug'));
-  if (product === null) return { issues: ['unknown product'] };
+  if (product === null) return refuse(['unknown product'], null);
   const manifest = await getLatestPackManifest(db(), product.packId);
   const jsonSchema = (manifest?.manifest['facts'] as { jsonSchema?: Record<string, unknown> } | undefined)?.jsonSchema;
-  if (jsonSchema === undefined) return { issues: [`the ${product.packId} pack has not published its fact schema`] };
+  if (jsonSchema === undefined) return refuse([`the ${product.packId} pack has not published its fact schema`], null);
 
   let facts: Record<string, unknown>;
-  if (str(f, 'mode') === 'json') {
+  if (json !== null) {
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(str(f, 'json'));
-      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return { issues: ['(root): the facts must be a JSON object'] };
-      }
-      facts = parsed as Record<string, unknown>;
+      parsed = JSON.parse(json);
     } catch (error) {
-      return { issues: [`(root): not JSON (${(error as Error).message})`] };
+      return refuse([`(root): not JSON (${(error as Error).message})`], null);
     }
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return refuse(['(root): the facts must be a JSON object'], null);
+    }
+    facts = parsed as Record<string, unknown>;
   } else {
     facts = factsFromForm(nodeOf(jsonSchema), f);
   }
   const issues = jsonSchemaIssues(jsonSchema, facts);
-  if (issues.length > 0) return { issues };
+  if (issues.length > 0) return refuse(issues, facts);
   return record({ kind: 'facts_put', productId: product.id, offeringKey: str(f, 'offeringKey'), facts });
 }
