@@ -104,9 +104,9 @@ _After M07's deploy, and T10. Production steps use Doppler's prod configs; nothi
 ## Leave behind (for later milestones)
 - **M10b** builds its views in the same app: read with `@ads/db` under the dashboard's role, write only with `recordWebRequest` (then redirect to `/requests/<id>`), call `requireOperator()` first in every page, route and action. `src/lib/views.ts` is where the reads go.
 - **Guard overrides can't be removed** from the dashboard: `settings_patch` merges objects key by key. If Marcus needs it, add an explicit "remove an override" to the patch (it loosens a guard, so it needs his OK).
-- **A request whose handler keeps faulting** (not a refusal) stays queued and is retried on every drain, every 30 s on each replica, with no attempt count. Consider an attempt counter and a final refusal (M16b, ops hardening).
+- **A request whose handler keeps faulting** (not a refusal) stays queued and is retried on every drain, every 30 s on each replica, with no attempt count. Consider an attempt counter and a final refusal. **Scheduled: F2** (D-092).
 - **Stored settings that fail validation** show their problems but no forms; repair them with the CLI (`ads settings set`).
-- The `request_queued` trigger also fires for requests Telegram and the CLI process in the same transaction; the drain then finds nothing (one cheap query per replica).
+- The `request_queued` trigger also fires for requests Telegram and the CLI process in the same transaction; the drain then finds nothing (one cheap query per replica). **Scheduled: F2** (D-092, cut first).
 - Offerings are created by the seed or the CLI; the dashboard edits their facts only.
 
 ## Skills to create

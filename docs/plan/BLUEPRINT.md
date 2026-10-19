@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.29 — 2026-10-19 (M10b built: "As built", D-091; its Playwright test moved to M16b) |
+| **Version** | v3.30 — 2026-10-19 (fix sessions F1–F3 before the first live run, D-092) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -2058,6 +2058,88 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
 
 ---
 
+### Fix sessions before the first live run (F1–F3, D-092)
+
+Three sessions that fix what earlier code reviews and "Leave behind" notes deferred, and rehearse the first live run. **They follow the milestone workflow exactly:** one clean-context session each, within 400–600k tokens; `start-milestone F<n>` creates `docs/milestones/F<n>-<slug>.md` from the template; build, committing and pushing each step; `preflight`; `code-review` at high effort; `close-milestone`; `end-session`; one PR, merged only on Marcus's word after CI (D-057). They change no ad account, so they run before the Phase 0 gate, in order F1 → F2 → F3. Their live checks fold into the existing live steps.
+
+### F1 — Wording and feedback fixes
+**Fix · Size ~250k · Needs:** M10b merged
+
+**Goal:** the digest, the brief, the proposal words and the dashboard say the right thing, and an answer given on one surface is never overwritten by another.
+
+**Read first:** M10b's and M07's milestone files ("Leave behind"); this file §5.14; `core/src/report/` and `core/src/draft/rationale.ts`.
+
+**Builds:**
+1. **Counts by stage id, everywhere** (M10b review): the digest, the brief (template prose and rendering) and the drafted proposals' template words print a count with the KPI's stage id ("12 signups"), never by pluralising its label ("12 signup (email link clicked)s"). The label may still appear as a name. Same rule as the detectors (M06a) and the dashboard (M10b).
+2. **`brief_feedback` sets one answer at a time** (M10b review): `useful` and `newInfo` become optional, with at least one given; the repository updates only the given fields. Telegram sends the button pressed; the dashboard sends only what changed. A request with both fields stays valid.
+3. **The dashboard's error notice shows only our own messages** (M10b review): a review screen's `?error=` carries a short code, and the server looks up the text; an unknown code shows a generic line.
+4. **The brief counts the cycle's new proposals** (M07 "Leave behind", for M08): the numbers table gains `newProposals`; when there are some, the brief says how many and where to decide them (Telegram, dashboard).
+
+**Tests:**
+- Digest, brief and template words rendered with a descriptive stage label: no pluralised label anywhere.
+- Brief feedback: a Telegram answer, then a dashboard save of the other answer, keeps both; a two-field request still works.
+- Error codes: a crafted `?error=` text is never shown; an unknown code shows the generic line.
+- A brief with 0 and with 2 new proposals.
+
+**Done when (cloud):** all tests are green.
+
+**Done when (live):** folded into M07's and M10b's live steps (the digest and brief read right; feedback from both surfaces is kept).
+
+**Cut first:** item 4.
+
+### F2 — Request processor and shared formatting
+**Fix · Size ~300k · Needs:** F1 merged
+
+**Goal:** a request that keeps failing stops and tells Marcus, and money, dates and times look the same on every surface.
+
+**Read first:** M10a's and M10b's milestone files ("Leave behind"); this file §5.4; `core/src/requests/processor.ts`; `core/src/report/format.ts`, the worker's `telegram/cards.ts`, `apps/web/src/lib/review.ts`.
+
+**Builds:**
+1. **A faulting request stops after 5 tries** (M10a review): `operator_requests.attempts` (migration); each fault (not a refusal) counts; at 5 the request is refused with its last error, and an alert goes to Marcus. Refusals stay final, as now.
+2. **One set of display formatters in `@ads/contracts`** (M10b review): money in any currency by its minor unit (SGD cents, JPY whole yen), dates and local times, used by core's reports, the Telegram cards and the dashboard. The three copies go. (M14's budget unit for zero-decimal currencies can reuse the minor-unit table.)
+3. **The `request_queued` wake-up fires only for rows still queued at commit** (M10a review): a deferred trigger checks the status before notifying.
+
+**Tests:**
+- A handler that throws 5 times: refused with its reason, an alert queued, never retried after; a refusal is still not retried.
+- Formatter golden tests in SGD, JPY and USD; the three surfaces print the same text.
+- A request processed in the same transaction it was recorded in sends no wake-up (if item 3 is built).
+
+**Done when (cloud):** all tests are green.
+
+**Done when (live):** migration `0008` runs with the others; nothing else is visible.
+
+**Cut first:** item 3.
+
+### F3 — Pre-live rehearsal
+**Fix · Size ~450k · Needs:** F2 merged
+
+**Goal:** the whole system runs once, end to end, the way the first live weekend will, on the fixture accounts and a local database; what breaks is fixed before Marcus's setup.
+
+**Read first:** `docs/runbook.md`; `NOW.md` "Live steps for Marcus"; the live steps in the M00–M10b milestone files; the Phase 0 checklist artifact.
+
+**Builds:**
+1. **A rehearsal test** that runs in CI (fixtures only, no secrets), on a fresh database:
+   - migrate and seed;
+   - link the fixture Meta and Google accounts with test credentials (cassette replay);
+   - run the worker service (its schedule off) with a fake Telegram API: a daily cycle puts a digest in the outbox; a weekly cycle at phase 0 makes a brief and no proposals;
+   - `ads phase set 1`, then a weekly cycle: proposals and their cards; approve one by callback, reject one, edit one;
+   - the dashboard's Overview and Proposals pages render them from the same database;
+   - `ads eval replay` scores the decisions;
+   - a restart in the middle of a cycle resumes it.
+2. **Every live-step command checked** against the CLI: each command in `NOW.md` and the milestone files exists, with the flags and order written. Fix the docs or the CLI.
+3. **Fix what items 1 and 2 find**, each with a test. Anything too big for the session becomes a note for Marcus in the PR.
+4. Update the Phase 0 checklist artifact if a step changed.
+
+**Tests:** the rehearsal itself, green in CI.
+
+**Done when (cloud):** the rehearsal is green in CI, and every live-step command is checked.
+
+**Done when (live):** Marcus's first live weekend follows the checked steps.
+
+**Cut first:** the restart part of the rehearsal; rendering the dashboard pages (keep the web request round trips).
+
+---
+
 ### M11a — Gateway rules: allowlist, guards, fingerprint
 **Phase 2 · Size ~450k · Needs:** the Phase 1 gate has passed
 
@@ -2465,6 +2547,9 @@ Run through this list before every PR; the `preflight` skill does it. A **no** o
 | M09b | Telegram operator commands | 1 | 400k | — | A week run from Telegram |
 | M10a | Dashboard: app, sign-in, settings | 1 | 450k | T10 | SnapPool configured on the web |
 | M10b | Dashboard: review views | 1 | 400k | — | A week reviewed on the web → Phase 1 gate (3 weeks) |
+| F1 | Fix: wording and feedback (D-092) | fix | 250k | — | Folded into M07's and M10b's |
+| F2 | Fix: request processor, shared formatting | fix | 300k | — | Migration with the others |
+| F3 | Fix: pre-live rehearsal | fix | 450k | — | The first live weekend follows its checked steps |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | 450k | — | — |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | 450k | — | Gateway runs with writes off |
 | M12 | Meta writes + CAPI | 2 | 500k | T4 (write) | First live pause + undo; a CAPI event |
@@ -2474,6 +2559,6 @@ Run through this list before every PR; the `preflight` skill does it. A **no** o
 | M15b | Format checks, variants, proposals | 4 | 400k | — | Variant cards; required string enforced |
 | M16a | Evals and the model-swap gate | 5 | 450k | — | Compare table; CI gate |
 | M16b | Ops hardening: runbook, backups, doctor | 5 | 400k | — | Doctor green |
-| | **Total: 25 sessions** | | **≈ 11.6M tokens** | | |
+| | **Total: 25 sessions, plus 3 fix sessions** | | **≈ 11.6M tokens, plus ≈ 1.0M** | | |
 
 Sessions run strictly in order within a phase, and an "a" part always runs before its "b" part. Between phases, the gate must pass on real data before the next phase's first session starts.
