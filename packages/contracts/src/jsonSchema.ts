@@ -25,7 +25,7 @@ function unknownKeys(schema: unknown, value: unknown, path: string[]): string[] 
   if (!isObject(value) || !isObject(schema['properties'])) return [];
   const properties = schema['properties'];
   return Object.entries(value).flatMap(([key, v]) =>
-    key in properties ? unknownKeys(properties[key], v, [...path, key]) : [[...path, key].join('.')],
+    Object.hasOwn(properties, key) ? unknownKeys(properties[key], v, [...path, key]) : [[...path, key].join('.')],
   );
 }
 

@@ -298,6 +298,7 @@ describe('the fact editor', () => {
     }) as Record<string, unknown>;
     expect(jsonSchemaIssues(schema, { plans: [{ id: 'a', typo: 1 }] })).toEqual(['plans.0.typo: not a fact']);
     expect(jsonSchemaIssues(schema, { plans: null })).toEqual([]);
+    expect(jsonSchemaIssues(schema, { constructor: 1, plans: null })).toEqual(['constructor: not a fact']);
   });
 
   it('an empty form gives the required lists and objects empty, so the schema names what is missing', () => {

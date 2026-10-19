@@ -4,6 +4,20 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — M10a built ahead of the Phase 0 gate (the dashboard: sign-in, settings), reviewed
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#18](https://github.com/marcustanforwork/agenticAdsManager/pull/18) (also carries the M09b memory note)
+- **Did:**
+  - DB: migration `0007` (`operator_requests.inserted_by` default `current_user`; an insert trigger NOTIFYs `request_queued`); `roles.sql` lets the dashboard insert only the request columns; `packages/db/src/repos/web.ts`.
+  - Core: the processor binds the actor to who inserted the row (D-068); new `set_product_status`; an unchanged settings patch makes no version. Worker: `apps/worker/src/requests.ts` processes queued requests on NOTIFY and every 30 s.
+  - `apps/web`: Next.js 16 with `proxy.ts` checking the Cloudflare Access token (jose; fail closed), checked again in every page, route and action; settings screens, settings history, fact editor from the published JSON Schema (contracts `jsonSchemaIssues`); request page polling the verdict.
+  - Drove the built app in a headless browser against a local database: found and fixed two bugs (a refused fact form lost its values; the empty "add" row counted as an item).
+  - Code review (high): 10 findings, 7 fixed with tests, 3 left (milestone file). Security review: nothing at the bar; one hardening note applied.
+  - 1031 tests pass; typecheck, lint, boundaries, build, format green.
+- **Decided:** D-088 (Marcus: build M10a now), D-089 (build choices).
+- **Learned:** GOTCHAS: Next.js 16 `proxy.ts`; Cloudflare Access token facts; Vercel Deployment Protection; Turbopack and `import.meta.url`; React resets forms after an action; create the dashboard login with SQL.
+- **Next:** Marcus reviews PR #18; M10b waits for the Phase 0 gate.
+- **Open:** Q13; T10; the Phase 0 setup (no ticks yet).
+
 ## 2026-10-19 — PR #17 (M09b) merged
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#17](https://github.com/marcustanforwork/agenticAdsManager/pull/17)
 - **Did:** Marcus said "lets merge this PR"; waited for CI on the head commit (`ci`, `secret-scan`, `memory-check` all green), then squash-merged PR #17 (D-057).
