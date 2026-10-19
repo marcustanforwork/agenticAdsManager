@@ -42,14 +42,16 @@ export function parseCardData(data: string): { verb: CardVerb; shortId: string; 
   return { verb: m[1] as CardVerb, shortId: m[2] as string, version: Number(m[3]) };
 }
 
-/** Approve / Reject, and Edit when the action has something to edit (not a pause). */
-export function cardKeyboard(p: Pick<ProposalRecord, 'shortId' | 'version' | 'action'>): InlineKeyboard {
+/** Approve / Reject, and Edit when the action has something to edit (not a pause). Marcus's own requests (M09b) get
+ *  Confirm / Cancel on the same verbs: confirming is the approval, and cancelling asks no reason. */
+export function cardKeyboard(p: Pick<ProposalRecord, 'shortId' | 'version' | 'action' | 'origin'>): InlineKeyboard {
+  const own = p.origin === 'operator';
   return {
     inline_keyboard: [
       [
-        { text: '✅ Approve', callback_data: cardData('approve', p.shortId, p.version) },
-        { text: '❌ Reject', callback_data: cardData('reject', p.shortId, p.version) },
-        ...(editHint(p.action) === null
+        { text: own ? '✅ Confirm' : '✅ Approve', callback_data: cardData('approve', p.shortId, p.version) },
+        { text: own ? '✖ Cancel' : '❌ Reject', callback_data: cardData('reject', p.shortId, p.version) },
+        ...(own || editHint(p.action) === null
           ? []
           : [{ text: '✏️ Edit', callback_data: cardData('edit', p.shortId, p.version) }]),
       ],
@@ -158,11 +160,16 @@ export function localTime(at: Date, timezone: string): string {
 export function renderCard(view: CardView): { html: string; keyboard: InlineKeyboard | null } {
   const p = view.proposal;
   const pending = p.status === 'pending' && p.expiresAt.getTime() > view.now.getTime();
+  const own = p.origin === 'operator';
   const status = pending
-    ? STATUS_WORDS.pending
+    ? own
+      ? '⏳ waiting for your confirmation'
+      : STATUS_WORDS.pending
     : p.status === 'pending'
       ? STATUS_WORDS.expired
-      : (STATUS_WORDS[p.status] ?? p.status.replaceAll('_', ' '));
+      : own && p.status === 'rejected'
+        ? '✖ cancelled'
+        : (STATUS_WORDS[p.status] ?? p.status.replaceAll('_', ' '));
   const lines = [
     `<b>Proposal ${p.shortId}</b> · v${p.version} · ${escapeHtml(view.product.slug)}${
       view.finding === null ? '' : ` · ${escapeHtml(view.finding.type)}`
@@ -175,6 +182,7 @@ export function renderCard(view: CardView): { html: string; keyboard: InlineKeyb
     '',
     `Expires ${localTime(p.expiresAt, view.product.timezone)} (${escapeHtml(view.product.timezone)})`,
     `Status: ${escapeHtml(status ?? '')}`,
+    own && pending ? 'Confirming is your approval. Phase 1 applies nothing: once confirmed, make it by hand.' : null,
   ].filter((l): l is string => l !== null);
   return { html: lines.join('\n'), keyboard: pending ? cardKeyboard(p) : null };
 }
