@@ -4,6 +4,20 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — F1 built and reviewed (wording and feedback fixes)
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#22](https://github.com/marcustanforwork/agenticAdsManager/pull/22)
+- **Did:**
+  - Reset the branch onto `main` (PR #21 merged); `start-milestone F1` (`docs/milestones/F1-wording-feedback.md`).
+  - Counts by stage id: `stageWord` / `countOf` in `packages/core/src/report/format.ts`, used by the digest, the brief and `templateWords`; the Telegram cards now say "pool requests"; the web `countOf` follows the same rule.
+  - `brief_feedback` one answer at a time: contract (optional fields + refine), `setBriefFeedback` (only given fields, returns both), Telegram (`apps/worker/src/telegram/bot.ts`), the Briefs page (yes / no choices with the shown state; `apps/web/src/lib/reviewForms.ts`).
+  - Error codes: `FORM_ERRORS` / `formErrorText` (`reviewForms.ts`), `actions.ts` redirect, `FormNotice` (`Tabs.tsx`).
+  - The brief's `newProposals` (`countPendingCycleProposals` in `packages/db/src/repos/proposals.ts`) and its "To decide" section.
+  - Code review (high): 8 findings, 6 fixed with tests, 2 deferred (F2, M16a). Full checks green: 1,073 tests.
+- **Decided:** D-093 (F1 build choices); BLUEPRINT v3.31.
+- **Learned:** —
+- **Next:** Marcus merges PR #22; then a fresh session runs `start-milestone F2`.
+- **Open:** the Phase 0 setup (after F3).
+
 ## 2026-10-19 — Fix sessions F1–F3 planned (D-092)
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#21](https://github.com/marcustanforwork/agenticAdsManager/pull/21)
 - **Did:** collected every fix deferred in code reviews and "Leave behind" notes (M01a–M10b) and grouped the real ones into three fix sessions, written in BLUEPRINT §7 like milestones (v3.30): F1 wording and feedback, F2 request processor and shared formatting, F3 pre-live rehearsal. Found the stage-label plural bug also in the brief and in M08's proposal template words. Marked the source notes "Scheduled: F1/F2". The start-milestone skill, SESSIONS.md §4 and CLAUDE.md now name fix sessions; same workflow as a milestone.
