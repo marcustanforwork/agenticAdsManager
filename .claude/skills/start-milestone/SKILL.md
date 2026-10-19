@@ -1,6 +1,6 @@
 ---
 name: start-milestone
-description: Begin a blueprint milestone or milestone part (M00–M16, including a/b parts such as M05a). Checks its prerequisites and the phase gate, creates its milestone file from the template, verifies the external facts it depends on, and plans the session within its token budget. Use when NOW.md says the next milestone should start, or when the user says "start M05a" or "next milestone".
+description: Begin a blueprint milestone or milestone part (M00–M16, including a/b parts such as M05a), or a fix session (F1–F3, D-092). Checks its prerequisites and the phase gate, creates its milestone file from the template, verifies the external facts it depends on, and plans the session within its token budget. Use when NOW.md says the next milestone or fix session should start, or when the user says "start M05a", "start F1" or "next milestone".
 ---
 
 # Start a milestone
@@ -8,12 +8,12 @@ description: Begin a blueprint milestone or milestone part (M00–M16, including
 ## 1. Is it allowed to start?
 
 - In `NOW.md`'s tracker, the previous milestone in the same phase is `done`, or is `awaiting live acceptance` with nothing that this milestone depends on.
-- **Crossing into a new phase?** The previous phase gate must be recorded as *passed* in `NOW.md`. That is Marcus's call, recorded in `DECISIONS.md`. If it isn't, **stop and tell Marcus. Don't start.** (Exceptions: D-082, D-084, D-086, D-088 and D-090 let M08, M09a, M09b, M10a and M10b be built before the Phase 0 gate; their live steps wait for it. M11a onwards are not excepted.)
+- **Crossing into a new phase?** The previous phase gate must be recorded as *passed* in `NOW.md`. That is Marcus's call, recorded in `DECISIONS.md`. If it isn't, **stop and tell Marcus. Don't start.** (Exceptions: D-082, D-084, D-086, D-088 and D-090 let M08, M09a, M09b, M10a and M10b be built before the Phase 0 gate; their live steps wait for it. M11a onwards are not excepted. Fix sessions F1–F3 (D-092) change no ad account and may run before the gate, in order.)
 - Check **Needs** in `docs/plan/BLUEPRINT.md` §7: setup tasks (T-numbers), and decisions still waiting for Marcus's OK. If something is unmet, tell Marcus exactly what's missing. Start only the parts that don't depend on it (for example, code against documented API shapes with hand-written fixtures), and note that in the milestone file.
 
 ## 2. Create the milestone file
 
-- Copy `docs/milestones/_TEMPLATE.md` to `docs/milestones/M<NN>[a|b]-<slug>.md`. Take the slug from the BLUEPRINT title, e.g. `M03-google-read` or `M05a-pack-sdk-snappool`.
+- Copy `docs/milestones/_TEMPLATE.md` to `docs/milestones/M<NN>[a|b]-<slug>.md`. Take the slug from the BLUEPRINT title, e.g. `M03-google-read` or `M05a-pack-sdk-snappool`; a fix session is `F<n>-<slug>.md`, e.g. `F1-wording-feedback`.
 - Fill it from BLUEPRINT §7: Goal, Needs, Read first, Builds (as checkboxes), Tests (as checkboxes), Done when (cloud and live), Cut first, Leave behind, Skills to create.
 - **Copy the requirements; don't paraphrase them away.** Put your own clarifications underneath them.
 

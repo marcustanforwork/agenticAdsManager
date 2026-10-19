@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — Fix sessions F1–F3 planned (D-092)
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#21](https://github.com/marcustanforwork/agenticAdsManager/pull/21)
+- **Did:** collected every fix deferred in code reviews and "Leave behind" notes (M01a–M10b) and grouped the real ones into three fix sessions, written in BLUEPRINT §7 like milestones (v3.30): F1 wording and feedback, F2 request processor and shared formatting, F3 pre-live rehearsal. Found the stage-label plural bug also in the brief and in M08's proposal template words. Marked the source notes "Scheduled: F1/F2". The start-milestone skill, SESSIONS.md §4 and CLAUDE.md now name fix sessions; same workflow as a milestone.
+- **Decided:** D-092 (Marcus).
+- **Learned:** —
+- **Next:** a fresh session runs `start-milestone F1`.
+- **Open:** the Phase 0 setup (after F3).
+
 ## 2026-10-19 — PR #20 (M10b) merged; building ahead stops
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20)
 - **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`). Marcus said "merge #20"; squash-merged it (D-057). Every milestone allowed before the Phase 0 gate is now merged (M08 to M10b).

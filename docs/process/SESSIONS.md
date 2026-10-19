@@ -56,7 +56,7 @@ If you've answered questions or run live steps since the last session, tell the 
 
 **The model (D-056).** Every build session:
 - starts from a clean context and runs Opus 5.5 at medium effort;
-- does **one milestone, or one milestone part** (M05a, M05b…);
+- does **one milestone, one milestone part** (M05a, M05b…), **or one fix session** (F1–F3, BLUEPRINT §7, D-092), with the same workflow: `start-milestone`, build, `preflight`, `code-review`, `close-milestone`, `end-session`, one PR;
 - must finish within **400–600k tokens**, including orientation, building, tests, self-review, fixes and the handoff.
 
 Milestones are estimated at 400–500k (BLUEPRINT §9), which leaves room for review and fixes. Max effort was used for planning only. Build sessions **follow the plan rather than redesign it** (BLUEPRINT §0).

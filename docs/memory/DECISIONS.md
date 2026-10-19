@@ -773,3 +773,13 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** the simplest way to meet M10b's builds and tests within M10a's boundary (the dashboard reads under its role and only records requests). Rendered-HTML tests check what Marcus sees without a browser in CI.
 - **Instead of:** a chart library for the trend (a table reads clearly at low volume, with no new dependency); Playwright in CI (a browser download and a running worker for one smoke test); reusing core's formatters (the dashboard may not import core: a copy, noted in Leave behind).
 - **See:** BLUEPRINT M10b "As built"; `docs/milestones/M10b-dashboard-review-views.md`
+
+### D-092 — Fix sessions F1–F3 before the first live run
+- **When / who / status:** 2026-10-19 · Marcus · adopted. He asked to "split the fixes into sessions", record them in the documents, run them with the same workflow as the milestones, and then do the owed setup items.
+- **Decision:**
+  - The fixes deferred in code reviews and "Leave behind" notes (M07–M10b) are grouped into three **fix sessions**, written in BLUEPRINT §7 like milestones: **F1** (wording and feedback fixes), **F2** (request processor and shared formatting), **F3** (a pre-live rehearsal of the whole system on fixtures, and a check of every live-step command).
+  - **Same workflow as a milestone:** one clean-context session each, within 400–600k tokens; `start-session` → `start-milestone F<n>` (milestone file `docs/milestones/F<n>-<slug>.md` from the template) → build, committing and pushing each step → `preflight` → `code-review` at high effort → `close-milestone` → `end-session` → one PR, merged only on Marcus's word after CI (D-057).
+  - Fix sessions change no ad account, so they may run before the Phase 0 gate. They run in order, F1 → F2 → F3, then Marcus does the Phase 0 setup.
+  - Not scheduled, on purpose: items a review accepted as they are (performance at today's size: M01a, M02, M03, M04, M06a, M08, M09b; the no-cursor Meta page; broken stored settings shown without forms) and items already handed to later milestones (M11a, M11b, M14, M16a, M16b).
+- **Why:** the deferred fixes are small but scattered; doing them before the first live run means the weekend meets cleaner code, and the rehearsal finds integration problems between milestones that were built without a live run.
+- **See:** BLUEPRINT §7 "Fix sessions" · §9
