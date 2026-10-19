@@ -107,7 +107,7 @@ describe('the proxy (middleware)', () => {
   });
 
   it('the proxy itself refuses a request with no token (this is what the raw *.vercel.app address gets)', async () => {
-    const response = await proxy(new NextRequest('https://ads-dashboard.vercel.app/products/snappool/settings'));
+    const response = await proxy(new NextRequest('https://ads-dashboard.vercel.app/products/some-product/settings'));
     expect(response.status).toBe(401);
   });
 });
