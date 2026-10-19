@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-19 · cloud session · branch `claude/elegant-goodall-ursfd8` · **F3 (pre-live rehearsal) built and reviewed: PR (see In flight) awaits Marcus's merge** (`docs/milestones/F3-pre-live-rehearsal.md`). F1 and F2 merged (PRs [#22](https://github.com/marcustanforwork/agenticAdsManager/pull/22), [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23)). Every milestone allowed before the Phase 0 gate is built; **D-092's three fix sessions are done** once F3 merges. Then **Marcus does the Phase 0 setup**. **M11a onwards (the gateway) wait for the gate** (D-090). His to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (unchanged by F3: every command in it passed the check). SnapPool's tracking change (T6b) has been live since 2026-09-25.
+**Last updated:** 2026-10-19 · cloud session · branch `claude/elegant-goodall-ursfd8` · **F3 (pre-live rehearsal) built and reviewed: PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24) awaits Marcus's merge** (`docs/milestones/F3-pre-live-rehearsal.md`). F1 and F2 merged (PRs [#22](https://github.com/marcustanforwork/agenticAdsManager/pull/22), [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23)). Every milestone allowed before the Phase 0 gate is built; **D-092's three fix sessions are done** once F3 merges. Then **Marcus does the Phase 0 setup**. **M11a onwards (the gateway) wait for the gate** (D-090). His to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (unchanged by F3: every command in it passed the check). SnapPool's tracking change (T6b) has been live since 2026-09-25.
 
 ## Where we are
 - **Phase:** 0.
@@ -17,14 +17,14 @@
    - do the setup tasks: T1's optional part, then T2–T9 (T7 Telegram and T8 healthchecks are M07's), then the rest as the milestones need them;
    - run the live steps below in milestone order, M00 → M07, then M08's step 1 (migration `0005`; nothing visible changes); M07's live steps deploy to production on the SER9.
 2. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus records it and sets phase 1 (`ads phase set 1`, D-082); M08's live steps and the Phase 1 measuring start then.
-3. **Marcus:** review and merge F3's PR once CI is green (D-057).
+3. **Marcus:** review and merge PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24) (F3) once CI is green (D-057).
 4. **Marcus, after F3:** the Phase 0 setup (his plan). For T5, create the two Google service accounts (D-071). Doing T14 (the ad URL settings) before phase 1 gives the pause proposals the click ids they need.
 5. **Claude (next session):** none queued until the gate; if Marcus asks "walk me through T5" (or any setup task), give click-by-click steps and check each result. After the Phase 1 gate: M11a, adding its stretch to the rehearsal.
 6. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e).
 7. **Before 2026-10-27:** nothing to do. Meta's v26 changes apply to all versions then; the client already avoids them (GOTCHAS).
 
 ## In flight
-- **F3** on branch `claude/elegant-goodall-ursfd8`: its PR is ready for review; builds 1–4 done, tests green (1,104 passed, 3 skipped), code review (high) done (6 of 9 findings fixed, 1 simplified, 2 not: see the milestone file). Awaits Marcus's merge.
+- **F3** on branch `claude/elegant-goodall-ursfd8`: PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24), ready for review; builds 1–4 done, tests green (1,104 passed, 3 skipped), code review (high) done (6 of 9 findings fixed, 1 simplified, 2 not: see the milestone file). Awaits Marcus's merge.
 
 ## Blocked on Marcus
 - Nothing blocks the builds (D-074).
@@ -171,7 +171,7 @@ _All of these run now, at the end of Phase 0 (D-074), in milestone order: M00, M
 | M10b | Dashboard: review views | 1 | **awaiting live acceptance** | [#20](https://github.com/marcustanforwork/agenticAdsManager/pull/20) (merged) | Built before the gate (D-090); live: the screens on real data; a week of proposals at phase 1 |
 | F1 | Fix: wording and feedback (D-092) | fix | **done** (merged) | [#22](https://github.com/marcustanforwork/agenticAdsManager/pull/22) (merged) | Live checks fold into M07's and M10b's |
 | F2 | Fix: request processor, shared formatting | fix | **done** (merged) | [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23) (merged) | Migration `0008` with the others |
-| F3 | Fix: pre-live rehearsal | fix | **awaiting merge** | (this session's PR) | The first live weekend follows its checked steps |
+| F3 | Fix: pre-live rehearsal | fix | **awaiting merge** | [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24) | The first live weekend follows its checked steps |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | not started | — | Phase 1 gate |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | not started | — | |
 | M12 | Meta writes + CAPI | 2 | not started | — | T4 (write side); T6b |

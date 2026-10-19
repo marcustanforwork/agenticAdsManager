@@ -10,7 +10,7 @@
 | **Phase** | fix (runs before the Phase 0 gate, D-092) |
 | **Started** | 2026-10-19 |
 | **Finished** | — |
-| **PRs** | — |
+| **PRs** | [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24) |
 
 ## Goal
 The whole system runs once, end to end, the way the first live weekend will, on the fixture accounts and a local database; what breaks is fixed before Marcus's setup.
