@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.31 — 2026-10-19 (F1 as built: counts by stage id, one-answer brief feedback, error codes, new proposals in the brief, D-093) |
+| **Version** | v3.32 — 2026-10-19 (F2 as built: request faults back off and stop at 5, the deferred wake-up, display formatters in contracts, D-094) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -974,13 +974,17 @@ create table operator_requests (
   inserted_by text not null default current_user,    -- M10a, D-068/D-089: who inserted it; the dashboard can't set it
   status text not null default 'queued' check (status in ('queued','done','refused')),
   result jsonb,                                      -- what happened, or why it was refused (shown to Marcus)
+  attempts int not null default 0,                   -- F2, D-094: faults so far; refused at 5
+  retry_after timestamptz,                           -- F2: after a fault, not retried before this (1 min × 2^(n−1))
   created_at timestamptz not null default now(),
   processed_at timestamptz
 );
 create index on operator_requests (status, created_at);
 create index on operator_requests (product_id);
 -- M10a: an AFTER INSERT trigger NOTIFYs 'request_queued' (payload: the id), so the worker processes what the
--- dashboard records (the worker LISTENs on its direct connection and also polls every 30 s).
+-- dashboard records (the worker LISTENs on its direct connection and also polls every 30 s). F2: the trigger is
+-- deferred to commit and notifies only for a row still queued then (Telegram and the CLIs process in the same
+-- transaction, so they wake nobody).
 
 create table notifications (                         -- outbox: anyone writes; the worker's bot sends
   id uuid primary key default gen_random_uuid(),
@@ -1095,6 +1099,7 @@ A worker takes `pg_try_advisory_lock(<constant>)` on a dedicated direct connecti
    - check freshness: proposal version and action hash, expiry, settings `baseVersion`;
    - **act in one transaction**: create proposals, approvals, settings versions, documents or flags;
    - write `result` and send `NOTIFY request_done`.
+   - **A fault** (an error that isn't a refusal) rolls back and leaves the request queued; the drain counts it (`attempts`) and holds the request back 1 min × 2^(n−1) (`retry_after`). At 5 faults the request is refused with its last error (the database's own words, never the query) and Marcus gets a `request_failed` alert (F2, D-094). A request recorded and processed in one transaction (Telegram, the CLIs) just answers with the fault.
 3. **Handing on.** Anything that needs applying is enqueued on the `gateway` queue. Marcus's spend-reducing actions get priority 100 and wake the gateway immediately.
 4. **One validator.** Settings, facts and documents are validated **only here**, using the `contracts` schemas and the pack manifests. The dashboard may run the same zod schemas in the browser for friendlier errors, but the processor's verdict is final.
 
@@ -2114,6 +2119,8 @@ Three sessions that fix what earlier code reviews and "Leave behind" notes defer
 **Done when (live):** migration `0008` runs with the others; nothing else is visible.
 
 **Cut first:** item 3.
+
+**As built (D-094):** nothing cut. Faults are counted by the drain only, with a backoff of 1 min × 2^(n−1) (`retry_after`, added after the code review), so the refusal comes about 15 minutes after the first fault; the stored error is the innermost cause's (drizzle's message carries the query and its parameters). `request_queued` is a deferred constraint trigger. `@ads/contracts` `format.ts`: `formatMoney` by the ISO 4217 minor unit (an explicit table, not `Intl`), `formatUsdExact`, `countOf` / `stageWord`, `percentOf`, `costPer`; `localTime` in `dates.ts`. Core's reports and detectors, the Telegram bot and the dashboard use them; the dashboard's history, facts and request pages show local times too.
 
 ### F3 — Pre-live rehearsal
 **Fix · Size ~450k · Needs:** F2 merged
