@@ -121,6 +121,7 @@ async function evidenceForNew(
   const base = await computeEvidence(ctx.db, {
     productId: ctx.product.id,
     timeZone: ctx.product.timezone,
+    kpiStage: ctx.product.settings.outcomes.primaryKpiStage,
     target,
     window,
   });

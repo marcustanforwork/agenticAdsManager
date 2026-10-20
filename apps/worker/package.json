@@ -8,6 +8,9 @@
       "@ads/source": "./src/main.ts",
       "types": "./dist/main.d.ts",
       "default": "./dist/main.js"
+    },
+    "./*": {
+      "@ads/source": "./src/*"
     }
   },
   "files": [

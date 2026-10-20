@@ -26,10 +26,11 @@ const productSlug = (value: string): string => {
   return value;
 };
 
-/** What the commands touch. `fetch` and `now` replace the network and the clock in tests; `packs` the installed
- *  packs (default INSTALLED_PACKS). */
+/** What the commands touch. `fetch`, `tokenFetch` (Google's sign-in) and `now` replace the network and the clock in
+ *  tests; `packs` the installed packs (default INSTALLED_PACKS). */
 export interface WorkerCliDeps extends CliDeps {
   fetch?: typeof fetch;
+  tokenFetch?: typeof fetch;
   now?: () => Date;
   packs?: PackRegistry;
   /** `ads model ping` in tests: a mock model and an in-memory trace exporter. */
@@ -124,6 +125,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
                 masterKey,
                 process: 'cli',
                 ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
+                ...(deps.tokenFetch === undefined ? {} : { tokenFetch: deps.tokenFetch }),
                 now,
                 packs,
                 env: deps.env,
@@ -172,6 +174,7 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
           platform: opts.platform,
           masterKey,
           ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
+          ...(deps.tokenFetch === undefined ? {} : { tokenFetch: deps.tokenFetch }),
           ...(deps.now === undefined ? {} : { now: deps.now }),
         });
         deps.print(JSON.stringify(report, null, 2));

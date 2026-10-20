@@ -194,6 +194,7 @@ describe('the analyst input', () => {
     const evidence = await computeEvidence(t.db, {
       productId: w.productId,
       timeZone: TZ,
+      kpiStage: 'signup',
       target: { kind: 'entity', entity: cheapest },
       window: windowEndingYesterday(NOW, TZ, 14),
     });
@@ -480,6 +481,7 @@ describe('the analyse stage', () => {
       await computeEvidence(t.db, {
         productId: w.productId,
         timeZone: TZ,
+        kpiStage: 'signup',
         target: { kind: 'entity', entity: tiny },
         window: windowEndingYesterday(NOW, TZ, 14),
       }),

@@ -802,3 +802,10 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Instead of:** counting faults without a backoff (an outage refuses good requests); Node's `Intl` currency digits (CLDR shows HUF, IDR and others without decimals, unlike ISO 4217); keeping per-surface formatters.
 - **See:** BLUEPRINT §4 (`operator_requests`), §5.4, F2 "As built"; `docs/milestones/F2-requests-formatting.md`.
 
+### D-095 — F3 build choices: the rehearsal package, the live-step check, the KPI at 0
+- **When / who / status:** 2026-10-19 · Claude (fix) · adopted
+- **Decision:** (1) The rehearsal is its own test-only package, `packages/rehearsal`, the one place that uses the worker and the dashboard together (devDependencies only; `apps/worker` and `apps/web` expose their sources through `@ads/source`-only `exports`; core and the SnapPool pack expose their test support as `./testing`). It runs on an empty database with the real migration script, CLI, worker service, bot handlers, request processor and dashboard loaders and pages; only the outside world is faked, and the clock moves through two weeks so the detectors have the history they need. (2) Every command in the live steps of NOW.md and the milestone files, and in the runbook, is checked in CI against the CLI's own command tree, the workspace's scripts and the bot's command table. (3) A finding's evidence records the KPI stage at 0 for a campaign, an account or the product; below a campaign (credited only by platform ids, T14) a stage without outcomes stays absent. (4) Test hooks: the worker passes its clock to the bot and takes a `model`; the CLI takes a `tokenFetch`.
+- **Why:** D-092 (F3): rehearse the first live weekend before Marcus's setup. A pause card said nothing where it should say "0 signups".
+- **Instead of:** a test inside `apps/worker` (it can't see the dashboard); running the CLIs as child processes (no fake network); a zero for every target (a made-up 0 where the ids aren't captured yet).
+- **See:** BLUEPRINT §2, F3 "As built"; `docs/milestones/F3-pre-live-rehearsal.md`.
+

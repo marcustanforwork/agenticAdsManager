@@ -54,7 +54,7 @@ beforeAll(async () => {
 afterAll(async () => t.drop());
 
 const evidenceOf = (target: FindingTarget) =>
-  computeEvidence(t.db, { productId: w.productId, timeZone: TZ, target, window: WINDOW });
+  computeEvidence(t.db, { productId: w.productId, timeZone: TZ, kpiStage: 'signup', target, window: WINDOW });
 const entity = (key: string): FindingTarget => ({ kind: 'entity', entity: e[key] as AdEntity });
 
 describe('computeEvidence', () => {
@@ -99,6 +99,14 @@ describe('computeEvidence', () => {
     });
   });
 
+  it('names the KPI stage at 0 for a campaign without outcomes; not below a campaign, nor where none are counted (F3)', async () => {
+    expect((await evidenceOf(entity('c3'))).outcomesByStage).toEqual({ signup: 0 });
+    expect((await evidenceOf(entity('k1'))).outcomesByStage).toEqual({}); // a keyword's outcomes aren't counted
+    // Below a campaign only the platform's ids credit an outcome: without them, "0" would be made up.
+    const adGroup = await w.entity('google', 'ad_group', 'ag-none', { parent: e['c3'] as AdEntity });
+    expect((await evidenceOf({ kind: 'entity', entity: adGroup })).outcomesByStage).toEqual({});
+  });
+
   it('counts the days watched from the first data or first sighting', async () => {
     expect(await evidenceOf(entity('c3'))).toMatchObject({ impressions: 0, dataDays: 3 }); // 5, 6, 7 October
     expect((await evidenceOf(entity('c2'))).dataDays).toBe(14); // first seen long ago, data or not
@@ -110,6 +118,7 @@ describe('computeEvidence', () => {
     const ev = await computeEvidence(t.db, {
       productId: w.productId,
       timeZone: TZ,
+      kpiStage: 'signup',
       target: { kind: 'product' },
       window: WINDOW,
       detail: { projectedMicros: '512000000' },

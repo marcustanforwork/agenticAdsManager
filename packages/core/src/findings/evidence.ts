@@ -73,12 +73,16 @@ function metricScope(target: FindingTarget): EvidenceScope {
   return { kind: 'product' };
 }
 
-/** `ComputedEvidence` for any target and window, from SQL. `detail` carries the rule's own computed figures. */
+/** `ComputedEvidence` for any target and window, from SQL. `detail` carries the rule's own computed figures. For a
+ *  campaign, an account or the product, the KPI stage is always there, 0 included, so "no signups" reads as such
+ *  (F3). Below a campaign, outcomes are credited only by the platform's own ids (T14), so a stage without any is
+ *  left out rather than shown as a measured 0; a target whose outcomes aren't counted at all has none. */
 export async function computeEvidence(
   db: DbOrTx,
   input: {
     productId: string;
     timeZone: string;
+    kpiStage: string;
     target: FindingTarget;
     window: EvidenceWindow;
     detail?: ComputedEvidence['detail'];
@@ -88,7 +92,12 @@ export async function computeEvidence(
   const metrics = await sumMetrics(db, { productId, scope: metricScope(target), ...window, timeZone });
   const scope = outcomeScope(target);
   const outcomesByStage =
-    scope === null ? {} : await countOutcomesByScope(db, { productId, scope, ...window, timeZone });
+    scope === null
+      ? {}
+      : {
+          ...(scope.kind === 'platformId' ? {} : { [input.kpiStage]: 0 }),
+          ...(await countOutcomesByScope(db, { productId, scope, ...window, timeZone })),
+        };
   const starts = [metrics.firstDataDay, metrics.firstSeenDay].filter((d): d is string => d !== null).sort();
   return {
     windowDays: daysFrom(window.from, window.to) + 1,

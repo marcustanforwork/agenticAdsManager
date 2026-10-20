@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.32 — 2026-10-19 (F2 as built: request faults back off and stop at 5, the deferred wake-up, display formatters in contracts, D-094) |
+| **Version** | v3.33 — 2026-10-19 (F3 as built: the pre-live rehearsal package, every live-step command checked, the KPI stage at 0 in a campaign's evidence, D-095) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -103,6 +103,7 @@ These rules are what make "product-agnostic" and "one write path" real. They are
 | `apps/worker` | contracts, db, vault, core, pack-sdk, packs/*, evals (for `ads eval`, M08) — **not** gateway, **not** any `*-write` package |
 | `apps/gateway` | contracts, db, vault, gateway |
 | `apps/web` | contracts, db — **nothing else** |
+| `rehearsal` (test-only, F3) | as devDependencies only: apps/worker, apps/web (through their source-only `exports`), contracts, db, core, vault, connector-google, connector-testing, the SnapPool pack (its fixture database). Nothing imports it; `apps/web`'s own tree is unchanged |
 
 **The rules in words:**
 1. Only `gateway` depends on the `*-write` packages, and only `apps/gateway` depends on `gateway`.
@@ -2149,6 +2150,8 @@ Three sessions that fix what earlier code reviews and "Leave behind" notes defer
 **Done when (live):** Marcus's first live weekend follows the checked steps.
 
 **Cut first:** the restart part of the rehearsal; rendering the dashboard pages (keep the web request round trips).
+
+**As built (D-095):** nothing cut. `packages/rehearsal` (test-only): `rehearsal.test.ts` runs the live steps in order on an empty database: the migration script twice and `ads seed`; links, credentials and dry syncs; outcomes and settings (Sunday); the worker on Monday (digest, brief, no proposal at phase 0, 👍 / 💡, `/status`, `/ceiling`); a restart in the middle of Tuesday's sync (`cyclesResumed: 1`); two unattended weeks; `ads phase set 1` and the next Monday's three proposals, decided by button (approve, reject with a reason, edit to phrase match); the dashboard's Overview and Proposals under its role and a web feedback round trip; `ads eval replay`. It fakes only the outside world: cassettes with their dates moved to the run's day, Google's token endpoint, SnapPool's database and its daily signups with click ids, the AI, Telegram (presses go to the bot's own handlers), the pings and the clock. `liveSteps.test.ts` checks every command in the live steps of NOW.md and the milestone files, and the runbook, against the CLI's command tree, the workspace's scripts and the bot's command table: all passed as written. Fixed: a finding's evidence names the KPI stage at 0 for a campaign, an account or the product (not below a campaign, where only the platform's ids credit an outcome); the worker gives the bot its clock and takes a `model`; the CLI takes a `tokenFetch`. Found, for the plan: SnapPool's Phase 1 gets no negatives (Google sees SnapPool's conversions only through Phase 2's uploads) and at most about two pauses a week, so its 1 → 2 gate will need PROPOSAL §12's longer window.
 
 ---
 

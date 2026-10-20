@@ -4,6 +4,22 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-19 — F3 built: the pre-live rehearsal, every live-step command checked
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
+- **Did:**
+  - F2's PR #23 was merged; reset the branch onto `main` (`ab3e2a7`); `start-milestone F3` (`docs/milestones/F3-pre-live-rehearsal.md`).
+  - New test-only package `packages/rehearsal` (boundary rule in `scripts/boundary-rules.mjs`, BLUEPRINT §2): `test/rehearsal.test.ts` runs the live steps in order on an empty database (the migration script, `ads seed`, links, credentials, dry syncs, outcomes, settings; the worker with a fake Telegram over two weeks: digests, briefs, 👍 / 💡, `/status`, `/ceiling`; a restart in the middle of a sync; `ads phase set 1` and three proposals decided by button; the dashboard's Overview and Proposals and a web round trip; `ads eval replay`). Fakes in `test/support/` (platforms, model, Telegram, CLI). Source-only `exports` added to `@ads/app-worker`, `@ads/app-web`; `./testing` to `@ads/core` and `@ads/pack-saas-snappool`.
+  - `test/liveSteps.test.ts`: every command in the live steps of NOW.md and the milestone files, and the runbook, checked against the CLI's command tree, the workspace's scripts and the bot's commands. All passed as written; the Phase 0 checklist artifact is unchanged.
+  - Fix: `computeEvidence` takes the KPI stage and records it at 0 for a campaign, an account or the product (`packages/core/src/findings/evidence.ts`; test in `evidence.test.ts`); the property replay case regenerated from its recorded answer.
+  - Test hooks: the worker passes its clock to the bot and takes a `model` (`apps/worker/src/worker.ts`); the CLI takes a `tokenFetch` (`apps/worker/src/cli.ts`).
+  - Code review (high): 9 findings, 6 fixed, 1 simplified, 2 not (in the milestone file).
+- **Decided:** D-095 (F3 build choices); BLUEPRINT v3.33.
+- **Learned:** SnapPool's Phase 1 gets no negatives (Google sees its conversions only through Phase 2's uploads) and pauses only once signups carry click ids (T14), about two a week: its 1 → 2 gate will likely need the longer window PROPOSAL §12 allows.
+- **Next:** Marcus merges F3's PR, then does the Phase 0 setup.
+- **Open:** —
+
+---
+
 ## 2026-10-19 — F2 built: request faults stop at 5, shared formatters
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23)
 - **Did:**
