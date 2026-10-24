@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-10-20 · cloud session · **F3 squash-merged into `main` through PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)** on Marcus's instruction, after every check passed (D-057). **D-092's three fix sessions are done** (F1 #22, F2 #23, F3 #24), and every milestone allowed before the Phase 0 gate is built. **Next: Marcus does the Phase 0 setup.** **M11a onwards (the gateway) wait for the gate** (D-090). His to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (every command in it passed F3's check; read his ticks with `ArtifactData` `list`, collection `progress`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
+**Last updated:** 2026-10-24 · local session · **The Phase 0 Live Checklist was refreshed (version 2):** Q13 removed (answered, D-071), T5 now names both service accounts, T10 added, and sections 12–14 hold M08's step 1, M09b's steps 1–3 and 5, M10a's and M10b's steps 1–4; no ticks yet. Before that, on 2026-10-20: **F3 squash-merged into `main` through PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)** on Marcus's instruction, after every check passed (D-057). **D-092's three fix sessions are done** (F1 #22, F2 #23, F3 #24), and every milestone allowed before the Phase 0 gate is built. **Next: Marcus does the Phase 0 setup.** **M11a onwards (the gateway) wait for the gate** (D-090). His to-do list is the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (every command in it passed F3's check; read his ticks with `ArtifactData` `list`, collection `progress`). SnapPool's tracking change (T6b) has been live since 2026-09-25.
 
 ## Where we are
 - **Phase:** 0.
@@ -13,7 +13,7 @@
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** work through the [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f), in its order (same content as below):
+1. **Marcus:** work through the [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f), in its order (same content as below; checklist version 2, 2026-10-24):
    - do the setup tasks: T1's optional part, then T2–T9 (T7 Telegram and T8 healthchecks are M07's), then the rest as the milestones need them;
    - run the live steps below in milestone order, M00 → M07, then M08's step 1 (migration `0005`; nothing visible changes); M07's live steps deploy to production on the SER9.
 2. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus records it and sets phase 1 (`ads phase set 1`, D-082); M08's live steps and the Phase 1 measuring start then.
