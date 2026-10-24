@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-20 — PR #24 (F3) merged; the fix sessions are done
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`), no review threads. Marcus said "let's merge the PR"; squash-merged it (D-057). F1–F3 (D-092) are all merged.
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus's Phase 0 setup (a session can walk him through each setup task, e.g. "walk me through T5").
+- **Open:** the Phase 0 setup (no ticks yet).
+
 ## 2026-10-19 — F3 built: the pre-live rehearsal, every live-step command checked
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
 - **Did:**
