@@ -4,6 +4,23 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-24/25 — Phase 0 setup with Marcus: T1–T5 done, T6a half done
+- **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
+- **Did:** refreshed the [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f) (versions 2–10): Q13 removed, T10 and the M08–M10b steps added, exact steps and "where it goes" per setup task, a Doppler table, safe terminal commands for secrets (hidden prompt, `-pooler` stripped, shape-checked), SnapPool's Meta and Google ids in M02/M03's commands. Checked T1 (GitHub ruleset), T2 and T3 (Doppler names; `dev` values by shape only). Created Doppler environments `worker` and `gateway` (deleted the empty Staging: 4-environment limit), linked the repo folder to `dev`, set `dev`'s `VAULT_READ_KEY` (generated, never shown) and `OPERATOR_ACTORS`. Guided T4 (Meta) and T5 (Google) by screenshot. T6a: a read-only check found the console-made `ads_agent_ro` was a `neon_superuser` admin; Marcus deleted it and remade it with SQL, but the new password wasn't saved to Doppler (login fails; nothing unsafe).
+- **Incident:** a `doppler configure` check printed Marcus's Doppler CLI token into the session log (Claude's mistake). Marcus logged out and in again; the old token is confirmed revoked.
+- **Decided:** — (no plan decisions; Marcus kept the read-only setup and chose a new Meta portfolio and ad account for SnapPool)
+- **Learned:** GOTCHAS: Neon console roles are admins; Doppler free plan = 4 environments; the CLI acts as `cli:node` inside Docker (`ADS_OPERATOR`); Meta Employee system users need "Manage app" to generate a token.
+- **Next:** finish T6a (NOW, Next action 1), then T9, T14, T7, T8, T10.
+- **Open:** plan fixes for `update-plan` (NOW, Next action 3); the Meta spending limit.
+
+## 2026-10-20 — PR #24 (F3) merged; the fix sessions are done
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`), no review threads. Marcus said "let's merge the PR"; squash-merged it (D-057). F1–F3 (D-092) are all merged.
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus's Phase 0 setup (a session can walk him through each setup task, e.g. "walk me through T5").
+- **Open:** the Phase 0 setup (no ticks yet).
+
 ## 2026-10-19 — F3 built: the pre-live rehearsal, every live-step command checked
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
 - **Did:**
