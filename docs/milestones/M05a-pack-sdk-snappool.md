@@ -78,8 +78,11 @@ The first real pack loads through the registry, SnapPool's outcomes flow in, and
   - evidence: full preflight below (`Tests 679 passed | 3 skipped`).
 
 ## Done when (live, run by Marcus)
-- [ ] `ads outcomes --product snappool` prints 30 days of outcomes by stage.
-  - result: —
+- [x] `ads outcomes --product snappool` prints 30 days of outcomes by stage.
+  - result (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch, read credentials only): `"read": {"outcome": "read", "events": 7, "new": 0}` (the 7 came in with M04's day-1 cycle), `"kpiStage": "signup"`.
+    - Last 30 days: `pool_request` 3, `signup` 2, `activated` 2, `card_saved` 0, `paid` 0, `refunded` 0; test 0 and attributed 0 everywhere.
+    - F4's step 3 check passes too: the three purchase stages are listed, with no error and no `ETIMEDOUT`.
+    - Step 2 (T6a) was done 2026-10-28; step 3: `OPERATOR_ACTORS=cli:marcus` already in Doppler `dev` (login `marcus`).
 - [ ] Marcus's starting settings are entered with `ads settings set`: the test-signup email domains (D-059), a monthly ceiling of S$500 (D-063), and a daily ceiling of his choice.
   - result: —
 - [ ] Changing the KPI from `signup` to `paid` with `ads settings set` changes the output, with no code change.
