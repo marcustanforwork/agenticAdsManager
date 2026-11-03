@@ -184,6 +184,7 @@ export const OutcomeStage = z.object({
   label: z.string(),
   tier: z.enum(['soft', 'success', 'hard']),
   valueMicros: MicrosJson.optional(),            // optional value per stage, for value-based feedback
+  role: z.enum(['paying', 'refund']).optional(), // F4: a new paying customer (its value is revenue) / a refund of one; at most one stage each
 });
 
 /** One conversion upload route: this stage goes to this platform destination (D-060).

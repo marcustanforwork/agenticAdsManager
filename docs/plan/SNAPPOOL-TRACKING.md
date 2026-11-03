@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v1.3 — 2026-11-03 (purchases: the `card_saved`, `paid` and `refunded` stages, read from SnapPool's payment tables, §2.1, D-096). v1.2 — 2026-09-25 (approved by Marcus; fixes from reading SnapPool's code, D-064; the prompt for the SnapPool session, §7) |
+| **Version** | v1.4 — 2026-11-03 (§2.1 checked against what F4 built: the exact grant, the subscription's `card_saved` time, the refund and click rules; the paying stage's mark). v1.3 — 2026-11-03 (purchases: the `card_saved`, `paid` and `refunded` stages, read from SnapPool's payment tables, §2.1, D-096). v1.2 — 2026-09-25 (approved by Marcus; fixes from reading SnapPool's code, D-064; the prompt for the SnapPool session, §7) |
 | **Status** | **Approved** by Marcus on 2026-09-25 (D-060, Q11). **Built and live on production since 2026-09-25 17:01 UTC** (setup task T6b; SnapPool Session 41). **v1.3 (purchases) approved by Marcus on 2026-11-03** (D-096); built in this repo's fix session F4, with no SnapPool code change. |
 | **Built in** | The **SnapPool repo** (`marcustanforwork/snappool`), by a SnapPool session following SnapPool's own process. This repo only uses what it produces. |
 | **Used by** | M05a (outcomes), M05b (attribution), F4 (purchases), M12 (Meta uploads) and M13 (Google uploads) in this repo |
@@ -59,9 +59,9 @@ These are the defaults for the `saas-snappool` pack (M05a). Marcus can edit them
 | `pool_request` | soft | `/start` is submitted | `pool_requests.created_at` | `pool_requests.id` |
 | `signup` | **success: the primary KPI during beta** | The visitor clicks the email link, and the request is claimed | `pool_requests.claimed_at` | `pool_requests.id` |
 | `activated` | success | The first photo lands in that pool | `events.first_upload_at`, where `events.id = pool_requests.event_id` | `events.id` |
-| `card_saved` | success | A paid plan is chosen at `/start` onboarding and the card is saved (the first charge comes later) | `deferred_event_charges.saved_at`; a subscription's start (`billing_subscriptions`, F4 confirms the column) | the charge's or subscription's id |
-| `paid` | hard | A host's **first** paid, live order (renewals, tier changes and add-ons left out) | `orders.paid_at`, with `amount_minor` and `currency` as the value | `orders.id` |
-| `refunded` | — (recorded apart) | A counted refund on a `paid` order | `refunds.created_at` (status not failed or canceled) | `refunds.id` |
+| `card_saved` | success | A paid plan is chosen at `/start` onboarding and the card is saved (the first charge comes later); live mode only | `deferred_event_charges.saved_at`; for a subscription chosen at onboarding (`pool_request_id` set) whose card was saved (status not `awaiting_card` or `abandoned`), its `created_at` (SnapPool keeps no save time for it; the row is made minutes before, when the plan is chosen) | the charge's or subscription's id |
+| `paid` | hard, marked **paying** | A host's **first** paid, live order over all its history (renewals, tier changes and add-ons left out) | `orders.paid_at`, with `amount_minor` and `currency` as the value (in micros by the currency's minor unit) | `orders.id` |
+| `refunded` | hard, marked **refund** (recorded apart) | A counted refund on a host's first paid order | `refunds.created_at` (status not `failed`, `canceled` or `cancelled`, as SnapPool's own sums), with its value | `refunds.id` |
 
 **Notes**
 - Only **claimed `/start` requests** count as signups. Hosts created by co-host invites, or who sign in directly, aren't acquisitions and are left out automatically.
@@ -79,13 +79,22 @@ These are the defaults for the `saas-snappool` pack (M05a). Marcus can edit them
 | One event chosen at `/start` onboarding, card saved, charged on 2027-01-01 | `orders` with `deferred_charge_id`, **no** `attribution` | through `deferred_event_charges.pool_request_id` → `pool_requests.attribution` |
 | A subscription (from onboarding, or later) | `orders` with `subscription_id` (`subscription_term`, then `subscription_renewal`), **no** `attribution` | through `billing_subscriptions.pool_request_id` when started at onboarding; else as below |
 
-**The fallback**, when neither applies: the host's latest claimed `/start` request with an attribution, made before the purchase (`lower(hosts.email) = pool_requests.email`). Claimed requests are never swept (only pending ones, after 30 days). The browser fields Meta needs (`user_agent`, `page_url`) come from that same `/start` request.
+**The fallback**, when neither carries a click: the host's latest claimed `/start` request with an attribution, made before the purchase (`lower(hosts.email) = lower(pool_requests.email)`). Claimed requests are never swept (only pending ones, after 30 days). The browser fields Meta needs (`user_agent`, `page_url`) come from the `/start` request the click came from (the linked one when it has a click, else the fallback). A refund carries its purchase's click, so it lands on the same campaign. `card_saved` finds its click the same way, from the request its charge or subscription points to.
 
 **Left out:** test-mode orders (`livemode` false); free grants (no `paid_at`, amount 0); orders by test emails or the superadmin (test traffic, as for signups); every order after a host's first paid one.
 
-**Read access:** Marcus grants `ads_agent_ro` select on these **columns only**, with SQL on SnapPool's production branch (F4 writes the exact statement): `orders` (`id`, `host_id`, `kind`, `status`, `currency`, `amount_minor`, `livemode`, `paid_at`, `attribution`, `subscription_id`, `deferred_charge_id`, `created_at`); `refunds` (`id`, `order_id`, `status`, `currency`, `amount_minor`, `created_at`); `deferred_event_charges` and `billing_subscriptions` (their ids, `host_id`, `pool_request_id`, status, the saved and start times, plan or tier, amount and currency, `livemode`). **Never** card references or URLs, fees, net amounts or the buyer's country.
+**Read access:** Marcus grants `ads_agent_ro` select on these **columns only**, with SQL on SnapPool's production branch (built in F4: `purchasesGrantSql()` in `packages/packs/saas-snappool/src/grant.ts`; the adapter's tests run as a role with exactly this grant):
+```sql
+grant select (id, host_id, currency, amount_minor, livemode, paid_at, attribution, subscription_id, deferred_charge_id) on orders to ads_agent_ro;
+grant select (id, order_id, status, currency, amount_minor, created_at) on refunds to ads_agent_ro;
+grant select (id, host_id, pool_request_id, livemode, saved_at) on deferred_event_charges to ads_agent_ro;
+grant select (id, host_id, pool_request_id, livemode, status, created_at) on billing_subscriptions to ads_agent_ro;
+```
+**Never** card references or URLs, fees, net amounts, the buyer's country, or any other column. Without the grant the read fails with "permission denied … run the purchases grant", and the `outcome_source_fresh` check fails.
 
 **Limits:** a host who clicks an ad on one device and starts on another can't be linked: the purchase counts, without an ad (the `attribution_gap` check shows how often). SnapPool's column names are now a contract with this repo: a SnapPool migration that renames one breaks the read, and the `outcome_source_fresh` check fails loudly.
+
+**In the reports** (F4): `paid` is marked as the paying stage and `refunded` as the refund stage (a stage's `role`, BLUEPRINT §3). The weekly brief's Numbers and the dashboard's Overview show paying customers, their payments per currency, the spend per paying customer and refunds beside the KPI, which stays `signup`.
 
 **Feedback to the platforms** (M12/M13): `paid` → Meta `Purchase` with its value, and a Google conversion action (T11). First, SnapPool's privacy page must say purchases are shared (today it names starting a pool only). Meta rejects website events more than 7 days old, so a purchase is sent soon after `paid_at`; the click itself may be older.
 
