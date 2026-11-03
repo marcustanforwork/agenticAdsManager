@@ -15,7 +15,7 @@
 1. **Done 2026-11-03:** the purchases grant (Marcus ran it; Claude checked it as `ads_agent_ro`: 6 / 5 / 9 / 6 columns, `card_ref` denied, the adapter's read ok with 7 outcomes in 35 days). Details in the F4 milestone file.
 2. **The dev live steps, on this branch `m01a/live-acceptance`** (draft PR #26; continue it). Run `nvm use` first (GOTCHAS). Record each result in the milestone file and tick it in the checklist artifact (`progress`). Done on 2026-11-03 (by Claude, Marcus's go-ahead, Doppler `dev`): M01a 1–4; M02 1–6, 8, 9; M03 1–6, 8; M04 2 (day 1); M05a 1–4; M05b 1–4; M06a 1, 3, 4; M06b 5. **Left:**
    - **Marcus's answers:**
-     - M05a step 5: his test email domain(s) and daily ceiling (the monthly is S$500), then Claude runs steps 5–6 (settings v2, the KPI switch and back);
+     - M05a step 5: his test email domain(s) and daily ceiling (the monthly is S$500), then Claude runs steps 5–6 (settings v2, the KPI switch and back). **Test traffic is matched by domain only**, so it must be a domain only SnapPool staff use (e.g. `snappool.photos`), **never `gmail.com`**: that would mark every Gmail sign-up as test. Marcus plans a new SnapPool Gmail (2026-11-03): test sign-ups need an address on SnapPool's own domain instead. Nothing stops a free-mail domain today; a guard (refuse `gmail.com` and the like) is a candidate for F5 if there's room;
      - M06a step 3: "trace seen" in Langfuse (the model ping, US$0.0015);
      - M06b step 5: are the property findings useful on first read? Then PR #27 (the Opus 5.5 case plus a replay look-ups fix) can merge, on his word, after CI.
    - **Claude, on 2026-11-04 or later:** M04 step 3 (day 2: the same daily cycle command) and step 4 (the restart check with the dev stack `ads-agent-dev`).
