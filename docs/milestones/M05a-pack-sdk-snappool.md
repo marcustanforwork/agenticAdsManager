@@ -98,7 +98,7 @@ _At the end of Phase 0 (D-074), after the M01a–M04 steps. Doppler `dev`, the N
 4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads outcomes --product snappool`
    - expect: `"read": {"outcome": "read", …}`, then 30 days of `pool_request`, `signup`, `activated` (and `paid` at 0), with `"kpiStage": "signup"`.
    - report back: the JSON (it holds counts only).
-5. Your starting settings (D-059, D-063). Replace `<your-domain>` with the domains you sign up with when testing, and pick the daily ceiling in micros (S$1 = `1000000`; S$25 = `25000000`):
+5. Your starting settings (D-059, D-063). Replace `<your-domain>` with the domains you sign up with when testing (SnapPool: `snappool.photos`; **never a free-mail domain** like `gmail.com`, which would mark every Gmail sign-up as test, D-101), and pick the daily ceiling in micros (S$1 = `1000000`; S$25 = `25000000`):
    `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads settings set --product snappool --patch '{"testTraffic":{"emailDomains":["<your-domain>"]},"spend":{"monthlyCeilingMicros":"500000000","dailyCeilingMicros":"25000000"}}'`
    - expect: `"status": "done"`, `"version": 2`. Run step 4 again: your own signups now count under `test`.
 6. The KPI switch: `… ads settings set --product snappool --patch '{"outcomes":{"primaryKpiStage":"paid"}}'`, then `… ads outcomes --product snappool --no-read`

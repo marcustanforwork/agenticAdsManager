@@ -856,3 +856,19 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** observed on 2026-11-03: `ads-agent-read` lists the manager `9611885654` as directly accessible, but a GAQL read of it returned `authorizationError: CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION`. Google's access-levels page says "After you enable the Google Ads API (which grants **Test** access)", and that Test "can only make Google Ads API requests against test accounts". D-070 had it from secondary sources.
 - **Instead of:** D-070's "Explorer comes with enabling the API, with no application".
 - **See:** PROPOSAL §7 (Google API facts), §16 T5 · BLUEPRINT M03 · GOTCHAS (Google Ads API access) · `docs/milestones/M03-google-read.md` · developers.google.com/google-ads/api/docs/api-policy/access-levels and get-started/common-errors (read 2026-11-03)
+
+### D-101 — SnapPool's own business identity: a domain address, added admins, a Facebook Page
+- **When / who / status:** 2026-11-03 · Marcus · adopted (he agreed to Claude's four points, in chat).
+- **Decision:**
+  1. **Email.** A new Gmail account is SnapPool's business login. Customers see an address on SnapPool's own domain (e.g. `hello@snappool.photos`): either Cloudflare Email Routing (free; forwards to the Gmail, and sending *as* the address needs extra setup) or Google Workspace (paid, a full mailbox).
+  2. **Add, don't move.** The new account is added as a **second admin** everywhere SnapPool lives:
+     - the Google Ads manager `961-188-5654` and SnapPool's ads account `722-828-5349`;
+     - the Cloud project `ads-agent-512616`;
+     - billing on both platforms.
+
+     Marcus's current account stays admin, so there are always two and no lock-out. The ad accounts stay the same (the agent is linked to their ids). The agent's own identities (the Google service accounts, the Meta system users) are untouched.
+  3. **Meta.** A **Facebook Page** for SnapPool, made in the existing Business portfolio: Ads Manager runs ads under a Page, even Instagram-only ones. SnapPool's Instagram becomes a professional account connected to that Page. Marcus's **personal** Facebook profile stays the admin; the new Gmail is the business contact email. No second personal profile (Meta's rules; such accounts get disabled).
+  4. **Test sign-ups** use an address on `snappool.photos`, and `testTraffic.emailDomains` is `["snappool.photos"]`. It is **never a free-mail domain**: test traffic is matched by domain only, so `gmail.com` would hide every real Gmail sign-up. A guard refusing free-mail domains is a candidate for F5.
+- **Why:** customer mail and SnapPool's accounts belong to SnapPool, not a personal inbox; two admins prevent lock-out; Meta needs a Page to advertise; a free-mail test domain would silently drop real outcomes.
+- **Instead of:** moving ownership to the new account (re-linking the agent, risking lock-out); a Gmail address shown to customers; a second personal Facebook profile for the business.
+- **See:** PROPOSAL §16 T15 (new), T6(d) · `docs/milestones/M05a-pack-sdk-snappool.md` step 5 · the checklist artifact's T15

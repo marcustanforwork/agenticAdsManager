@@ -4,7 +4,7 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
-## 2026-11-03 — The dev live steps: M01a–M06b on the Neon dev branch (D-100)
+## 2026-11-03 — The dev live steps: M01a–M06b on the Neon dev branch (D-100); SnapPool's business identity (D-101)
 - **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26) · PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27) (`m06b/property-case`)
 - **Did** (all run by Claude with Marcus's go-ahead, Doppler `dev`, read credentials only; Marcus was remote):
   - **M01a** 1–4: migrate and seed dev (9 migrations, 32 tables, roles, products, flag, phase 0).
@@ -26,8 +26,11 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - Neon runs Postgres 18.6;
   - Google Explorer is applied for, not automatic;
   - a client your login can open isn't necessarily linked under the manager (`customer_client_link` shows the truth).
+- **At the end:** Marcus plans a separate SnapPool business identity and agreed to Claude's four points.
+  - Recorded as **D-101**: a domain address; the new Gmail added as a second admin, never moving ownership; a Facebook Page in the existing Business portfolio, with his personal profile as admin; test sign-ups on `snappool.photos`, never a free-mail domain.
+  - Setup task **T15** (PROPOSAL v3.13, also in the checklist artifact); T6(d) and M05a step 5 updated.
 - **Next:**
-  - Marcus: M05a step 5's values; "trace seen"; rate the property findings (PR #27); M01a prod at home.
+  - With Marcus at home: T15 (account set-ups, the Facebook Page), then M01a prod; his daily ceiling for M05a step 5; "trace seen"; rate the property findings (PR #27).
   - Claude: M04 day 2 and the restart check (2026-11-04 or later); then F5.
 - **Open:** the manager's two not-enabled client links (`884-331-3896`, `319-172-0680`).
 
