@@ -83,7 +83,8 @@ export interface PropertyCaseOptions {
   env?: Readonly<Record<string, string | undefined>>;
   model?: ModelDeps['model'];
   tracing?: ModelTracing | null;
-  /** Look-ups offered to the model (default: the fixture's settings, 20). Recorded answers use none. */
+  /** Look-ups offered to the model (default: the fixture's settings, 20). Recorded answers use none by default;
+   *  replaying a model's answer passes `true`, so the input (its token estimate) matches the model's run. */
   lookups?: boolean;
 }
 
@@ -93,7 +94,8 @@ export async function runPropertyCase(db: DbOrTx, opts: PropertyCaseOptions): Pr
   const packs = createRegistry([propertyPack]);
   const fixture = await seedPropertyFixture(db);
   let product = await getProduct(db, fixture.productId);
-  if (opts.recorded !== undefined || opts.lookups === false) {
+  const offerLookups = opts.lookups ?? opts.recorded === undefined;
+  if (!offerLookups) {
     product = {
       ...product,
       settings: { ...product.settings, agent: { ...product.settings.agent, analystLookupBudget: 0 } },

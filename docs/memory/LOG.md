@@ -4,6 +4,11 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-11-03 — M06b live step 5: the property case answered by Opus 5.5
+- **Where:** local (SER9) · branch `m06b/property-case` · PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27)
+- **Did:** `case:property --write` with Doppler `dev`'s model (Opus 5.5, US$0.13): 5 findings confirmed, 1 dismissed, the injection term kept as data. `pnpm test` then failed on `input.estimatedTokens` only, because the replay always turned look-ups off. Fixed: replaying a model's answer offers the same look-ups, with a test pinning both cases.
+- **Next:** Marcus rates the findings ("useful on first read"); merge on his word after CI. The rest of that day's live steps are in PR #26.
+
 ## 2026-11-03 — F4: CI green again, SnapPool connect timeout, SnapPool purchases (AI cost limit cut to F5)
 - **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
 - **Did:**

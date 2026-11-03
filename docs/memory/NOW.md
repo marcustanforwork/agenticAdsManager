@@ -22,6 +22,7 @@
 
 ## In flight
 - Nothing: PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (F4 and its plan docs) squash-merged on Marcus's word, 2026-11-03, after CI passed.
+- Branch `m06b/property-case` (PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27)): M06b live step 5, the property replay case answered by Opus 5.5, plus a replay fix (look-ups offered when replaying a model's answer). Marcus rates the findings, then merges on his word after CI. The dev live steps' full record is on `m01a/live-acceptance` (draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)).
 
 ## Blocked on Marcus
 - The SnapPool purchases grant; then the live steps M01a → M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
