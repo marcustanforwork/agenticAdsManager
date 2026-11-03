@@ -2,6 +2,7 @@
 // (M05a), then starts the worker service (M07: startup reconciliation, the job queue, and on the leader the
 // schedule, Telegram and the outbox). On SIGTERM the running cycle stops between stages and its job is released.
 import { pino } from 'pino';
+import { raiseConnectAttemptTimeout } from './network.ts';
 import { portFromEnv, startService } from './service.ts';
 import { publishManifestsAtStartup } from './startup.ts';
 import { type RunningWorker, startWorker } from './worker.ts';
@@ -9,6 +10,7 @@ import { type RunningWorker, startWorker } from './worker.ts';
 const logger = pino({ base: { service: 'worker' } });
 
 async function main(): Promise<void> {
+  raiseConnectAttemptTimeout(); // before any connection: SnapPool's database is far away (F4)
   const service = await startService({
     name: 'worker',
     logger,

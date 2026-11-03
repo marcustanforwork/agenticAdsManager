@@ -14,6 +14,7 @@ import { type ModelCliDeps, modelCommand } from './model.ts';
 import { outcomesCommand } from './outcomes.ts';
 import { evalCommand, phaseCommand, proposalsCommand } from './proposals.ts';
 import { reportCommands } from './reports.ts';
+import { raiseConnectAttemptTimeout } from './network.ts';
 import { INSTALLED_PACKS } from './packs.ts';
 import { seedCommand, settingsCommand } from './settings.ts';
 import { credentialsCommand, defaultCliDeps, masterKeyFromEnv, withDatabase, type CliDeps } from '@ads/vault';
@@ -192,5 +193,6 @@ export const withoutLeadingDashes = (argv: string[]): string[] =>
   argv[2] === '--' ? [...argv.slice(0, 2), ...argv.slice(3)] : argv;
 
 if (import.meta.main) {
+  raiseConnectAttemptTimeout(); // before any connection: SnapPool's database is far away (F4)
   await buildProgram().parseAsync(withoutLeadingDashes(process.argv));
 }
