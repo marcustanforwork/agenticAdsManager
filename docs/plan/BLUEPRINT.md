@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.34 — 2026-11-03 (fix session F4: CI that ignores the date, the SnapPool connect timeout, SnapPool purchases as outcomes, an AI cost soft limit; D-096, D-097) |
+| **Version** | v3.35 — 2026-11-03 (F4 as built: one clock per comparison, a stage's `role`, the purchases grant as code; the AI cost limit cut to F5; D-099). v3.34 — 2026-11-03 (fix session F4: CI that ignores the date, the SnapPool connect timeout, SnapPool purchases as outcomes, an AI cost soft limit; D-096, D-097) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -2183,6 +2183,17 @@ Three sessions that fix what earlier code reviews and "Leave behind" notes defer
 
 **Cut first:** the AI cost limit (item 4); the dashboard figures (keep the brief's).
 
+**As built (D-099):** item 4 (the AI cost soft limit) cut to a later fix session, **F5**, at the ~300k checkpoint; everything else built. The red CI came from code mixing clocks as well as tests: proposals, decisions and drift now take the caller's clock, the request handlers get the worker's or the CLI's clock, the outbox renders cards on the bot's; CI runs the suite a second time a year ahead (`TEST_CLOCK_OFFSET_DAYS`). `raiseConnectAttemptTimeout()` (at least 2 s per address) starts the worker and the CLI. Purchases: one SQL statement in the SnapPool adapter (first paid order per host over all history; saved cards; counted refunds on a first order; the click from the order, the linked `/start` request, or the host's latest claimed one before the purchase); an onboarding subscription's `card_saved` uses its `created_at` (SnapPool keeps no save time); values in micros by the currency's minor unit. `OutcomeStage.role` (`paying` / `refund`) marks SnapPool's `paid` and `refunded`; the brief's Numbers and the Overview show paying customers, revenue per currency, cost per paying customer and refunds (`payingSummary`, `outcomeValueTotals`). The grant is `purchasesGrantSql()` (four column lists); the adapter's tests run as a role with exactly it. `apps/web` has `engines` Node 24.x.
+
+### F5 — The AI cost soft limit
+**Fix · Size ~150k · Needs:** F4 merged. Moved from F4 item 4 (D-099); it can't be cut again.
+
+**Builds:** a setting with a default of US$20 a month; before each AI stage, the month's `cycles.model_cost_micros` is summed; at the limit the stage is skipped (sync, trust checks and the number-only digest still run), one alert goes to Marcus, and the brief and digest say "AI paused: monthly limit". Also the Phase 0 checklist artifact's grant step (D-096).
+
+**Tests:** the cost limit at, below and above.
+
+**Done when (cloud):** the tests green in CI.
+
 ---
 
 ### M11a — Gateway rules: allowlist, guards, fingerprint
@@ -2595,7 +2606,8 @@ Run through this list before every PR; the `preflight` skill does it. A **no** o
 | F1 | Fix: wording and feedback (D-092) | fix | 250k | — | Folded into M07's and M10b's |
 | F2 | Fix: request processor, shared formatting | fix | 300k | — | Migration with the others |
 | F3 | Fix: pre-live rehearsal | fix | 450k | — | The first live weekend follows its checked steps |
-| F4 | Fix: CI, SnapPool connection, purchases, AI cost limit (D-097) | fix | 500k | — | SnapPool purchases read; before M01a's live steps |
+| F4 | Fix: CI, SnapPool connection, purchases, AI cost limit (D-097) | fix | 500k | — | SnapPool purchases read; before M01a's live steps; item 4 cut → F5 (D-099) |
+| F5 | Fix: the AI cost soft limit (D-099) | fix | 150k | F4 | Moved from F4 |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | 450k | — | — |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | 450k | — | Gateway runs with writes off |
 | M12 | Meta writes + CAPI | 2 | 500k | T4 (write) | First live pause + undo; a CAPI event |
