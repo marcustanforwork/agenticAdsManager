@@ -102,7 +102,7 @@ Severity: **Critical** = would cause wrong changes, money loss, or a blocked mil
 | # | v2 said / assumed | Current fact | Effect on the plan |
 |---|---|---|---|
 | D1 | Google offline conversion upload via the Ads API | The Data Manager API, since 2026-06-15, for new tokens | M13 redesigned (B1) |
-| D2 | Test access now; apply for Basic to reach real accounts | **Explorer access** (Feb 2026) reaches real accounts with no application, 2,880 ops/day | Live work can start sooner (T5) |
+| D2 | Test access now; apply for Basic to reach real accounts | **Explorer access** (Feb 2026) reaches real accounts with no application, 2,880 ops/day (**corrected by D-100:** Explorer must be applied for; enabling the API gives Test access) | Live work can start sooner (T5) |
 | D3 | "v25.1 current" | v25.2 is out (v25 released 2026-07-22, sunsets Aug 2027). `google-ads-api` moved to v25.1 on 2026-09-17 and supports one API version per release. | Pin the library and the API version together |
 | D4 | Node 22 LTS | Node 24 is the active LTS (maintenance from 2026-10-20); Node 26 becomes LTS on 2026-10-28 | Node 24; decide on 26 in M00 |
 | D5 | AI SDK `generateObject` | Deprecated in AI SDK 6, replaced by `generateText` + `Output.object` | M06 |

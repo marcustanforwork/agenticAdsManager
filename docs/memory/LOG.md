@@ -4,7 +4,12 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
-## 2026-11-03 — Live steps: M01a dev passed, M01a prod waits, M02 started
+## 2026-11-03 — Live steps: M01a dev passed, M01a prod waits, M02 dry sync passed, M03 blocked (D-100)
+- **Later the same session:**
+  - M02 steps 1–6, 8, 9: SnapPool's Meta account linked, its read token sealed, dry sync 6.9 s. The account is empty (no campaigns, never spent), so the fixtures (step 7) wait for the first ad.
+  - M03 steps 1–5: the Google read key (T5's download) sealed. The dry sync got 403: the Cloud project has **Test** access. Read-only diagnosis: the service account reaches the manager; the client is denied.
+  - D-100, BLUEPRINT v3.36, PROPOSAL v3.12, GOTCHAS, CHANGES-v3; the checklist artifact's T5 gains the Explorer step.
+  - Marcus applies for Explorer and checks the client's link.
 - **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
 - **Did:**
   - M01a steps 1–4 on the Neon dev branch, run by Claude with Marcus's go-ahead (Doppler `dev`, owner, direct host). The dev branch was empty before. Migrate twice and seed twice, all as expected. Checked read-only: 9 migrations, 32 tables, the three `agent_*` roles, products, flag, `ads phase` 0.

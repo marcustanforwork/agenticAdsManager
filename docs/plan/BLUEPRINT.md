@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.35 — 2026-11-03 (F4 as built: one clock per comparison, a stage's `role`, the purchases grant as code; the AI cost limit cut to F5; D-099). v3.34 — 2026-11-03 (fix session F4: CI that ignores the date, the SnapPool connect timeout, SnapPool purchases as outcomes, an AI cost soft limit; D-096, D-097) |
+| **Version** | v3.36 — 2026-11-03 (M03 needs Explorer access applied for, D-100). v3.35 — 2026-11-03 (F4 as built: one clock per comparison, a stage's `role`, the purchases grant as code; the AI cost limit cut to F5; D-099). v3.34 — 2026-11-03 (fix session F4: CI that ignores the date, the SnapPool connect timeout, SnapPool purchases as outcomes, an AI cost soft limit; D-096, D-097) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -1527,7 +1527,7 @@ Details (M05b, D-077): ad group / ad set / ad ids count for their campaign; `utm
 ---
 
 ### M03 — Google read connector
-**Phase 0 · Size ~500k · Needs:** T5 (as rewritten for D-070), for the live steps only. Explorer access, which comes with enabling the Google Ads API in the Cloud project, is enough. Q13 decides the identity type (D-071).
+**Phase 0 · Size ~500k · Needs:** T5 (as rewritten for D-070), for the live steps only. Explorer access is enough; it must be applied for on the Cloud Console's Google Ads API Overview page, since enabling the API gives Test access only (D-100). Q13 decides the identity type (D-071).
 
 **Goal:** typed, deterministic, quota-aware Google Ads reads.
 
