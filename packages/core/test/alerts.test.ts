@@ -125,7 +125,14 @@ describe('raising alerts', () => {
       [other, 'status'],
       [closed, 'status'],
     ] as const) {
-      await recordDrift(t.db, { productId: w.productId, adEntityId: entity.id, field, expected: 'a', observed: 'b' });
+      await recordDrift(t.db, {
+        productId: w.productId,
+        adEntityId: entity.id,
+        field,
+        expected: 'a',
+        observed: 'b',
+        detectedAt: new Date(), // the sync stamps drift with its own clock, as it does the cycle's start
+      });
     }
     expect(await driftOnOpenProposals(t.db, { productId: w.productId, since })).toEqual([
       { target: `google:${google}:campaign:77`, fields: ['dailyBudgetMicros', 'status'], proposals: [open.shortId] },

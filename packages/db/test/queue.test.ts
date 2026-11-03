@@ -14,7 +14,7 @@ import {
 } from '../src/queue/jobs.ts';
 import { listUnsentNotifications } from '../src/repos/plumbing.ts';
 import { jobs } from '../src/schema.ts';
-import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
+import { createTestDatabase, databaseNow, type TestDatabase } from '../src/testing.ts';
 import { uniq } from './helpers.ts';
 
 let t: TestDatabase;
@@ -45,10 +45,12 @@ describe('claiming', () => {
 
   it('respects priority, then run_at', async () => {
     const kind = uniq('k');
-    const low = await enqueueJob(t.db, { queue: 'worker', kind, priority: 0, runAt: new Date(Date.now() - 60_000) });
+    // A job is due by the database's clock (`run_at <= now()` when claimed).
+    const dbNow = (await databaseNow(t)).getTime();
+    const low = await enqueueJob(t.db, { queue: 'worker', kind, priority: 0, runAt: new Date(dbNow - 60_000) });
     const high = await enqueueJob(t.db, { queue: 'worker', kind, priority: 100 });
     const midNew = await enqueueJob(t.db, { queue: 'worker', kind, priority: 50 });
-    const midOld = await enqueueJob(t.db, { queue: 'worker', kind, priority: 50, runAt: new Date(Date.now() - 1000) });
+    const midOld = await enqueueJob(t.db, { queue: 'worker', kind, priority: 50, runAt: new Date(dbNow - 1000) });
     const order = [];
     for (let i = 0; i < 4; i++) order.push((await claim(kind))?.id);
     expect(order).toEqual([high.id, midOld.id, midNew.id, low.id]);

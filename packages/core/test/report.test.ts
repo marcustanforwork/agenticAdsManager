@@ -440,6 +440,51 @@ describe('the brief', () => {
     expect(await listBriefs(t.db, product.id)).toHaveLength(1);
   });
 
+  it('shows paying customers, revenue and cost per paying customer beside the KPI; the number check holds them (F4)', async () => {
+    const stages = [
+      ...SETTINGS.outcomes.stages,
+      { id: 'paid', label: 'Paid (first order)', tier: 'hard' as const, role: 'paying' as const },
+      { id: 'refunded', label: 'Refunded', tier: 'hard' as const, role: 'refund' as const },
+    ];
+    const { product, cycle, search, w } = await world({ ...SETTINGS, outcomes: { ...SETTINGS.outcomes, stages } });
+    const sgd = (dollars: number) => ({ valueMicros: S(dollars).toString(), currency: 'SGD' });
+    await w.outcome('p1', 'paid', '2026-10-04T04:00:00Z', search, sgd(29));
+    await w.outcome('p2', 'paid', '2026-10-06T04:00:00Z', null, sgd(49));
+    await w.outcome('p0', 'paid', '2026-09-28T04:00:00Z', null, sgd(29)); // the week before
+    await w.outcome('pt', 'paid', '2026-10-06T05:00:00Z', null, { ...sgd(99), isTest: true }); // never counts
+    await w.outcome('r1', 'refunded', '2026-10-07T04:00:00Z', null, sgd(29));
+
+    const numbers = await buildBriefNumbers(t.db, { product, cycleId: cycle.id });
+    expect(numbers.kpi.stage).toBe('signup'); // the KPI doesn't move
+    expect(numbers.paying).toEqual({
+      stage: 'paid',
+      label: 'Paid (first order)',
+      customers: 2,
+      previousCustomers: 1,
+      revenue: [{ currency: 'SGD', amount: '78.00' }],
+      costPerCustomer: '35.00',
+      refunds: { stage: 'refunded', count: 1, amounts: [{ currency: 'SGD', amount: '29.00' }] },
+    });
+    expect(renderBrief(numbers, templateProse(numbers))).toContain(
+      [
+        '- Cost per signup: S$35.00 (before S$35.00, 0%)',
+        '- Paying customers: 2 (before 1) · revenue S$78.00 · cost per paying customer S$35.00',
+        '- Refunds: 1 (S$29.00)',
+      ].join('\n'),
+    );
+    const allowed = allowedValues(numbers);
+    expect(
+      checkNumbers('2 new paying customers paid S$78.00, S$35.00 of spend each; 1 refund of S$29.00.', allowed).ok,
+    ).toBe(true);
+    expect(checkNumbers('Revenue with the refund added back was S$107.00.', allowed).unmatched).toEqual(['107.00']);
+
+    // No paying stage, no paying figures.
+    const plain = await world();
+    const none = await buildBriefNumbers(t.db, { product: plain.product, cycleId: plain.cycle.id });
+    expect(none.paying).toBeNull();
+    expect(renderBrief(none, templateProse(none))).not.toContain('Paying customers');
+  });
+
   it('an invented number triggers the template fallback', async () => {
     const { product, cycle } = await standingWorld();
     const ai = modelSaying({ headline: 'Spend rose to S$71.00.', paragraphs: ['About 999 people saw the ads.'] });

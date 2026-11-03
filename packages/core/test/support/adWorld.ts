@@ -40,7 +40,7 @@ export interface AdWorld {
     stage: string,
     occurredAt: string,
     to: AdEntity | null,
-    opts?: { isTest?: boolean; ids?: OutcomeEvent['ids'] },
+    opts?: { isTest?: boolean; ids?: OutcomeEvent['ids']; valueMicros?: string; currency?: string },
   ): Promise<void>;
 }
 
@@ -131,7 +131,15 @@ export async function makeAdWorld(
     },
     async outcome(sourceId, stage, occurredAt, to, o = {}) {
       await insertOutcomes(db, product.id, [
-        { sourceId, stage, occurredAt, isTest: o.isTest ?? false, ids: o.ids ?? {} },
+        {
+          sourceId,
+          stage,
+          occurredAt,
+          isTest: o.isTest ?? false,
+          ids: o.ids ?? {},
+          ...(o.valueMicros === undefined ? {} : { valueMicros: o.valueMicros }),
+          ...(o.currency === undefined ? {} : { currency: o.currency }),
+        },
       ]);
       const [stored] = await db
         .select({ id: schema.outcomes.id })

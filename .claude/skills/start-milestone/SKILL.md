@@ -1,6 +1,6 @@
 ---
 name: start-milestone
-description: Begin a blueprint milestone or milestone part (M00–M16, including a/b parts such as M05a), or a fix session (F1–F3, D-092). Checks its prerequisites and the phase gate, creates its milestone file from the template, verifies the external facts it depends on, and plans the session within its token budget. Use when NOW.md says the next milestone or fix session should start, or when the user says "start M05a", "start F1" or "next milestone".
+description: Begin a blueprint milestone or milestone part (M00–M16, including a/b parts such as M05a), or a fix session (F1–F4, D-092, D-097). Checks its prerequisites and the phase gate, creates its milestone file from the template, verifies the external facts it depends on, and plans the session within its token budget. Use when NOW.md says the next milestone or fix session should start, or when the user says "start M05a", "start F1" or "next milestone".
 ---
 
 # Start a milestone

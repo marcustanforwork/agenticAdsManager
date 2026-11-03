@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.33 — 2026-10-19 (F3 as built: the pre-live rehearsal package, every live-step command checked, the KPI stage at 0 in a campaign's evidence, D-095) |
+| **Version** | v3.35 — 2026-11-03 (F4 as built: one clock per comparison, a stage's `role`, the purchases grant as code; the AI cost limit cut to F5; D-099). v3.34 — 2026-11-03 (fix session F4: CI that ignores the date, the SnapPool connect timeout, SnapPool purchases as outcomes, an AI cost soft limit; D-096, D-097) |
 | **Builds on** | `PROPOSAL.md` v3.0. The proposal says *what* and *why*; this file says *how*. If they disagree, the proposal wins, and this file is fixed with the `update-plan` skill. |
 | **Replaces** | the v2 blueprint (kept unchanged in `docs/archive/blueprint-v2.1.md`) |
 | **Progress** | Not tracked here. Current status lives in `docs/memory/NOW.md`, and each started milestone has its own file in `docs/milestones/`. |
@@ -184,6 +184,7 @@ export const OutcomeStage = z.object({
   label: z.string(),
   tier: z.enum(['soft', 'success', 'hard']),
   valueMicros: MicrosJson.optional(),            // optional value per stage, for value-based feedback
+  role: z.enum(['paying', 'refund']).optional(), // F4: a new paying customer (its value is revenue) / a refund of one; at most one stage each
 });
 
 /** One conversion upload route: this stage goes to this platform destination (D-060).
@@ -2019,7 +2020,7 @@ A pause proposal (`core/src/requests/operator.ts`) is built like a drafted one (
 **Done when (cloud):** all tests are green, and `apps/web`'s dependency tree contains only `contracts` + `db`.
 
 **Done when (live):**
-- The dashboard is deployed on Vercel behind Access, and the raw `*.vercel.app` address returns 401.
+- The dashboard is deployed on Vercel behind Access, and the raw `*.vercel.app` address is closed (Vercel's login under Standard Protection; the app itself answers 401 without an Access token).
 - Marcus configures SnapPool entirely from the settings screens.
 - The next morning's digest reflects the new ceilings.
 
@@ -2067,9 +2068,9 @@ The **Phase 1 gate** is then evaluated (PROPOSAL §12). Its 3-week window can ov
 
 ---
 
-### Fix sessions before the first live run (F1–F3, D-092)
+### Fix sessions before the first live run (F1–F4, D-092, D-097)
 
-Three sessions that fix what earlier code reviews and "Leave behind" notes deferred, and rehearse the first live run. **They follow the milestone workflow exactly:** one clean-context session each, within 400–600k tokens; `start-milestone F<n>` creates `docs/milestones/F<n>-<slug>.md` from the template; build, committing and pushing each step; `preflight`; `code-review` at high effort; `close-milestone`; `end-session`; one PR, merged only on Marcus's word after CI (D-057). They change no ad account, so they run before the Phase 0 gate, in order F1 → F2 → F3. Their live checks fold into the existing live steps.
+Three sessions that fix what earlier code reviews and "Leave behind" notes deferred, and rehearse the first live run. A fourth, **F4** (D-097), was added at the start of the live steps: CI, the SnapPool connection, SnapPool's purchases and an AI cost limit; it runs before M01a's live steps. **They follow the milestone workflow exactly:** one clean-context session each, within 400–600k tokens; `start-milestone F<n>` creates `docs/milestones/F<n>-<slug>.md` from the template; build, committing and pushing each step; `preflight`; `code-review` at high effort; `close-milestone`; `end-session`; one PR, merged only on Marcus's word after CI (D-057). They change no ad account, so they run before the Phase 0 gate, in order F1 → F2 → F3. Their live checks fold into the existing live steps.
 
 ### F1 — Wording and feedback fixes
 **Fix · Size ~250k · Needs:** M10b merged
@@ -2152,6 +2153,46 @@ Three sessions that fix what earlier code reviews and "Leave behind" notes defer
 **Cut first:** the restart part of the rehearsal; rendering the dashboard pages (keep the web request round trips).
 
 **As built (D-095):** nothing cut. `packages/rehearsal` (test-only): `rehearsal.test.ts` runs the live steps in order on an empty database: the migration script twice and `ads seed`; links, credentials and dry syncs; outcomes and settings (Sunday); the worker on Monday (digest, brief, no proposal at phase 0, 👍 / 💡, `/status`, `/ceiling`); a restart in the middle of Tuesday's sync (`cyclesResumed: 1`); two unattended weeks; `ads phase set 1` and the next Monday's three proposals, decided by button (approve, reject with a reason, edit to phrase match); the dashboard's Overview and Proposals under its role and a web feedback round trip; `ads eval replay`. It fakes only the outside world: cassettes with their dates moved to the run's day, Google's token endpoint, SnapPool's database and its daily signups with click ids, the AI, Telegram (presses go to the bot's own handlers), the pings and the clock. `liveSteps.test.ts` checks every command in the live steps of NOW.md and the milestone files, and the runbook, against the CLI's command tree, the workspace's scripts and the bot's command table: all passed as written. Fixed: a finding's evidence names the KPI stage at 0 for a campaign, an account or the product (not below a campaign, where only the platform's ids credit an outcome); the worker gives the bot its clock and takes a `model`; the CLI takes a `tokenFetch`. Found, for the plan: SnapPool's Phase 1 gets no negatives (Google sees SnapPool's conversions only through Phase 2's uploads) and at most about two pauses a week, so its 1 → 2 gate will need PROPOSAL §12's longer window.
+
+---
+
+### F4 — CI, the SnapPool connection, purchases, an AI cost limit
+**Fix · Size ~500k · Needs:** M00's live steps (done 2026-11-03); runs **before M01a's live steps** (D-097)
+
+**Goal:** CI is green again; SnapPool's database can be read from the SER9 every time; SnapPool's purchases reach the agent as outcomes; the agent stops its own AI spending at a monthly limit.
+
+**Read first:** D-096, D-097; `SNAPPOOL-TRACKING.md` v1.3 §2–§2.1; the SnapPool pack (`packages/packs/saas-snappool`); `packages/core/src/outcomes/sync.ts`; `packages/core/src/report/brief.ts`; the failing CI run on PR #25.
+
+**Builds:**
+1. **Tests that don't depend on today's date.** Since about 2026-10-24 every branch fails: fixtures with fixed October dates meet the real clock (`RefusedError: proposal … has expired` in `apps/web/test/support/world.ts`, which fails all of `views.test.ts`; three tests in `packages/rehearsal`). Find every place a test mixes a fixed date with the real clock (including the database's `now()`) and fix the test, or the code if the code mixes clocks.
+2. **SnapPool's connection:** `net.setDefaultAutoSelectFamilyAttemptTimeout` raised (e.g. 2 s) at the start of the worker and the CLI, with a test, and a GOTCHAS entry (SnapPool's Neon is in us-east-1, the SER9 has no IPv6, and Node's 250 ms per-address attempt cuts the IPv4 try short; SnapPool's own repo hit the same).
+3. **SnapPool purchases** (D-096):
+   - the adapter reads `card_saved`, `paid` (a host's first paid, live order, with its value and currency) and `refunded`, and takes the click from the order, else the `/start` request its onboarding charge or subscription points to, else the host's latest attributed `/start`; test emails and the superadmin are test traffic, as now;
+   - the manifest: the two new stages, `paid`'s label and the analyst context and phase intents brought up to date (no more "no checkout"); `primaryKpiStage` stays `signup`;
+   - the column-level `grant` Marcus runs on SnapPool's database (live step), and the adapter's fixture database gains the tables, columns only;
+   - the brief and the dashboard's Overview show paying customers, revenue and cost per paying customer beside the KPI (for a pack whose stages include one marked as the paying stage; no product name in core);
+   - `SNAPPOOL-TRACKING.md` §2.1 checked against what was built.
+4. **AI cost soft limit** (cut first; moves to a later fix session): a setting with a default of US$20 a month; before each AI stage, the month's `cycles.model_cost_micros` is summed; at the limit the stage is skipped, one alert goes to Marcus, and the brief and digest say "AI paused: monthly limit".
+5. `"engines": {"node": "24.x"}` in `apps/web/package.json` (Vercel reads the root directory's manifest; its first build ran on Node 26).
+
+**Tests:** CI green with the clock moved a year ahead; the adapter on the fixture database: each payment path credited to the right click, the first order only, renewals and free grants left out, test mode left out, a refund as its own outcome; the brief's new figures checked like its others; the cost limit at, below and above.
+
+**Done when (cloud):** CI green on the PR; the adapter tests and the rehearsal green.
+
+**Done when (live):** after Marcus's grant, `ads outcomes --product snappool` reads `card_saved` and `paid` without error (counts may be 0 until 2027-01-01); M04's and M05a's SnapPool reads succeed every time.
+
+**Cut first:** the AI cost limit (item 4); the dashboard figures (keep the brief's).
+
+**As built (D-099):** item 4 (the AI cost soft limit) cut to a later fix session, **F5**, at the ~300k checkpoint; everything else built. The red CI came from code mixing clocks as well as tests: proposals, decisions and drift now take the caller's clock, the request handlers get the worker's or the CLI's clock, the outbox renders cards on the bot's; CI runs the suite a second time a year ahead (`TEST_CLOCK_OFFSET_DAYS`). `raiseConnectAttemptTimeout()` (at least 2 s per address) starts the worker and the CLI. Purchases: one SQL statement in the SnapPool adapter (first paid order per host over all history; saved cards; counted refunds on a first order; the click from the order, the linked `/start` request, or the host's latest claimed one before the purchase); an onboarding subscription's `card_saved` uses its `created_at` (SnapPool keeps no save time); values in micros by the currency's minor unit. `OutcomeStage.role` (`paying` / `refund`) marks SnapPool's `paid` and `refunded`; the brief's Numbers and the Overview show paying customers, revenue per currency, cost per paying customer and refunds (`payingSummary`, `outcomeValueTotals`). The grant is `purchasesGrantSql()` (four column lists); the adapter's tests run as a role with exactly it. `apps/web` has `engines` Node 24.x.
+
+### F5 — The AI cost soft limit
+**Fix · Size ~150k · Needs:** F4 merged. Moved from F4 item 4 (D-099); it can't be cut again.
+
+**Builds:** a setting with a default of US$20 a month; before each AI stage, the month's `cycles.model_cost_micros` is summed; at the limit the stage is skipped (sync, trust checks and the number-only digest still run), one alert goes to Marcus, and the brief and digest say "AI paused: monthly limit". Also the Phase 0 checklist artifact's grant step (D-096).
+
+**Tests:** the cost limit at, below and above.
+
+**Done when (cloud):** the tests green in CI.
 
 ---
 
@@ -2565,6 +2606,8 @@ Run through this list before every PR; the `preflight` skill does it. A **no** o
 | F1 | Fix: wording and feedback (D-092) | fix | 250k | — | Folded into M07's and M10b's |
 | F2 | Fix: request processor, shared formatting | fix | 300k | — | Migration with the others |
 | F3 | Fix: pre-live rehearsal | fix | 450k | — | The first live weekend follows its checked steps |
+| F4 | Fix: CI, SnapPool connection, purchases, AI cost limit (D-097) | fix | 500k | — | SnapPool purchases read; before M01a's live steps; item 4 cut → F5 (D-099) |
+| F5 | Fix: the AI cost soft limit (D-099) | fix | 150k | F4 | Moved from F4 |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | 450k | — | — |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | 450k | — | Gateway runs with writes off |
 | M12 | Meta writes + CAPI | 2 | 500k | T4 (write) | First live pause + undo; a CAPI event |

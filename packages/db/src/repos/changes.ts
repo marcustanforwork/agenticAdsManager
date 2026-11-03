@@ -168,6 +168,7 @@ export async function createUndoProposal(
       expectedEffect: `Restores the state from before ${revisionId}.`,
       expiresAt: defaultExpiry(action, options.now),
       requestId: options.requestId ?? null,
+      ...(options.now === undefined ? {} : { now: options.now }),
     });
     return { proposal, created: true };
   });

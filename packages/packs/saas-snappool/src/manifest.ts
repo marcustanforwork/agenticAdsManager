@@ -1,5 +1,7 @@
 // The SnapPool pack's manifest: pure data and schemas, no I/O (BLUEPRINT §2 rule 4). The defaults follow
-// docs/plan/SNAPPOOL-TRACKING.md §2; Marcus can change any of them in the product's settings without a deploy.
+// docs/plan/SNAPPOOL-TRACKING.md §2 and §2.1 (purchases, D-096); Marcus can change any of them in the product's
+// settings without a deploy. `ads seed` stores them once, so a changed default reaches a seeded product only through
+// its settings.
 import { MicrosJson, type PackManifest } from '@ads/contracts';
 import { z } from 'zod';
 
@@ -44,8 +46,12 @@ export const manifest: PackManifest = {
         { id: 'pool_request', label: 'Pool request (/start submitted)', tier: 'soft' },
         { id: 'signup', label: 'Signup (email link clicked)', tier: 'success' },
         { id: 'activated', label: 'Activated (first photo)', tier: 'success' },
-        { id: 'paid', label: 'Paid (no checkout yet)', tier: 'hard' },
+        { id: 'card_saved', label: 'Card saved (paid plan chosen at /start)', tier: 'success' },
+        { id: 'paid', label: 'Paid (first paid order)', tier: 'hard', role: 'paying' },
+        { id: 'refunded', label: 'Refunded (a first order refunded)', tier: 'hard', role: 'refund' },
       ],
+      // The KPI stays signup until purchases flow (D-096): at this spend most campaigns would show no `paid` and be
+      // proposed for pausing. The reports show paying customers, revenue and cost per paying customer beside it.
       primaryKpiStage: 'signup',
       // The destination ids come from setup tasks T4 (Meta dataset) and T11 (Google conversion action): null until
       // then, so nothing is uploaded on these routes yet (D-076).
@@ -69,7 +75,9 @@ export const manifest: PackManifest = {
       intent:
         'SnapPool is free while in beta: the signup window runs to 30 November 2026 and free plans are honoured ' +
         'to 1 January 2027. The goal is signups that turn into pools with photos, at a low cost per signup. ' +
-        'There is no revenue yet, so spend stays within the monthly ceiling and changes follow evidence.',
+        'A host may choose a paid plan at /start and save a card (card_saved); nothing is charged before ' +
+        '1 January 2027, so there is little or no revenue yet: spend stays within the monthly ceiling and changes ' +
+        'follow evidence.',
       budgetPosture: 'steady',
     },
     {
@@ -83,7 +91,9 @@ export const manifest: PackManifest = {
     {
       id: 'standard',
       label: 'Standard pricing',
-      intent: 'Normal pricing. Look for paying customers at a cost the plans can carry.',
+      intent:
+        'Normal pricing. Look for paying customers (paid) at a cost the plans can carry; renewals are not new ' +
+        'customers.',
       budgetPosture: 'steady',
     },
   ],
@@ -108,7 +118,11 @@ export const manifest: PackManifest = {
       'gallery the host keeps. Hosts are people organising weddings, parties and similar events in Singapore.',
     'The funnel: a /start request (pool_request), the email link clicked (signup, the KPI during beta), and the ' +
       'first photo in the pool (activated). Activation usually happens on the event day, often weeks after the ' +
-      'click, so judge ads on signups, not activations. There is no checkout yet, so "paid" has no data.',
+      'click, so judge ads on signups, not activations.',
+    'Purchases: card_saved is a paid plan chosen at /start with a card saved (charged later, from 1 January ' +
+      '2027); paid is a host’s first paid order, with its value (a renewal or an add-on is not a new customer); ' +
+      'refunded is a refund of a first order. They are few, so judge campaigns on signups and mention paying ' +
+      'customers only as context until they are many.',
     'Spend is about S$500 a month across Meta (first) and Google Search (second). Conversions reach the platforms ' +
       'only through the agent’s uploads, so platform-reported conversions stay at zero until uploads start.',
     'Seasonal peaks: the wedding season and the year-end party season (November and December) bring more ' +

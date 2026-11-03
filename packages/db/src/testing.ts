@@ -107,6 +107,15 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   };
 }
 
+/** The database's clock. A test that compares with times the database stamps itself (column defaults, `now()`)
+ *  reads this one, never the test process's clock: CI also runs the suite with that clock a year ahead (F4). */
+export async function databaseNow(database: Pick<Database, 'pool'>): Promise<Date> {
+  const { rows } = await database.pool.query<{ now: Date }>('select now() as now');
+  const now = rows[0]?.now;
+  if (!(now instanceof Date)) throw new Error('select now() returned no time');
+  return now;
+}
+
 /** Valid product settings with core defaults, for tests in any package. */
 export const TEST_SETTINGS: ProductSettings = {
   spend: { dailyCeilingMicros: null, monthlyCeilingMicros: null, autoPauseOnMonthlyBreach: false },

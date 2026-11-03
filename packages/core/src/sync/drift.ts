@@ -132,6 +132,7 @@ export async function recordSnapshotAndDrift(
           field: change.field,
           expected: change.expected,
           observed: change.observed,
+          detectedAt: input.takenAt,
         }),
       );
     }

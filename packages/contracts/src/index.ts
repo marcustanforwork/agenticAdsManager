@@ -8,6 +8,7 @@ export * from './platform.ts';
 export * from './settings.ts';
 export * from './packs.ts';
 export * from './outcomes.ts';
+export * from './paying.ts';
 export * from './writes.ts';
 export * from './undo.ts';
 export * from './findings.ts';

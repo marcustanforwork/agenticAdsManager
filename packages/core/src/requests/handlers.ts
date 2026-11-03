@@ -57,7 +57,12 @@ export interface HandlerContext {
   /** Required, so no surface can process a settings change without the packs' guard layer. A product whose pack
    *  isn't installed is checked against the core and platform defaults only. */
   packs: PackRegistry;
+  /** The caller's clock, for expiries and the times stamped on proposals and decisions. The real clock when absent. */
+  now?: (() => Date) | undefined;
 }
+
+/** The handler's clock: the caller's, else the real one. */
+export const clockOf = (ctx: HandlerContext): Date => ctx.now?.() ?? new Date();
 
 /** Which milestone adds the kinds this processor doesn't handle yet. */
 export const NOT_AVAILABLE_UNTIL: Partial<Record<Kind, string>> = {
@@ -220,19 +225,24 @@ async function decide(
     /** The eval case's reason for an approval (an edit says what changed); a rejection's is its reason. */
     caseReason?: string;
   },
+  now: Date,
 ) {
   const proposal = await getProposal(tx, input.proposalId);
-  const { approval, duplicate } = await recordDecision(tx, {
-    proposalId: proposal.id,
-    version: input.version,
-    // A rejection doesn't need the hash: the version alone pins what was rejected.
-    actionHash: input.actionHash ?? proposal.actionHash,
-    decision: input.decision,
-    reason: input.reason ?? null,
-    actor: row.actor,
-    channel: row.channel,
-    requestId: row.id,
-  });
+  const { approval, duplicate } = await recordDecision(
+    tx,
+    {
+      proposalId: proposal.id,
+      version: input.version,
+      // A rejection doesn't need the hash: the version alone pins what was rejected.
+      actionHash: input.actionHash ?? proposal.actionHash,
+      decision: input.decision,
+      reason: input.reason ?? null,
+      actor: row.actor,
+      channel: row.channel,
+      requestId: row.id,
+    },
+    now,
+  );
   const evalCase = duplicate
     ? false
     : await recordCase(tx, proposal, input.decision, input.caseReason ?? approval.reason);
@@ -245,11 +255,11 @@ async function decide(
   };
 }
 
-const approve: RequestHandler<RequestOf<'approve'>> = (tx, request, row) =>
-  decide(tx, row, { ...request, decision: 'approve' });
+const approve: RequestHandler<RequestOf<'approve'>> = (tx, request, row, ctx) =>
+  decide(tx, row, { ...request, decision: 'approve' }, clockOf(ctx));
 
-const reject: RequestHandler<RequestOf<'reject'>> = (tx, request, row) =>
-  decide(tx, row, { ...request, decision: 'reject' });
+const reject: RequestHandler<RequestOf<'reject'>> = (tx, request, row, ctx) =>
+  decide(tx, row, { ...request, decision: 'reject' }, clockOf(ctx));
 
 /** The budget the planned undo restores: the one before the change. */
 const previousBudgetOf = (proposal: ProposalRecord): bigint | null =>
@@ -260,11 +270,12 @@ const previousBudgetOf = (proposal: ProposalRecord): bigint | null =>
  *  to the new version and its action hash. The precondition is the target's state when it was drafted, unchanged:
  *  the edit doesn't change what the change was based on. */
 const editApprove: RequestHandler<RequestOf<'edit_approve'>> = async (tx, request, row, ctx) => {
+  const now = clockOf(ctx);
   const proposal = await getProposal(tx, request.proposalId);
   if (proposal.status !== 'pending')
     throw new RefusedError(`proposal ${proposal.shortId} is ${proposal.status}, not pending`);
   if (proposal.version !== request.version) throw new StaleVersionError('proposal', request.version, proposal.version);
-  if (proposal.expiresAt.getTime() <= Date.now()) throw new RefusedError(`proposal ${proposal.shortId} has expired`);
+  if (proposal.expiresAt.getTime() <= now.getTime()) throw new RefusedError(`proposal ${proposal.shortId} has expired`);
   const product = await getProduct(tx, proposal.productId);
   const previous = previousBudgetOf(proposal);
   let action;
@@ -293,13 +304,18 @@ const editApprove: RequestHandler<RequestOf<'edit_approve'>> = async (tx, reques
       throw new RefusedError(`proposal ${proposal.shortId} is no longer pending`);
     throw error;
   }
-  const decided = await decide(tx, row, {
-    proposalId: edited.id,
-    version: edited.version,
-    actionHash: edited.actionHash,
-    decision: 'approve',
-    caseReason: `edited (${request.edit.field}) and approved`,
-  });
+  const decided = await decide(
+    tx,
+    row,
+    {
+      proposalId: edited.id,
+      version: edited.version,
+      actionHash: edited.actionHash,
+      decision: 'approve',
+      caseReason: `edited (${request.edit.field}) and approved`,
+    },
+    now,
+  );
   return { ...decided, edited: request.edit.field, previousVersion: proposal.version };
 };
 

@@ -61,6 +61,8 @@ describe('overview', () => {
     expect(s).toContain('2026-09-18 to 2026-09-24 S$12.00 0 —');
     expect(s).toContain('2026-10-02 to 2026-10-08 S$70.00 1 S$70.00');
     expect(s).toContain('2026-10-09 to 2026-10-15 S$70.00 2 S$35.00');
+    // Beside the KPI (F4): the stage marked paying, its value, and the same 28 days' spend per paying customer.
+    expect(s).toContain('Paying customers: 1 · revenue S$29.00 · cost per paying customer S$162.00.');
     expect(data.trend.days).toHaveLength(28);
     // Outcomes: 3 signups (one by UTM: 33.3%), the test signup apart; 1 paid, not credited.
     expect(s).toMatch(
@@ -105,6 +107,8 @@ describe('overview', () => {
     );
     expect(s).toContain('S$10.00 no ceiling set');
     expect(s).toContain('stored settings have problems');
+    const unread = await asDashboard((db) => loadOverview(db, broken, NOW));
+    expect(unread.paying).toBeNull(); // without settings there is no paying stage to read
   });
 });
 

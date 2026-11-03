@@ -65,6 +65,14 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
 
+      # The same tests with the test process's clock a year ahead (scripts/test-clock.ts): a test that mixes a fixed
+      # fixture date with the real clock fails now, not months later (F4, D-097).
+      - name: Test, with the clock a year ahead
+        run: pnpm test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          TEST_CLOCK_OFFSET_DAYS: '365'
+
       - name: Build
         run: pnpm build
 

@@ -1,6 +1,6 @@
 // The overview: spend against the ceilings with the month's projection, the KPI trend, outcomes by stage with the
 // attribution rate, and the accounts with their last sync. Numbers only, all from SQL (reviewViews.ts).
-import { costPer, countOf, formatMoney, localTime, percentOf, stageWord } from '@ads/contracts';
+import { type PayingSummary, costPer, countOf, formatMoney, localTime, percentOf, stageWord } from '@ads/contracts';
 import { type OverviewData, TREND_DAYS } from '../../../../lib/reviewViews.ts';
 import { type TrendRow } from '../../../../lib/review.ts';
 import type { ProductView } from '../../../../lib/views.ts';
@@ -42,6 +42,23 @@ function TrendTable({ rows, label, currency }: { rows: TrendRow[]; label: string
       </table>
     </div>
   );
+}
+
+/** Paying customers beside the KPI (F4): how many, what they paid (each currency on its own), the spend per paying
+ *  customer, and refunds. */
+function Paying({ paying, currency }: { paying: PayingSummary; currency: string }) {
+  const amounts = (list: PayingSummary['revenue']) => list.map((m) => formatMoney(m.micros, m.currency)).join(' + ');
+  const parts = [`Paying customers: ${paying.customers}`];
+  if (paying.revenue.length > 0) parts.push(`revenue ${amounts(paying.revenue)}`);
+  if (paying.costPerCustomerMicros !== null) {
+    parts.push(`cost per paying customer ${formatMoney(paying.costPerCustomerMicros, currency)}`);
+  }
+  if (paying.refunds !== null && paying.refunds.count > 0) {
+    parts.push(
+      `refunds ${paying.refunds.count}${paying.refunds.amounts.length > 0 ? ` (${amounts(paying.refunds.amounts)})` : ''}`,
+    );
+  }
+  return <p>{parts.join(' · ')}.</p>;
 }
 
 export function Overview({ product, data }: { product: ProductView; data: OverviewData }) {
@@ -107,6 +124,7 @@ export function Overview({ product, data }: { product: ProductView; data: Overvi
           {formatMoney(total.spend, c)} spent, {countOf(total.kpi, kpi.stage || 'outcome')}
           {totalCost === null ? '' : `: ${formatMoney(totalCost, c)} each`}.
         </p>
+        {data.paying !== null && <Paying paying={data.paying} currency={c} />}
         <TrendTable rows={trend.weeks} label={kpi.label || 'Outcomes'} currency={c} />
         <details>
           <summary>Day by day</summary>

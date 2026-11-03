@@ -18,12 +18,16 @@ describe('the SnapPool pack', () => {
   it('passes definePack and loads through a registry', () => {
     expect(createRegistry([pack]).get('saas-snappool')).toBe(pack);
     expect(pack.manifest.defaults.outcomes.primaryKpiStage).toBe('signup');
-    expect(pack.manifest.defaults.outcomes.stages.map((s) => [s.id, s.tier])).toEqual([
-      ['pool_request', 'soft'],
-      ['signup', 'success'],
-      ['activated', 'success'],
-      ['paid', 'hard'],
+    // SNAPPOOL-TRACKING §2 and §2.1 (D-096): the KPI stays signup; paid is the paying stage, refunded the refund.
+    expect(pack.manifest.defaults.outcomes.stages.map((s) => [s.id, s.tier, s.role ?? null])).toEqual([
+      ['pool_request', 'soft', null],
+      ['signup', 'success', null],
+      ['activated', 'success', null],
+      ['card_saved', 'success', null],
+      ['paid', 'hard', 'paying'],
+      ['refunded', 'hard', 'refund'],
     ]);
+    expect(JSON.stringify(pack.manifest)).not.toMatch(/no checkout/i);
     expect(pack.manifest.defaults.outcomes.feedback).toEqual([
       { stage: 'pool_request', platform: 'meta', destinationId: null, eventName: 'Lead' },
       { stage: 'signup', platform: 'meta', destinationId: null, eventName: 'CompleteRegistration' },

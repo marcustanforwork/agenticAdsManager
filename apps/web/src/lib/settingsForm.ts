@@ -46,11 +46,13 @@ function stagesOf(f: Fields): Record<string, unknown>[] {
     if (checked(f, `stage.${i}.remove`)) continue;
     if (at('id') === '' && at('label') === '' && at('value') === '') continue; // the empty "add a stage" row
     const value = at('value');
+    const role = at('role'); // '' = an ordinary stage; else 'paying' or 'refund' (F4), checked by the processor
     out.push({
       id: at('id'),
       label: at('label'),
       tier: at('tier'),
       ...(value === '' ? {} : { valueMicros: moneyToMicros(value) }),
+      ...(role === '' ? {} : { role }),
     });
   }
   return out;

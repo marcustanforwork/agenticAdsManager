@@ -73,6 +73,8 @@ export interface NewProposal {
   expectedEffect: string;
   expiresAt?: Date;
   requestId?: string | null;
+  /** The caller's clock: the creation time, and the default expiry's start. The database's clock when absent. */
+  now?: Date;
 }
 
 /** Creates a pending proposal at version 1 (also recorded in proposal_versions). */
@@ -100,7 +102,9 @@ export async function createProposal(db: DbOrTx, input: NewProposal): Promise<Pr
             preconditionFields: input.preconditionFields,
             rationale: input.rationale,
             expectedEffect: input.expectedEffect,
-            expiresAt: input.expiresAt ?? defaultExpiry(action),
+            expiresAt: input.expiresAt ?? defaultExpiry(action, input.now),
+            // Stamped with the caller's clock, so a window on it (the agree rate) agrees with the expiry.
+            ...(input.now === undefined ? {} : { createdAt: input.now, updatedAt: input.now }),
           })
           .returning();
         if (!row) throw new Error('insert into proposals returned nothing');
@@ -410,6 +414,7 @@ export async function recordDecision(
         actor: input.actor,
         channel: input.channel,
         requestId: input.requestId ?? null,
+        decidedAt: now,
       })
       .returning();
     if (!approval) throw new Error('insert into approvals returned nothing');

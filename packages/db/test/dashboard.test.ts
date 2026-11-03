@@ -11,6 +11,7 @@ import {
   listDecisions,
   listDriftEvents,
   listProductDocVersions,
+  outcomeValueTotals,
   outcomesByDay,
   spendByDay,
   sumModelCost,
@@ -106,6 +107,36 @@ describe('outcomes through the view', () => {
       { stage: 'signup', method: 'utm', outcomes: 1, test: 0 },
       { stage: 'signup', method: null, outcomes: 1, test: 1 },
     ]);
+  });
+
+  it('sums the values of the asked stages per currency, test traffic and other days apart (F4)', async () => {
+    const { product } = await makeCampaign(t.db);
+    const paid = (sourceId: string, occurredAt: string, value: string | null, currency = 'SGD', isTest = false) => ({
+      sourceId,
+      stage: 'paid',
+      occurredAt,
+      isTest,
+      ids: {},
+      ...(value === null ? {} : { valueMicros: value, currency }),
+    });
+    await insertOutcomes(t.db, product.id, [
+      paid('p1', '2026-10-02T03:00:00Z', '29000000'),
+      paid('p2', '2026-10-03T03:00:00Z', '49000000'),
+      paid('p3', '2026-10-03T04:00:00Z', '20000000', 'USD'),
+      paid('p4', '2026-10-03T05:00:00Z', null),
+      paid('pt', '2026-10-03T06:00:00Z', '99000000', 'SGD', true), // test traffic
+      paid('px', '2026-09-30T15:00:00Z', '99000000'), // 23:00 on 30 September in Singapore: outside
+      { ...paid('r1', '2026-10-04T03:00:00Z', '29000000'), stage: 'refunded' },
+      { ...paid('s1', '2026-10-04T03:00:00Z', null), stage: 'signup' },
+    ]);
+    const window = { productId: product.id, from: '2026-10-01', to: '2026-10-31', timeZone: 'Asia/Singapore' };
+    expect(await asDashboard((db) => outcomeValueTotals(db, { ...window, stages: ['paid', 'refunded'] }))).toEqual([
+      { stage: 'paid', currency: 'SGD', outcomes: 2, valueMicros: 78_000_000n },
+      { stage: 'paid', currency: 'USD', outcomes: 1, valueMicros: 20_000_000n },
+      { stage: 'paid', currency: null, outcomes: 1, valueMicros: 0n },
+      { stage: 'refunded', currency: 'SGD', outcomes: 1, valueMicros: 29_000_000n },
+    ]);
+    expect(await asDashboard((db) => outcomeValueTotals(db, { ...window, stages: [] }))).toEqual([]);
   });
 });
 

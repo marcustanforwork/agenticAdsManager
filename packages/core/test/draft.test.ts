@@ -155,7 +155,7 @@ const failing = {
 async function world(settings: ProductSettings = TEST_SETTINGS) {
   n += 1;
   const w = await makeAdWorld(t.db, { slug: `draft-${n}`, settings });
-  const cycle = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-08' });
+  const cycle = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-08', startedAt: NOW });
   const product = await getProduct(t.db, w.productId);
   const finding = (
     type: string,
@@ -308,7 +308,11 @@ describe('the draft stage', () => {
     expect(cards.map((n) => n.payload)).toEqual([{ cycleId: cycle.id, proposalId: first.drafted[0]?.proposalId }]);
 
     // The next cycle finds the same thing while the first proposal is still pending: no second proposal.
-    const next = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-09' });
+    const next = await startManual(t.db, {
+      productId: w.productId,
+      cycleDate: '2026-10-09',
+      startedAt: new Date(NOW.getTime() + 24 * HOUR),
+    });
     await insertFinding(t.db, {
       productId: w.productId,
       cycleId: next.id,
@@ -326,7 +330,11 @@ describe('the draft stage', () => {
     expect(await listProposals(t.db, w.productId)).toHaveLength(1);
 
     // Once the first one is past its expiry (7 days), the stage expires it and the change is proposed afresh.
-    const week = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-16' });
+    const week = await startManual(t.db, {
+      productId: w.productId,
+      cycleDate: '2026-10-16',
+      startedAt: new Date(NOW.getTime() + 8 * 24 * HOUR),
+    });
     await insertFinding(t.db, {
       productId: w.productId,
       cycleId: week.id,
@@ -487,16 +495,6 @@ describe('agreeRateOf (PROPOSAL §12)', () => {
   });
 });
 
-/** Drafted proposals expire 7 days after the test clock's NOW; deciding one checks the real clock, so a test that
- *  decides one moves its expiry past today first. */
-async function keepOpen(proposalId: string) {
-  await t.db
-    .update(schema.proposals)
-    .set({ expiresAt: new Date(Date.now() + 24 * HOUR) })
-    .where(eq(schema.proposals.id, proposalId));
-  return getProposal(t.db, proposalId);
-}
-
 describe('the agree rate in the weekly brief', () => {
   it('is absent before any agent proposal, and shown once there are some', async () => {
     const { w, cycle, product, finding, deps } = await world();
@@ -512,17 +510,25 @@ describe('the agree rate in the weekly brief', () => {
       cycle.id,
     );
     const [first] = drafted.drafted;
-    const p = await keepOpen(first?.proposalId ?? '');
-    await recordDecision(t.db, {
-      proposalId: p.id,
-      version: 1,
-      actionHash: p.actionHash,
-      decision: 'approve',
-      actor: 'cli:marcus',
-      channel: 'cli',
-    });
+    const p = await getProposal(t.db, first?.proposalId ?? '');
+    await recordDecision(
+      t.db,
+      {
+        proposalId: p.id,
+        version: 1,
+        actionHash: p.actionHash,
+        decision: 'approve',
+        actor: 'cli:marcus',
+        channel: 'cli',
+      },
+      NOW, // decided on the test clock, while the proposal is still open
+    );
     // The window ends at the cycle's start, so a later cycle sees these proposals.
-    const next = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-09' });
+    const next = await startManual(t.db, {
+      productId: w.productId,
+      cycleDate: '2026-10-09',
+      startedAt: new Date(NOW.getTime() + 24 * HOUR),
+    });
     const after = await buildBriefNumbers(t.db, { product, cycleId: next.id });
     expect(after.agreeRate).toMatchObject({ proposals: 2, approved: 1, pending: 1, agreePct: 100 });
     expect(renderBrief(after, templateProse(after))).toContain(
@@ -564,7 +570,11 @@ describe('the new proposals in the weekly brief (F1)', () => {
       '- 1 change proposed this cycle is waiting for your decision: decide it on its card in Telegram',
     );
     // Only this cycle's: the next cycle drafted nothing new, so its brief says nothing, though 1 is still open.
-    const next = await startManual(t.db, { productId: w.productId, cycleDate: '2026-10-09' });
+    const next = await startManual(t.db, {
+      productId: w.productId,
+      cycleDate: '2026-10-09',
+      startedAt: new Date(NOW.getTime() + 24 * HOUR),
+    });
     const later = await buildBriefNumbers(t.db, { product, cycleId: next.id });
     expect(later).toMatchObject({ newProposals: 0, openProposals: 1 });
     expect(renderBrief(later, templateProse(later))).not.toContain('## To decide');
@@ -578,10 +588,10 @@ describe('operator proposals (M09b)', () => {
     await finding('zero_outcome_spend', campaign);
     const { model } = drafter(() => ({ rationale: 'It spent with no signups.', expectedEffect: 'Spend stops.' }));
     const summary = await draftStage(deps(model), product, cycle.id);
-    const drafted = await keepOpen(summary.drafted[0]?.proposalId ?? '');
+    const drafted = await getProposal(t.db, summary.drafted[0]?.proposalId ?? '');
 
     // Marcus rejects the drafted card, then asks for the same pause himself: a new operator proposal.
-    const requests = { actors: new Set(['cli:marcus']), packs: createRegistry([]) };
+    const requests = { actors: new Set(['cli:marcus']), packs: createRegistry([]), now: () => NOW };
     const submit = (request: OperatorRequest) =>
       submitRequest(t.db, { request, actor: 'cli:marcus', channel: 'cli' }, requests);
     expect(

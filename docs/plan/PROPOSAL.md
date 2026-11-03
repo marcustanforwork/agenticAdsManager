@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | v3.10 — 2026-10-19 (Q13 answered: two Google service accounts, D-071) |
+| **Version** | v3.11 — 2026-11-03 (SnapPool purchases as outcomes: `card_saved`, `paid`, `refunded`, D-096) |
 | **Replaces** | v2.1 of 2026-09-14 (kept unchanged in `docs/archive/proposal-v2.1.md`) |
 | **Owner** | Marcus decides. Claude maintains the text (see the `update-plan` skill). |
 | **Companion docs** | `BLUEPRINT.md` = *how* to build it · `CHANGES-v3.md` = what this review changed and why |
@@ -158,8 +158,8 @@ They differ on nearly every axis, which is exactly why they make a good test. If
 | | `snappool` (pack `saas-snappool`) | `property-sg` (pack `property-sg`) |
 |---|---|---|
 | **Priority** | **First.** Phases 0–1 are validated on its live spend. | Second. Built and tested on recorded data until spending resumes. |
-| **What counts as success** (defaults, editable) | **Pool request** (`/start` submitted) = soft; **signup** (email link clicked, request claimed) = success, the KPI during beta; **activated** (first photo in the pool) = success; **paid** = hard, but there's no checkout yet, so it has no source | **Contact-form fill** = success; **qualified viewing** and **booked** = hard success, if the pipeline records them |
-| **Where outcomes come from** | SnapPool's own Neon database, read-only: `pool_requests`, `hosts`, `events` (details in `SNAPPOOL-TRACKING.md`) | Tally form → Airtable (the existing pipeline, currently paused) |
+| **What counts as success** (defaults, editable) | **Pool request** (`/start` submitted) = soft; **signup** (email link clicked, request claimed) = success, the KPI during beta; **activated** (first photo in the pool) = success; **card saved** (a paid plan chosen at `/start`, charged later) = success; **paid** (a customer's first paid order, with its value) = hard; **refunded** is recorded apart (D-096). Paying customers and cost per paying customer are shown beside the KPI | **Contact-form fill** = success; **qualified viewing** and **booked** = hard success, if the pipeline records them |
+| **Where outcomes come from** | SnapPool's own Neon database, read-only: `pool_requests`, `hosts`, `events`, and the payment tables' needed columns (details in `SNAPPOOL-TRACKING.md`) | Tally form → Airtable (the existing pipeline, currently paused) |
 | **Conversion cycle** | Minutes to days, low value, higher volume | Days to weeks, high value, low volume |
 | **Lifecycle phases** | Beta (free; the signup window runs to 30 Nov 2026 and free plans are honoured to 1 Jan 2027) → promo → standard. Seasonal peaks: wedding season, year-end. | Teaser → VVIP → booking → clearing |
 | **Fact base** | Features, plan limits, pricing, supported event types | Project facts: district, MRT, PSF band, unit mix, developer, TOP date, launch dates |

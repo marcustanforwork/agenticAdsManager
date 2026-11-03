@@ -14,13 +14,28 @@ export const ActionType = z.enum([
 ]);
 export type ActionType = z.infer<typeof ActionType>;
 
+/** What a stage's outcomes are, beyond the funnel (F4, D-096): `paying`, a new paying customer, whose outcome
+ *  carries the payment's value (the reports show paying customers, revenue and cost per paying customer beside the
+ *  KPI); `refund`, a refund of one, recorded as its own outcome (stored outcomes are never rewritten). */
+export const OutcomeStageRole = z.enum(['paying', 'refund']);
+export type OutcomeStageRole = z.infer<typeof OutcomeStageRole>;
+
 export const OutcomeStage = z.object({
   id: z.string().regex(/^[a-z][a-z0-9_]*$/), // 'signup', 'form_fill', …
   label: z.string(),
   tier: z.enum(['soft', 'success', 'hard']),
   valueMicros: MicrosJson.optional(), // optional value per stage, for value-based feedback
+  role: OutcomeStageRole.optional(), // at most one stage per role
 });
 export type OutcomeStage = z.infer<typeof OutcomeStage>;
+
+/** The product's stage with this role, if it has one (F4). */
+export function stageWithRole(
+  config: { stages: readonly OutcomeStage[] },
+  role: OutcomeStageRole,
+): OutcomeStage | undefined {
+  return config.stages.find((s) => s.role === role);
+}
 
 /** One conversion upload route: this stage goes to this platform destination (D-060).
  *  A stage may have routes to both platforms, and a platform may take several stages. */
@@ -47,6 +62,12 @@ export const OutcomeConfig = z
     }
     if (!ids.has(cfg.primaryKpiStage)) {
       ctx.addIssue({ code: 'custom', path: ['primaryKpiStage'], message: 'must be one of the stage ids' });
+    }
+    for (const role of OutcomeStageRole.options) {
+      const marked = cfg.stages.flatMap((s, i) => (s.role === role ? [i] : []));
+      for (const i of marked.slice(1)) {
+        ctx.addIssue({ code: 'custom', path: ['stages', i, 'role'], message: `only one stage may be marked ${role}` });
+      }
     }
     cfg.feedback.forEach((route, i) => {
       if (!ids.has(route.stage)) {

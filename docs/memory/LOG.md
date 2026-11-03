@@ -4,6 +4,43 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-11-03 — F4: CI green again, SnapPool connect timeout, SnapPool purchases (AI cost limit cut to F5)
+- **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
+- **Did:**
+  - CI: the red came from code mixing clocks as well as tests. Proposals, decisions and drift now take the caller's clock; the request handlers get the worker's or the CLI's clock; the outbox renders cards on the bot's. `scripts/test-clock.ts` moves the test clock (`TEST_CLOCK_OFFSET_DAYS`); CI runs the suite a second time a year ahead. CI green on the branch (run 41578396623), the first since 2026-10-20.
+  - `apps/worker/src/network.ts`: at least 2 s per address when connecting, at the worker's and the CLI's start (SnapPool's Neon from the SER9).
+  - Purchases (D-096): the SnapPool adapter reads `card_saved`, `paid` (first paid order, with its value) and `refunded`, with the click from the order, the linked `/start` request or the host's latest one; `grant.ts` (the column grant; tests run as a role with exactly it); `OutcomeStage.role`; the brief's Numbers and the Overview show paying customers, revenue per currency, cost per paying customer and refunds. `apps/web` `engines` Node 24.x.
+  - Code review (an independent agent): no confirmed bugs; two notes documented in SNAPPOOL-TRACKING §2.1.
+- **Decided:** D-099 (F4 as built; item 4 → F5). BLUEPRINT v3.35 (F4 as built, F5 added), SNAPPOOL-TRACKING v1.4.
+- **Learned:** GOTCHAS: the connect-timeout entry checked at runtime on Node 24.21.0 (default 250 ms; values under 10 clamp to 10).
+- **Next:** Marcus merges PR #25, runs the purchases grant, then the live steps from M01a. Claude: F5.
+- **Open:** —
+
+## 2026-10-28 to 2026-11-03 — Phase 0 setup: T6a–T10 done, M00 passed, purchases planned (F4)
+- **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
+- **Did:** checked T6a from `dev` (`ads_agent_ro` read-only, select only, no memberships); T9 keys checked in `dev`, all four `MODEL_*` set to Opus 5.5 in `dev` (Marcus set `worker`); T7 (a new bot: the poker bot's token can't be shared, both long-poll), T8, T14's Google part; T10's first part with Marcus and checked with curl and openssl (`ads.snappool.photos` behind Access, team `marcus-ads`, a Bypass app for `/.well-known/*`, the Vercel certificate valid to 2027-02-01, direct-to-Vercel requests get 401); ran M00's live steps on `ads-agent-dev` (ready, healthy, stopped, exit 0); read SnapPool's payment code and planned purchase tracking; found CI red on every branch since about 2026-10-24 (date-bound tests); ticked T6a–T10 and M00 in the checklist artifact.
+- **Decided:** D-096 (SnapPool purchases as outcomes), D-097 (fix session F4, before M01a's live steps), D-098 (Opus 5.5 for Phase 0). BLUEPRINT v3.34, PROPOSAL v3.11, SNAPPOOL-TRACKING v1.3.
+- **Learned:** GOTCHAS: SnapPool's Neon (us-east-1) times out from the SER9 without a longer per-address connect timeout; the T10 setup facts (One-time PIN not default, Full (strict) by rule, `/.well-known` bypass, `vercel.app` → Vercel's login, Vercel's Node setting).
+- **Next:** F4 in a clean session (`start-milestone F4`), CI fix first.
+- **Open:** PR #25 can't merge until CI is green; T14's Meta part and the Meta spending limit wait for the first ad.
+
+## 2026-10-24/25 — Phase 0 setup with Marcus: T1–T5 done, T6a half done
+- **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
+- **Did:** refreshed the [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f) (versions 2–10): Q13 removed, T10 and the M08–M10b steps added, exact steps and "where it goes" per setup task, a Doppler table, safe terminal commands for secrets (hidden prompt, `-pooler` stripped, shape-checked), SnapPool's Meta and Google ids in M02/M03's commands. Checked T1 (GitHub ruleset), T2 and T3 (Doppler names; `dev` values by shape only). Created Doppler environments `worker` and `gateway` (deleted the empty Staging: 4-environment limit), linked the repo folder to `dev`, set `dev`'s `VAULT_READ_KEY` (generated, never shown) and `OPERATOR_ACTORS`. Guided T4 (Meta) and T5 (Google) by screenshot. T6a: a read-only check found the console-made `ads_agent_ro` was a `neon_superuser` admin; Marcus deleted it and remade it with SQL, but the new password wasn't saved to Doppler (login fails; nothing unsafe).
+- **Incident:** a `doppler configure` check printed Marcus's Doppler CLI token into the session log (Claude's mistake). Marcus logged out and in again; the old token is confirmed revoked.
+- **Decided:** — (no plan decisions; Marcus kept the read-only setup and chose a new Meta portfolio and ad account for SnapPool)
+- **Learned:** GOTCHAS: Neon console roles are admins; Doppler free plan = 4 environments; the CLI acts as `cli:node` inside Docker (`ADS_OPERATOR`); Meta Employee system users need "Manage app" to generate a token.
+- **Next:** finish T6a (NOW, Next action 1), then T9, T14, T7, T8, T10.
+- **Open:** plan fixes for `update-plan` (NOW, Next action 3); the Meta spending limit.
+
+## 2026-10-20 — PR #24 (F3) merged; the fix sessions are done
+- **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
+- **Did:** CI was green on the PR's last commit (`ci`, `secret-scan`, `memory-check`), no review threads. Marcus said "let's merge the PR"; squash-merged it (D-057). F1–F3 (D-092) are all merged.
+- **Decided:** —
+- **Learned:** —
+- **Next:** Marcus's Phase 0 setup (a session can walk him through each setup task, e.g. "walk me through T5").
+- **Open:** the Phase 0 setup (no ticks yet).
+
 ## 2026-10-19 — F3 built: the pre-live rehearsal, every live-step command checked
 - **Where:** cloud · branch `claude/elegant-goodall-ursfd8` · PR [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24)
 - **Did:**

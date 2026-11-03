@@ -13,6 +13,7 @@ const outcomes = {
   stages: [
     { id: 'signup', label: 'Signed up', tier: 'soft' },
     { id: 'first_upload', label: 'First upload', tier: 'success', valueMicros: '2000000' },
+    { id: 'paid', label: 'Paid', tier: 'hard', role: 'paying' },
   ],
   primaryKpiStage: 'first_upload',
   feedback: [{ stage: 'signup', platform: 'meta', destinationId: 'ds1', eventName: 'CompleteRegistration' }],
@@ -83,6 +84,7 @@ const samples: Record<string, unknown[]> = {
   ],
   ActionType: [...contracts.ActionType.options],
   OutcomeStage: outcomes.stages,
+  OutcomeStageRole: [...contracts.OutcomeStageRole.options],
   FeedbackRoute: outcomes.feedback,
   OutcomeConfig: [outcomes],
   GuardConfig: [guards],
@@ -269,6 +271,26 @@ describe('contract schemas', () => {
     };
     const issues = contracts.OutcomeConfig.safeParse(bad).error?.issues.map((i) => i.path.join('.'));
     expect(issues).toEqual(['primaryKpiStage', 'feedback.0.stage']);
+  });
+
+  it('marks at most one stage as paying and one as refund (F4), and finds them', () => {
+    const stages = [
+      { id: 'signup', label: 'Signup', tier: 'success' as const },
+      { id: 'paid', label: 'Paid', tier: 'hard' as const, role: 'paying' as const },
+      { id: 'refunded', label: 'Refunded', tier: 'hard' as const, role: 'refund' as const },
+    ];
+    const ok = { stages, primaryKpiStage: 'signup', feedback: [] };
+    expect(contracts.OutcomeConfig.safeParse(ok).success).toBe(true);
+    expect(contracts.stageWithRole(ok, 'paying')?.id).toBe('paid');
+    expect(contracts.stageWithRole(ok, 'refund')?.id).toBe('refunded');
+    expect(contracts.stageWithRole({ stages: stages.slice(0, 1) }, 'paying')).toBeUndefined();
+
+    const twice = { ...ok, stages: [...stages, { id: 'renewed', label: 'Renewed', tier: 'hard', role: 'paying' }] };
+    const issues = contracts.OutcomeConfig.safeParse(twice).error?.issues;
+    expect(issues?.map((i) => [i.path.join('.'), i.message])).toEqual([
+      ['stages.3.role', 'only one stage may be marked paying'],
+    ]);
+    expect(contracts.OutcomeStage.safeParse({ ...stages[0], role: 'revenue' }).success).toBe(false);
   });
 
   it('requires a reason to reject', () => {
