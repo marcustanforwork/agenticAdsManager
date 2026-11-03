@@ -16,7 +16,7 @@
 The one place to configure products. It holds no platform credentials and can only record requests.
 
 ## Needs
-- [ ] T10 (Cloudflare Access and the Vercel project): **not done**. Only the live steps need it; the build uses test keys and a local Postgres.
+- [ ] T10 (Cloudflare Access and the Vercel project): **first part done 2026-11-03** (checked by Claude): `ads.snappool.photos` behind Access (team `marcus-ads`, One-time PIN, policy `marcus-only`, 24 h), a Bypass app for `/.well-known/*`, SSL Strict for the host by a Configuration Rule, cache bypassed; the Vercel project (root `apps/web`, Node 24.x, Standard Protection) with `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` for Production and Preview. **Still to do:** the two database URLs (steps 1, 2 and 4).
 - [x] Marcus's go-ahead to build before the Phase 0 gate: **D-088** (2026-10-19).
 - [x] M01b (the request processor), M05a/M05b (`settings_patch`, `facts_put`, `pack_manifests`): merged.
 
@@ -74,7 +74,7 @@ Where: `apps/web/test/access.test.ts` (middleware), `packages/db/test/roles.test
   - evidence: `pnpm test` → 85 files passed (1 skipped), 1031 tests passed (3 skipped); `pnpm check:boundaries` → `check-boundaries: OK (17 packages)`, `no dependency violations found (486 modules, 1331 dependencies cruised)`; `pnpm build` → 17 of 17 tasks, including `next build` of the dashboard.
 
 ## Done when (live, run by Marcus)
-- [ ] The dashboard is deployed on Vercel behind Access, and the raw `*.vercel.app` address returns 401.
+- [ ] The dashboard is deployed on Vercel behind Access, and the raw `*.vercel.app` address is closed (Vercel's login; the app answers 401 to a request without an Access token).
 - [ ] Marcus configures SnapPool entirely from the settings screens.
 - [ ] The next morning's digest reflects the new ceilings.
 
@@ -92,7 +92,7 @@ _After M07's deploy, and T10. Production steps use Doppler's prod configs; nothi
    - Preview: `DASHBOARD_DEV_DATABASE_URL` = the dev branch's `-pooler` URL for `ads_dashboard`; the same two `CF_ACCESS_*`.
    Deploy.
 5. Worker: in Doppler `worker`, add `web:<your email, in lower case>` to `OPERATOR_ACTORS`, then `docker compose up -d --build` on the SER9 (the worker now processes the dashboard's requests).
-6. Check the sign-in: `curl -s -o /dev/null -w "%{http_code}\n" https://<project>.vercel.app/` → `401`; opening `https://ads.<your domain>` asks you to sign in through Access, then shows "Products" and "Signed in as …". Report "401 seen, signed in".
+6. Check the sign-in: `curl -s -o /dev/null -w "%{http_code}\n" https://<project>.vercel.app/` → `302` to Vercel's login (Standard Protection; checked 2026-11-03), and the app itself answers `401` without an Access token; opening `https://ads.<your domain>` asks you to sign in through Access, then shows "Products" and "Signed in as …". Report "401 seen, signed in".
 7. Configure SnapPool from the screens: the daily and monthly ceilings and the digest, your test-traffic email domains, and anything else you want. Each save shows **Done** with the new version within a few seconds; **Settings history** shows "By web:… via web". Also try a looser guard (largest budget change 50%): expect **Refused** with the reason. Report "configured from the screens" and what you set.
 8. The next morning's digest reflects the new ceilings. Report "digest OK".
 

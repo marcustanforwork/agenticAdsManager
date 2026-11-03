@@ -809,3 +809,36 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Instead of:** a test inside `apps/worker` (it can't see the dashboard); running the CLIs as child processes (no fake network); a zero for every target (a made-up 0 where the ids aren't captured yet).
 - **See:** BLUEPRINT §2, F3 "As built"; `docs/milestones/F3-pre-live-rehearsal.md`.
 
+
+### D-096 — SnapPool purchases become outcomes: `card_saved`, `paid`, `refunded`
+- **When / who / status:** 2026-11-03 · Marcus · adopted ("okay yes", to Claude's four proposals). He wants to know whether an ad's visitors go on to pay.
+- **Decision:**
+  - SnapPool now sells (its `orders` table, migration `0039`; subscriptions `0042`; the beta's saved cards, Session 64–65). The SnapPool pack reads purchases with the same read-only login. **No SnapPool code changes**: Marcus grants `ads_agent_ro` select on the needed **columns only** (never card references, fees or the buyer's country).
+  - **`paid`** = a host's **first** paid, live order (one per customer; `paid_at` set, `livemode` true, amount above 0, so free grants are out). Renewals, tier changes and add-ons are not counted. The value is the order's amount, in the order's currency.
+  - **`card_saved`** (new stage, `success` tier) = a paid plan chosen with a card saved at `/start` onboarding (`deferred_event_charges`, `billing_subscriptions`). The beta charges nothing until 2027-01-01, so this is the only purchase signal until then.
+  - **`refunded`** (new stage) = a counted refund on a `paid` order. Stored outcomes are never rewritten (`upsertOutcomes` changes only `is_test`), so a refund is its own outcome.
+  - **The ad click** for a purchase comes from, in order: the order's own `attribution` (checkout orders only); the `/start` request its onboarding charge or subscription points to (`pool_request_id`); the host's latest claimed `/start` request with an attribution (`lower(hosts.email) = pool_requests.email`).
+  - **The KPI stays `signup`** until purchases flow: at this spend, with `paid` as the KPI, most campaigns would show zero and be proposed for pausing. The brief and the dashboard show paying customers, revenue and cost per paying customer next to the KPI.
+  - **Feedback to Meta and Google** (`paid` → Meta `Purchase` with value; a Google conversion action) waits for M12/M13, after SnapPool's privacy page says purchases are shared. Meta rejects website events older than 7 days (GOTCHAS), so purchases are sent soon after `paid_at`.
+- **Why:** SnapPool's payments blueprint lists "purchase conversions for the Ads Agent" as needing a new version of the tracking spec here. Only checkout orders carry the click, so the two onboarding paths need the fallback through `/start`.
+- **Instead of:** every paid order as `paid` (renewals aren't acquisitions); rewriting a purchase on refund; the KPI on `paid` now; a SnapPool change that copies the click onto every order.
+- **See:** `SNAPPOOL-TRACKING.md` v1.3 §2, §2.1; PROPOSAL §6 (SnapPool's success stages); BLUEPRINT F4.
+
+### D-097 — Fix session F4: CI, the SnapPool connection, purchases, an AI cost limit
+- **When / who / status:** 2026-11-03 · Marcus · adopted ("we can … start the conversion session on a new session"; the AI limit asked on 2026-10-29: "set it to $20 a month")
+- **Decision:** one more fix session, **F4**, with the D-092 workflow, run **after M00's live steps and before M01a's** (`ads seed` stores each product's stages once and never overwrites them, so the new stages must exist before the first seed). In order:
+  1. **CI is green again.** Every branch has failed since about 2026-10-24: tests with fixed October dates now meet the real clock (`proposal … has expired` in `apps/web/test/views.test.ts`, three rehearsal tests). Tests must not depend on today's date.
+  2. **SnapPool's connection** (its Neon is in us-east-1; the SER9 has no IPv6): raise Node's per-address connect timeout at the CLI's and the worker's start, so the IPv4 attempt isn't cut off at 250 ms.
+  3. **Purchases** (D-096).
+  4. **An AI cost soft limit** per month (default US$20, a setting): at the limit the AI stages are skipped (sync, trust checks and the number-only digest still run), Marcus gets one alert, and the brief says so. Cut first if the session runs long (it then moves to a later fix session).
+  Also: `engines` in `apps/web/package.json`, so Vercel always builds with Node 24.
+- **Why:** nothing can merge while CI is red (D-057); M04 and M05a read SnapPool, and about 3 in 4 logins time out; the purchases decision; Anthropic's own US$100 limit is the hard stop, and the agent should stop itself well before.
+- **Instead of:** fixing the tests in a docs PR; seeding first and patching the stages by hand; a separate session for each.
+- **See:** BLUEPRINT §7 F4, §9.
+
+### D-098 — Opus 5.5 for every AI stage during Phase 0
+- **When / who / status:** 2026-11-03 · Marcus · adopted (set on 2026-10-29: "set it to opus 5.5 for phase 0"). D-041 stays in force: the code's default remains the strongest model.
+- **Decision:** `MODEL_ANALYST`, `MODEL_DRAFTER`, `MODEL_BRIEF` and `MODEL_COPY` = `anthropic:claude-opus-5-5` in Doppler `dev` and `worker`. The price table already has it (US$4 / US$20 per million tokens, against Fable 5.1's US$10 / US$50). Revisit with the real costs in Langfuse, and with M16a's evals before any cheaper or non-Anthropic model.
+- **Why:** about 2.5 times cheaper; Marcus's Anthropic limit is US$100 a month, and the agent's own soft limit will be US$20 (D-097).
+- **Instead of:** Fable 5.1 (the default); DeepSeek through OpenRouter (possible as `openai-compatible`, but unpriced in the table, weaker at the strict output format, and the data would pass through another company).
+- **See:** D-041; `packages/core/src/model/models.ts`.

@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Version** | v1.2 — 2026-09-25 (approved by Marcus; fixes from reading SnapPool's code, D-064; the prompt for the SnapPool session, §7) |
-| **Status** | **Approved** by Marcus on 2026-09-25 (D-060, Q11). **Built and live on production since 2026-09-25 17:01 UTC** (setup task T6b; SnapPool Session 41). |
+| **Version** | v1.3 — 2026-11-03 (purchases: the `card_saved`, `paid` and `refunded` stages, read from SnapPool's payment tables, §2.1, D-096). v1.2 — 2026-09-25 (approved by Marcus; fixes from reading SnapPool's code, D-064; the prompt for the SnapPool session, §7) |
+| **Status** | **Approved** by Marcus on 2026-09-25 (D-060, Q11). **Built and live on production since 2026-09-25 17:01 UTC** (setup task T6b; SnapPool Session 41). **v1.3 (purchases) approved by Marcus on 2026-11-03** (D-096); built in this repo's fix session F4, with no SnapPool code change. |
 | **Built in** | The **SnapPool repo** (`marcustanforwork/snappool`), by a SnapPool session following SnapPool's own process. This repo only uses what it produces. |
-| **Used by** | M05a (outcomes), M05b (attribution), M12 (Meta uploads) and M13 (Google uploads) in this repo |
+| **Used by** | M05a (outcomes), M05b (attribution), F4 (purchases), M12 (Meta uploads) and M13 (Google uploads) in this repo |
 | **Based on** | The SnapPool repo at commit `a6c190a` (still its `main` on 2026-09-25) and its `memory/MEMORY.md`, `CLAUDE.md` and blueprint, read on 2026-09-25. |
 
 ---
@@ -37,7 +37,7 @@
 | Domain | `snappool.photos` (served from `www`) |
 | Signup | **Open on production since 2026-09-20** (`HOST_SIGNUP_MODE=open`). The kill switch is `allowlist` plus a redeploy. The brakes are 3 free pools per host, one pending `/start` request per email, and a sign-in mail cooldown. |
 | Funnel | `/start` form (email, event title, event type) → `pool_requests` row (`pending`) → the visitor clicks the magic link → `onHostSignIn` creates the `hosts` row and claims the request (`claimed_at`, `event_id`) → a free pool is created → the first photo sets `events.first_upload_at` |
-| Money | **No checkout.** The pricing phase is `beta` (free, no prices shown). Upgrades are free in beta; any other phase returns `checkout_unavailable`. Beta programme: signup window to **2026-11-30**; free plans honoured to **2027-01-01**. |
+| Money | *(v1.2, 2026-09-25)* **No checkout.** **Since then (read 2026-11-03, SnapPool `main` `b8714c4`):** SnapPool sells through HitPay: `orders` (migration `0039`), saved-card subscriptions (`0042`), and a beta onboarding at `/start` where a host may pick a paid plan with a saved card, charged on **2027-01-01** (`deferred_event_charges`, `billing_subscriptions.pool_request_id`). The pricing phase is still `beta` and the beta sells nothing; HitPay's production account is due by 2026-12-01. See §2.1. |
 | Tracking | None. No pixel, no Google tag, no analytics tool, no click-ID or `utm_*` capture. |
 | Security headers | CSP `script-src 'self' 'unsafe-inline'`. A browser pixel would need CSP changes; this plan needs none. |
 | Middleware | `middleware.ts` (Next.js 15.5) is **only the Auth.js login guard for `/host`**. Its matcher is `/host/:path*`, and it redirects **every** matched request without a signed-in user to `/login`. |
@@ -59,12 +59,35 @@ These are the defaults for the `saas-snappool` pack (M05a). Marcus can edit them
 | `pool_request` | soft | `/start` is submitted | `pool_requests.created_at` | `pool_requests.id` |
 | `signup` | **success: the primary KPI during beta** | The visitor clicks the email link, and the request is claimed | `pool_requests.claimed_at` | `pool_requests.id` |
 | `activated` | success | The first photo lands in that pool | `events.first_upload_at`, where `events.id = pool_requests.event_id` | `events.id` |
-| `paid` | hard | **No source yet.** SnapPool has no checkout. | — | — |
+| `card_saved` | success | A paid plan is chosen at `/start` onboarding and the card is saved (the first charge comes later) | `deferred_event_charges.saved_at`; a subscription's start (`billing_subscriptions`, F4 confirms the column) | the charge's or subscription's id |
+| `paid` | hard | A host's **first** paid, live order (renewals, tier changes and add-ons left out) | `orders.paid_at`, with `amount_minor` and `currency` as the value | `orders.id` |
+| `refunded` | — (recorded apart) | A counted refund on a `paid` order | `refunds.created_at` (status not failed or canceled) | `refunds.id` |
 
 **Notes**
 - Only **claimed `/start` requests** count as signups. Hosts created by co-host invites, or who sign in directly, aren't acquisitions and are left out automatically.
 - **Test and internal signups** are recognised by **email domain** (Marcus, Q5), plus `hosts.is_superadmin`. The domain list is a product setting (`testTraffic.emailDomains`), kept in the database and not in either repo. Test outcomes are never uploaded and never counted in KPIs.
 - **Activation is for reporting, not for bidding.** The first photo usually arrives on the event day, often weeks after the ad click, which is outside the platforms' attribution windows. Feeding it back would teach bidding very little.
+- **The KPI stays `signup`** until purchases flow (D-096). Paying customers, revenue and cost per paying customer are shown beside it.
+
+### 2.1 Purchases (v1.3, D-096)
+
+**Three ways a host pays, and where the ad click is:**
+
+| Path | The order | The ad click |
+|---|---|---|
+| Checkout from the host's dashboard (an event plan, an extension…) | `orders`, `attribution` set from the `sp_attr` cookie when the order is placed | on the order |
+| One event chosen at `/start` onboarding, card saved, charged on 2027-01-01 | `orders` with `deferred_charge_id`, **no** `attribution` | through `deferred_event_charges.pool_request_id` → `pool_requests.attribution` |
+| A subscription (from onboarding, or later) | `orders` with `subscription_id` (`subscription_term`, then `subscription_renewal`), **no** `attribution` | through `billing_subscriptions.pool_request_id` when started at onboarding; else as below |
+
+**The fallback**, when neither applies: the host's latest claimed `/start` request with an attribution, made before the purchase (`lower(hosts.email) = pool_requests.email`). Claimed requests are never swept (only pending ones, after 30 days). The browser fields Meta needs (`user_agent`, `page_url`) come from that same `/start` request.
+
+**Left out:** test-mode orders (`livemode` false); free grants (no `paid_at`, amount 0); orders by test emails or the superadmin (test traffic, as for signups); every order after a host's first paid one.
+
+**Read access:** Marcus grants `ads_agent_ro` select on these **columns only**, with SQL on SnapPool's production branch (F4 writes the exact statement): `orders` (`id`, `host_id`, `kind`, `status`, `currency`, `amount_minor`, `livemode`, `paid_at`, `attribution`, `subscription_id`, `deferred_charge_id`, `created_at`); `refunds` (`id`, `order_id`, `status`, `currency`, `amount_minor`, `created_at`); `deferred_event_charges` and `billing_subscriptions` (their ids, `host_id`, `pool_request_id`, status, the saved and start times, plan or tier, amount and currency, `livemode`). **Never** card references or URLs, fees, net amounts or the buyer's country.
+
+**Limits:** a host who clicks an ad on one device and starts on another can't be linked: the purchase counts, without an ad (the `attribution_gap` check shows how often). SnapPool's column names are now a contract with this repo: a SnapPool migration that renames one breaks the read, and the `outcome_source_fresh` check fails loudly.
+
+**Feedback to the platforms** (M12/M13): `paid` → Meta `Purchase` with its value, and a Google conversion action (T11). First, SnapPool's privacy page must say purchases are shared (today it names starting a pool only). Meta rejects website events more than 7 days old, so a purchase is sent soon after `paid_at`; the click itself may be older.
 
 ---
 
@@ -148,6 +171,7 @@ Then update the page's `updated` date. A starting point for the words: *"To lear
 
 | Milestone | Work |
 |---|---|
+| **F4** | The adapter adds `card_saved`, `paid` (first paid order, with its value) and `refunded` from the payment tables, with the click found as in §2.1. |
 | **M05a** | The SnapPool adapter reads `pool_requests` (plus `events` for activation) with the read-only connection. It emits one `OutcomeEvent` per stage, carrying: the ids from `attribution` (`gclid`/`gbraid`/`wbraid`, `fbc`, `utm_*`, `sp_*` → `googleCampaignId`/`metaCampaignId`/…); `web.userAgent` and `web.pageUrl`; the email hashed **inside the adapter** (SHA-256 of the trimmed, lower-cased address); and `isTest`. |
 | **M05b** | Attribution: `utm_source` + `utm_campaign` (a platform campaign id) is an exact match. The fallback is a `gclid` lookup; otherwise `none`. |
 | **M12** | Meta **Conversions API**: `action_source=website`, `event_source_url` = `page_url`, `client_user_agent`, `fbc`, the hashed email, and `event_id` = `<sourceId>:<stage>`. **Default feedback routes:** `pool_request → Lead` and `signup → CompleteRegistration`. First run with `test_event_code`. |
@@ -176,6 +200,7 @@ Then update the page's `updated` date. A starting point for the words: *"To lear
 
 - **Q11:** approved by Marcus on 2026-09-25 (D-060). He approves the privacy-page words in the SnapPool PR (§3.4).
 - **The Meta event names:** the defaults are `Lead` and `CompleteRegistration`.
+- **v1.3 purchases (D-096):** approved 2026-11-03; built in F4, before M01a's live steps. Marcus runs the column grant (§2.1) on SnapPool's production branch. **For SnapPool's own memory** (a line for Marcus to pass on, or for a SnapPool session): the Ads Agent reads the columns listed in §2.1, so a rename there needs a matching change here. The `paid` count stays at 0 until the first real charge (2027-01-01 at the latest).
 - **Setup task T14:** the ad URL settings in §3.1, applied when the ads are created.
 - **Live on production since 2026-09-25 17:01 UTC** (SnapPool Session 41, its PR #108; recorded in NOW.md on 2026-10-06). Attribution data starts then. SnapPool still owes one real `/start` on production that shows the three columns filled.
 - **For the agent (M05a):** SnapPool deletes pending requests after 30 days, so the adapter reads at least daily and keeps what it has read. A pending row that disappears is not a deleted outcome.
