@@ -69,8 +69,18 @@ Typed, deterministic, quota-aware Google Ads reads.
   - evidence: `pnpm test` → `Test Files 44 passed | 1 skipped (45)`, `Tests 563 passed | 3 skipped (566)` (skipped: the Meta and Google recorded fixtures, and the `LIVE=1` smoke test).
 
 ## Done when (live, run by Marcus)
-- [ ] `ads sync --dry` against SnapPool's Google account (or the test account) prints entities, 28 days of metrics and search terms, in under 60 s and under 200 operations.
-  - **2026-11-03, blocked on Explorer access (D-100).** Run by Claude on the SER9 with Marcus's go-ahead (Doppler `dev`, the Neon dev branch, the read key only). The key was T5's download in `~/Downloads`, account `ads-agent-read@ads-agent-512616.iam.gserviceaccount.com`; Claude copied it to `~/google-read.json` (mode 600) and deleted the copy afterwards.
+- [x] `ads sync --dry` against SnapPool's Google account (or the test account) prints entities, 28 days of metrics and search terms, in under 60 s and under 200 operations.
+  - **Passed 2026-11-03, after Explorer and the link:** **11.9 s** (`real 0m11.910s`), **13 requests**, `"outcome": "read"`, `Asia/Singapore`, `SGD`, `"timezoneMatchesProduct": true`, window 2026-10-07 → 2026-11-03, `"loginCustomerId": "9611885654"`.
+    - Everything 0: budgets, campaigns, ad groups, keywords, metric rows, search terms, click ids. The account has no campaigns yet.
+    - `autoTaggingEnabled: true` (T14's Google part confirmed), `conversionActionsEnabled: 0`.
+    - One warning, expected until T11: `the Google route for "signup" has no conversion action id yet`.
+  - **Step 8** (live smoke test, with the key from `~/Downloads`): `Tests 1 passed (1)`.
+  - **Step 7 (record fixtures) postponed** until SnapPool's first Google campaign has run about 7 days. As with Meta, `test/recorded.test.ts` needs more than 0 rows, and the account has none. Then run step 7 with the key in `~/Downloads/ads-agent-512616-b56034686591.json` (Marcus keeps it there until then, then moves it to his password manager and deletes the download).
+  - **How it was unblocked:**
+    - Marcus applied for Explorer and it was approved the same day; a GAQL read of the manager then worked.
+    - SnapPool wasn't linked under the manager. The manager's `customer_client_link` showed two ACTIVE links, `8843313896` and `3191720680`, both `CUSTOMER_NOT_ENABLED` (accounts made in the manager whose setup was never finished), and neither SnapPool. Marcus's own login reaching both accounts had made it look linked.
+    - Marcus linked `722-828-5349` from the manager (Accounts → + → Link existing account) and accepted it in SnapPool (Admin → Access and security → Managers). The link `7228285349~6691097499` is ACTIVE, and the client reads through the manager (a direct read stays denied: the service account is a user of the manager only, as D-071 intends).
+  - **First attempt, 2026-11-03, blocked on Explorer access (D-100).** Run by Claude on the SER9 with Marcus's go-ahead (Doppler `dev`, the Neon dev branch, the read key only). The key was T5's download in `~/Downloads`, account `ads-agent-read@ads-agent-512616.iam.gserviceaccount.com`; Claude copied it to `~/google-read.json` (mode 600) and deleted the copy afterwards.
     - Step 2: `migrations and roles.sql applied` (nothing new).
     - Step 4: `linked google:7228285349 to snappool through manager 9611885654`.
     - Step 5: `stored the read credential for google:7228285349 (sealed with read-v1)`.
