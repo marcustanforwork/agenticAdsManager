@@ -63,8 +63,22 @@ Typed, deterministic Meta reads for everything the cycle needs.
 
 ## Done when (live, run by Marcus)
 - [ ] Real fixtures are recorded and committed.
-- [ ] `ads sync --dry` against SnapPool's Meta account finishes in under 60 s.
-- [ ] A linked property Meta account either syncs or is marked `paused`.
+  - **postponed (2026-11-03) until SnapPool's first Meta ad has run about 7 days.** The account has never spent (`amountSpentMicros` `"0"`) and has no campaigns, ad sets or ads, so a recording would hold no rows. `test/recorded.test.ts` then fails (it needs more than 0 rows), and it would prove nothing. Redo steps 3, 7 and 9 then.
+- [x] `ads sync --dry` against SnapPool's Meta account finishes in under 60 s.
+  - result (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch, the read token only): **6.9 s** (`real 0m6.873s`), 9 requests, `"outcome": "read"`, `"timezone": "Asia/Singapore"`, `"currency": "SGD"`, `"timezoneMatchesProduct": true`, window 2026-10-07 → 2026-11-03, no warnings.
+    - Everything 0: campaigns, ad sets, ads, metric rows, clicks, spend.
+    - `spendCapMicros: null`: no spending limit yet, set with the first ad (T4).
+    - `datasetEventsReceived: null`: no dataset route in the settings yet.
+- [x] A linked property Meta account either syncs or is marked `paused`.
+  - result: **n/a**, property-sg has no Meta ad account yet (Marcus, 2026-11-03). Link it and mark it paused when one exists.
+- Steps done 2026-11-03:
+  - 1: on the branch, `pnpm install`.
+  - 2: `VAULT_READ_KEY` already in Doppler `dev`, shape `read-v1:` + 32 bytes.
+  - 3: Marcus put the token and app secret into Doppler `dev` as temporary secrets. Claude wrote `~/meta-read.json` from them (mode 600, never printed): a 198-character `EA…` token and a 32-hex secret.
+  - 4: `linked meta:act_2241505703097876 to snappool`.
+  - 5: `stored the read credential for meta:act_2241505703097876 (sealed with read-v1)`.
+  - 6: see above.
+  - 9: file deleted.
 
 ### Live steps for Marcus
 **Before you start:** setup task **T4** (read side: a system-user token with `ads_read`, the app secret, the dataset id) and the **M01a live steps 1–4** (the Neon dev branch migrated and seeded). These steps use Doppler's `dev` config and the Neon **dev** branch; production isn't touched. Use read credentials only.
