@@ -92,6 +92,7 @@ function Outcomes({ product, s }: { product: ProductView; s: ProductSettings }) 
               <th>Label</th>
               <th>Tier</th>
               <th>Value ({moneyPrefix(product.currency).trim()})</th>
+              <th>Counts as</th>
               <th>Remove</th>
             </tr>
           </thead>
@@ -113,6 +114,13 @@ function Outcomes({ product, s }: { product: ProductView; s: ProductSettings }) 
                 </td>
                 <td>
                   <input name={`stage.${i}.value`} inputMode="decimal" defaultValue={microsToInput(st.valueMicros)} />
+                </td>
+                <td>
+                  <select name={`stage.${i}.role`} defaultValue={'role' in st ? (st.role ?? '') : ''}>
+                    <option value="">—</option>
+                    <option value="paying">a paying customer</option>
+                    <option value="refund">a refund</option>
+                  </select>
                 </td>
                 <td>{i < s.outcomes.stages.length && <input type="checkbox" name={`stage.${i}.remove`} />}</td>
               </tr>

@@ -73,10 +73,12 @@ describe('settings screens → settings_patch', () => {
         ['stage.0.label', 'Signup'],
         ['stage.0.tier', 'success'],
         ['stage.0.value', ''],
+        ['stage.0.role', ''],
         ['stage.1.id', 'paid'],
         ['stage.1.label', 'Paid'],
         ['stage.1.tier', 'hard'],
         ['stage.1.value', '19.90'],
+        ['stage.1.role', 'paying'],
         ['stage.2.id', 'old'],
         ['stage.2.label', 'Old'],
         ['stage.2.tier', 'soft'],
@@ -100,7 +102,7 @@ describe('settings screens → settings_patch', () => {
       outcomes: {
         stages: [
           { id: 'signup', label: 'Signup', tier: 'success' },
-          { id: 'paid', label: 'Paid', tier: 'hard', valueMicros: '19900000' },
+          { id: 'paid', label: 'Paid', tier: 'hard', valueMicros: '19900000', role: 'paying' },
         ],
         primaryKpiStage: 'signup',
         feedback: [{ stage: 'signup', platform: 'meta', destinationId: null, eventName: 'CompleteRegistration' }],

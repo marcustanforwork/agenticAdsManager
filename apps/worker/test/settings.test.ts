@@ -219,7 +219,9 @@ describe('ads outcomes', () => {
       ['pool_request', false, 1, 0],
       ['signup', true, 1, 1],
       ['activated', false, 0, 0],
+      ['card_saved', false, 0, 0],
       ['paid', false, 0, 0],
+      ['refunded', false, 0, 0],
     ]);
     expect(JSON.stringify(out)).not.toContain('fbclid');
   });
