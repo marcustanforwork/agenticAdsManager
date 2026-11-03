@@ -6,7 +6,7 @@
 
 ## Where we are
 - **Phase:** 0. **F4 merged** (PR #25, on Marcus's word, 2026-11-03; `docs/milestones/F4-ci-snappool-purchases-ai-limit.md`): CI green again (and a year ahead), the SnapPool connect timeout, SnapPool purchases as outcomes (`card_saved`, `paid`, `refunded`) with paying customers in the brief and the Overview. **Item 4, the AI cost soft limit, cut to F5** (D-099). **Next session: M01a's live steps, with Marcus** (his choice, 2026-11-03); F5 after.
-- **Built and merged:** M00–M10b and F1–F3. All but M00 and M01b await live acceptance.
+- **Built and merged:** M00–M10b and F1–F4. All but M00 and M01b await live acceptance (F4: the purchases grant).
 - **New decisions (2026-11-03):** D-096 (purchases), D-097 (F4), D-098 (Opus 5.5 for Phase 0), **D-099** (F4 as built: one clock per comparison, a stage's `role`, the purchases grant as code, item 4 → F5).
 - **Status:** BLUEPRINT v3.35, PROPOSAL v3.11, SNAPPOOL-TRACKING v1.4.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
