@@ -14,7 +14,7 @@ import {
   ulid,
 } from '../src/repos/changes.ts';
 import { createProposal, getProposal, transitionProposal } from '../src/repos/proposals.ts';
-import { createTestDatabase, type TestDatabase } from '../src/testing.ts';
+import { createTestDatabase, databaseNow, type TestDatabase } from '../src/testing.ts';
 import { IN_A_DAY, expectConstraint, makeCampaign, pauseOp } from './helpers.ts';
 
 let t: TestDatabase;
@@ -78,13 +78,14 @@ describe('the change log', () => {
   });
 
   it('lists the changes applied after a time, oldest first (drift detection)', async () => {
-    const before = new Date(Date.now() - 1000);
+    // The change log is stamped by the database's clock, as are the snapshots drift detection reads it after.
+    const before = new Date((await databaseNow(t)).getTime() - 1000);
     const a = await applied(pauseOp(target), { action: 'resume_entity', target }, {}, {});
     const b = await applied({ action: 'resume_entity', target }, pauseOp(target), {}, {});
     const since = await listChangesSince(t.db, productId, before);
     expect(since.map((c) => c.revisionId).slice(-2)).toEqual([a.revisionId, b.revisionId]);
     expect(since.at(-1)?.action).toEqual({ action: 'resume_entity', target });
-    expect(await listChangesSince(t.db, productId, new Date(Date.now() + 60_000))).toEqual([]);
+    expect(await listChangesSince(t.db, productId, new Date((await databaseNow(t)).getTime() + 60_000))).toEqual([]);
   });
 
   it('links a change to its reverting revision once', async () => {

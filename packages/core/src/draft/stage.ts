@@ -211,6 +211,7 @@ export async function draftStage(deps: DraftDeps, product: Product, cycleId: str
         rationale: text.rationale,
         expectedEffect: text.expectedEffect,
         expiresAt: defaultExpiry(p.action, now),
+        now,
       });
       await enqueueNotification(tx, {
         productId: product.id,

@@ -27,6 +27,8 @@ export interface ProposalsCliDeps {
   env: NodeJS.ProcessEnv;
   print: (line: string) => void;
   packs: PackRegistry;
+  /** The clock the request processor uses (expiries, decision times); the real one when absent. */
+  now?: () => Date;
 }
 
 const shortId = (value: string): string => {
@@ -110,7 +112,7 @@ export function proposalsCommand(withDb: WithDb, requireProduct: () => string, d
       const { id: requestId, outcome } = await submitRequest(
         db,
         { request: request(p), actor: cliActor(deps.env), channel: 'cli' },
-        { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs },
+        { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs, now: deps.now },
       );
       return { product: slug, proposal: id, request: requestId, status: outcome.status, ...outcome.result };
     });
@@ -243,7 +245,7 @@ export function phaseCommand(withDb: WithDb, deps: ProposalsCliDeps): Command {
         const { id, outcome } = await submitRequest(
           db,
           { request: { kind: 'set_phase', phase, note: opts.note.trim() }, actor: cliActor(deps.env), channel: 'cli' },
-          { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs },
+          { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs, now: deps.now },
         );
         return { request: id, status: outcome.status, ...outcome.result };
       });

@@ -231,11 +231,25 @@ export type DriftEvent = typeof driftEvents.$inferSelect;
  *  turn a bare numeric-looking string (a budget in micros, a name like "123") back into a number. */
 export async function recordDrift(
   db: DbOrTx,
-  input: { productId: string; adEntityId: string; field: string; expected: unknown; observed: unknown },
+  input: {
+    productId: string;
+    adEntityId: string;
+    field: string;
+    expected: unknown;
+    observed: unknown;
+    /** The caller's clock (the snapshot's time); the database's when absent. */
+    detectedAt?: Date | undefined;
+  },
 ): Promise<DriftEvent> {
+  const { detectedAt, ...rest } = input;
   const [row] = await db
     .insert(driftEvents)
-    .values({ ...input, expected: { value: input.expected ?? null }, observed: { value: input.observed ?? null } })
+    .values({
+      ...rest,
+      expected: { value: input.expected ?? null },
+      observed: { value: input.observed ?? null },
+      ...(detectedAt === undefined ? {} : { detectedAt }),
+    })
     .returning();
   if (!row) throw new Error('insert into drift_events returned nothing');
   return row;

@@ -61,12 +61,12 @@ export function buildProgram(deps: WorkerCliDeps = defaultCliDeps('ads')): Comma
   const now = deps.now ?? (() => new Date());
 
   program.addCommand(accountsCommand(withDb, requireProduct, deps.print));
-  program.addCommand(settingsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
+  program.addCommand(settingsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
   program.addCommand(outcomesCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
-  program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs }));
+  program.addCommand(docsCommand(withDb, requireProduct, { env: deps.env, print: deps.print, packs, now }));
   program.addCommand(seedCommand(withDb, { env: deps.env, print: deps.print, packs }));
   program.addCommand(findingsCommand(withDb, requireProduct, { print: deps.print }));
-  const decisionDeps = { env: deps.env, print: deps.print, packs };
+  const decisionDeps = { env: deps.env, print: deps.print, packs, now };
   program.addCommand(proposalsCommand(withDb, requireProduct, decisionDeps));
   program.addCommand(phaseCommand(withDb, decisionDeps));
   program.addCommand(evalCommand(withDb, () => program.opts<{ product?: string }>().product, decisionDeps));

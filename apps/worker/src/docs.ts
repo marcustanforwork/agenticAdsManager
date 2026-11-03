@@ -96,7 +96,7 @@ export function docsCommand(
             actor: cliActor(deps.env),
             channel: 'cli',
           },
-          { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs },
+          { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs, now: deps.now },
         );
         return { product: slug, doc: opts.doc, request, status: outcome.status, ...outcome.result };
       });

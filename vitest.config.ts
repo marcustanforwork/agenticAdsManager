@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 // Resolve workspace packages to their TypeScript sources (the "@ads/source" export condition),
@@ -25,6 +26,8 @@ export default defineConfig({
   resolve: { conditions },
   ssr: { resolve: { conditions: nodeConditions, externalConditions: nodeConditions } },
   test: {
+    // TEST_CLOCK_OFFSET_DAYS moves every test process's clock (CI runs the suite a year ahead too, F4).
+    setupFiles: [fileURLToPath(new URL('./scripts/test-clock.ts', import.meta.url))],
     projects: projectDirs().map((dir) => ({
       extends: true,
       test: {

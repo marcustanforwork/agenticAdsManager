@@ -169,6 +169,7 @@ export async function seedWorld(db: DbOrTx) {
       rationale: 'Spent S$20 with no signups in 7 days.',
       expectedEffect: 'Saves about S$20 a week.',
       expiresAt: LATER,
+      now: NOW,
     });
   const pausePending = await propose(
     { action: 'pause_entity', target: adGroupRef },
@@ -187,27 +188,35 @@ export async function seedWorld(db: DbOrTx) {
     matchType: 'PHRASE',
   });
   const rejected = await propose({ action: 'pause_entity', target: campaignRef });
-  await recordDecision(db, {
-    proposalId: rejected.id,
-    version: 1,
-    actionHash: rejected.actionHash,
-    decision: 'reject',
-    reason: 'still learning',
-    actor: 'telegram:1001',
-    channel: 'telegram',
-  });
+  await recordDecision(
+    db,
+    {
+      proposalId: rejected.id,
+      version: 1,
+      actionHash: rejected.actionHash,
+      decision: 'reject',
+      reason: 'still learning',
+      actor: 'telegram:1001',
+      channel: 'telegram',
+    },
+    NOW,
+  );
   const applied = await propose(
     { action: 'add_negative_keyword', target: adGroupRef, text: 'jobs', matchType: 'EXACT' },
     { undo: { action: 'remove_negative_keyword', target: adGroupRef, criterionId: '999' } },
   );
-  await recordDecision(db, {
-    proposalId: applied.id,
-    version: 1,
-    actionHash: applied.actionHash,
-    decision: 'approve',
-    actor: 'web:marcus@example.com',
-    channel: 'web',
-  });
+  await recordDecision(
+    db,
+    {
+      proposalId: applied.id,
+      version: 1,
+      actionHash: applied.actionHash,
+      decision: 'approve',
+      actor: 'web:marcus@example.com',
+      channel: 'web',
+    },
+    NOW,
+  );
   await transitionProposal(db, { proposalId: applied.id, from: 'approved', to: 'applying' });
   await transitionProposal(db, { proposalId: applied.id, from: 'applying', to: 'applied' });
   const revisionId = await insertChange(db, {

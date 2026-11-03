@@ -170,6 +170,7 @@ export async function startWorker(opts: WorkerOptions): Promise<RunningWorker | 
   const requests: RequestContext = {
     actors: new Set([...actorsFromEnv(env['OPERATOR_ACTORS']), ...(ownerId === null ? [] : [`telegram:${ownerId}`])]),
     packs,
+    now,
   };
   const cycleDeps: Omit<CycleDeps, 'signal'> = {
     db,

@@ -211,7 +211,8 @@ function botFor(api: TelegramApi, now = NOW): BotContext {
     db: t.db,
     api,
     ownerId: OWNER,
-    requests: { actors: new Set([`telegram:${OWNER}`]), packs: createRegistry([]) },
+    // The processor runs on the bot's clock, as in the worker.
+    requests: { actors: new Set([`telegram:${OWNER}`]), packs: createRegistry([]), now: () => now },
     now: () => now,
   };
 }
@@ -285,8 +286,7 @@ async function world(currency = 'SGD') {
     preconditionFields: ['status'],
     rationale: 'No signups in 14 days <despite> spend.',
     expectedEffect: 'The spend stops.',
-    // The processor checks expiry on the real clock; the bot's own clock is NOW.
-    expiresAt: new Date(Math.max(Date.now(), NOW.getTime()) + 7 * 86_400_000),
+    expiresAt: new Date(NOW.getTime() + 7 * 86_400_000),
   };
   const pause = (findingId: string | null = finding.id, expiresAt = base.expiresAt) =>
     createProposal(t.db, {
@@ -410,7 +410,7 @@ describe('Approve', () => {
       }),
     );
 
-    const old = await w.pause(null, new Date(Date.now() - 60_000));
+    const old = await w.pause(null, new Date(NOW.getTime() - 60_000));
     expect(await handleCallback(bot, press(`v1:approve:${old.shortId}:1`))).toBe('refused');
     expect(answers.at(-1)).toBe(`Not approved: proposal ${old.shortId} has expired`);
     expect((await getProposal(t.db, old.id)).status).toBe('pending');

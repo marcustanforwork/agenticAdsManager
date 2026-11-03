@@ -170,13 +170,17 @@ function genericLines(payload: Record<string, unknown>): string[] {
   });
 }
 
-export async function renderNotification(db: Db, n: Notification): Promise<RenderedNotification> {
+export async function renderNotification(
+  db: Db,
+  n: Notification,
+  now: Date = new Date(),
+): Promise<RenderedNotification> {
   const payload = (n.payload ?? {}) as Record<string, unknown>;
   if (n.kind === 'digest' && typeof payload['text'] === 'string') {
     return { chunks: chunkHtml(markdownLiteToHtml(payload['text'])) };
   }
   if (n.kind === PROPOSAL_NOTIFICATION && typeof payload['proposalId'] === 'string') {
-    const { html, keyboard } = renderCard(await loadCard(db, payload['proposalId']));
+    const { html, keyboard } = renderCard(await loadCard(db, payload['proposalId'], now));
     return { chunks: chunkHtml(html), ...(keyboard === null ? {} : { keyboard }) };
   }
   if (n.kind === 'brief' && typeof payload['briefId'] === 'string') {
@@ -240,13 +244,13 @@ export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {})
   for (const n of await listUnsentNotifications(ctx.db, opts.limit ?? 50)) {
     let out: RenderedNotification;
     try {
-      out = await renderNotification(ctx.db, n);
+      out = await renderNotification(ctx.db, n, ctx.now?.() ?? new Date());
     } catch (error) {
       ctx.logger?.error(
         { err: error, notificationId: n.id, kind: n.kind },
         'a notification could not be rendered; dropped',
       );
-      await markNotificationSent(ctx.db, n.id);
+      await markNotificationSent(ctx.db, n.id, ctx.now?.() ?? new Date());
       continue;
     }
     const payload = (n.payload ?? {}) as Record<string, unknown>;
@@ -277,8 +281,8 @@ export async function sendOutbox(ctx: BotContext, opts: { limit?: number } = {})
         }
         if (!last) await setNotificationProgress(ctx.db, n.id, i + 1);
       }
-      await markNotificationSent(ctx.db, n.id);
-      if (out.briefId !== undefined) await markBriefSent(ctx.db, out.briefId);
+      await markNotificationSent(ctx.db, n.id, ctx.now?.() ?? new Date());
+      if (out.briefId !== undefined) await markBriefSent(ctx.db, out.briefId, ctx.now?.() ?? new Date());
       sent += 1;
     } catch (error) {
       ctx.logger?.error({ err: error, notificationId: n.id, kind: n.kind }, 'sending stopped; the rest wait');

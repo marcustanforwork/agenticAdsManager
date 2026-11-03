@@ -58,9 +58,9 @@ async function pauseProposal(
   entity: AdEntity,
   accountExternalId: string,
   row: OperatorRequestRow,
+  now: Date,
 ): Promise<OperatorProposalRef> {
   const action = { action: 'pause_entity' as const, target: entityRefOf(entity, { externalId: accountExternalId }) };
-  const now = new Date();
   const open = await findOpenProposalByAction(tx, { productId: entity.productId, actionHash: hashOf(action) });
   if (open !== null) {
     const waiting = open.status === 'pending' || open.status === 'approved';
@@ -80,6 +80,7 @@ async function pauseProposal(
     expectedEffect: 'Its spending stops until it is turned back on.',
     expiresAt: new Date(now.getTime() + OPERATOR_CONFIRM_MS),
     requestId: row.id,
+    now,
   });
   return refOf(proposal, true);
 }
@@ -93,7 +94,7 @@ function assertPausable(entity: AdEntity): void {
 
 /** pause: one entity, named by its platform ref. It must be synced (the fingerprint is taken from its synced state)
  *  and active. */
-export const pause: RequestHandler<RequestOf<'pause'>> = async (tx, request, row) => {
+export const pause: RequestHandler<RequestOf<'pause'>> = async (tx, request, row, ctx) => {
   const account = await findAccount(tx, request.target.platform, request.target.accountId);
   if (account === null)
     throw new RefusedError(`unknown ${request.target.platform} account ${request.target.accountId}`);
@@ -102,12 +103,13 @@ export const pause: RequestHandler<RequestOf<'pause'>> = async (tx, request, row
     throw new RefusedError(`no synced ${request.target.type.replaceAll('_', ' ')} ${request.target.externalId}`);
   }
   assertPausable(entity);
-  return { ...(await pauseProposal(tx, entity, account.externalId, row)) };
+  return { ...(await pauseProposal(tx, entity, account.externalId, row, ctx.now?.() ?? new Date())) };
 };
 
 /** pause_all: every active campaign of the product, one pause proposal each (pausing a campaign stops everything
  *  under it). The bot confirms them together. */
-export const pauseAll: RequestHandler<RequestOf<'pause_all'>> = async (tx, request, row) => {
+export const pauseAll: RequestHandler<RequestOf<'pause_all'>> = async (tx, request, row, ctx) => {
+  const now = ctx.now?.() ?? new Date();
   const { slug } = await getStoredSettings(tx, request.productId); // an unknown product is refused
   const accounts = new Map((await listAccounts(tx, request.productId)).map((a) => [a.id, a.externalId] as const));
   const campaigns = (await listEntities(tx, request.productId, { type: 'campaign' })).filter(
@@ -116,7 +118,7 @@ export const pauseAll: RequestHandler<RequestOf<'pause_all'>> = async (tx, reque
   if (campaigns.length === 0) throw new RefusedError(`${slug} has no active campaign to pause`);
   const proposals: OperatorProposalRef[] = [];
   for (const campaign of campaigns) {
-    proposals.push(await pauseProposal(tx, campaign, accounts.get(campaign.accountId) ?? '', row));
+    proposals.push(await pauseProposal(tx, campaign, accounts.get(campaign.accountId) ?? '', row, now));
   }
   return { product: slug, proposals };
 };

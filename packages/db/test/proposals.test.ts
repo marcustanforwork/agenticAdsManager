@@ -346,7 +346,8 @@ describe('decisions and approvals', () => {
 describe('the agree rate counts (PROPOSAL §12)', () => {
   it('counts agent proposals by their decision; expired undecided ones apart; operator ones not at all', async () => {
     const own = await makeCampaign(t.db);
-    const base = { ...draft(), productId: own.product.id, action: pauseOp(own.ref) };
+    // Stamped with the caller's clock, as the draft stage and the request handlers do, so the window agrees.
+    const base = { ...draft(), productId: own.product.id, action: pauseOp(own.ref), now: new Date() };
     const decide = async (decision: 'approve' | 'reject') => {
       const p = await createProposal(t.db, base);
       await recordDecision(t.db, {

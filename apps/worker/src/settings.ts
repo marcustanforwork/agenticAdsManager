@@ -55,6 +55,8 @@ export interface SettingsCliDeps {
   env: NodeJS.ProcessEnv;
   print: (line: string) => void;
   packs: PackRegistry;
+  /** The clock the request processor uses (expiries, decision times); the real one when absent. */
+  now?: () => Date;
 }
 
 export function settingsCommand(
@@ -110,7 +112,7 @@ export function settingsCommand(
             actor: cliActor(deps.env),
             channel: 'cli',
           },
-          { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs },
+          { actors: actorsFromEnv(deps.env['OPERATOR_ACTORS']), packs: deps.packs, now: deps.now },
         );
         return { product: slug, request: id, status: outcome.status, ...outcome.result };
       });
