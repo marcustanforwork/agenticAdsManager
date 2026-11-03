@@ -70,7 +70,7 @@ Build notes:
     - Step 4: `ads seed` → `{"productsCreated":["snappool","property-sg"],"offeringsEnsured":2,"docsCreated":6,"flagsCreated":["writes_enabled"]}`; a second run → `{"productsCreated":[],"offeringsEnsured":2,"docsCreated":0,"flagsCreated":[]}`.
     - Checked read-only afterwards: all 9 migrations (`0000`–`0008`) in `drizzle.__drizzle_migrations`, 32 tables in `public`, roles `agent_dashboard`, `agent_gateway`, `agent_worker`; `property-sg | dormant | 1`, `snappool | active | 1`, `writes_enabled | false`; `ads phase` → `{"phase": 0}`.
     - The Neon branch runs **PostgreSQL 18.6** (CI and the tests use 16); the migrations applied without a problem.
-  - result (prod): —
+  - result (prod): **to do, steps 5–6, by Marcus at the SER9.** On 2026-11-03 he was working remotely, and a local session may never use the prod owner string (CLAUDE.md), so it waits until he's home. Nothing before M07 needs prod; the dev live steps of M02 onwards go ahead meanwhile (Marcus, 2026-11-03).
 
 ### Live steps for Marcus
 Needs T2 (Neon project with `prod` and `dev` branches) and T3 (Doppler). Run on your own machine after this PR is merged; they use the Neon **owner** role, which may create tables and roles. Use the **direct** connection string (the host without `-pooler`).
