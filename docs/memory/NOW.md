@@ -2,7 +2,7 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-11-03 · local session (SER9) · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (**F4**, with the plan docs it was planned in) **merged** on Marcus's word; **CI green again**. **Phase 0 setup** follows the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (its ticks: the artifact's database, collection `progress`; read them with the artifacts tool `db_list`). **Done and checked:** T1, T2, T3, T4 (Meta spending limit still to set), T5, **T6a** (2026-10-28), **T7**, **T8**, **T9** (all four `MODEL_*` = `anthropic:claude-opus-5-5`, D-098), **T10's first part** (2026-11-03), **T14's Google part**. **M00's live steps passed** (2026-11-03). **M11a onwards wait for the Phase 0 gate** (D-090).
+**Last updated:** 2026-11-03 · local session (SER9) · branch `m01a/live-acceptance` (F4's grant result; M01a's live results go here too) · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (**F4**) **merged** on Marcus's word; **CI green again**. **F4's purchases grant applied** on SnapPool's production branch and checked (2026-11-03). **Phase 0 setup** follows the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (its ticks: the artifact's database, collection `progress`; read them with the artifacts tool `db_list`). **Done and checked:** T1, T2, T3, T4 (Meta spending limit still to set), T5, **T6a** (2026-10-28), **T7**, **T8**, **T9** (all four `MODEL_*` = `anthropic:claude-opus-5-5`, D-098), **T10's first part** (2026-11-03), **T14's Google part**. **M00's live steps passed** (2026-11-03). **M11a onwards wait for the Phase 0 gate** (D-090).
 
 ## Where we are
 - **Phase:** 0. **F4 merged** (PR #25, on Marcus's word, 2026-11-03; `docs/milestones/F4-ci-snappool-purchases-ai-limit.md`): CI green again (and a year ahead), the SnapPool connect timeout, SnapPool purchases as outcomes (`card_saved`, `paid`, `refunded`) with paying customers in the brief and the Overview. **Item 4, the AI cost soft limit, cut to F5** (D-099). **Next session: M01a's live steps, with Marcus** (his choice, 2026-11-03); F5 after.
@@ -12,8 +12,8 @@
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** the purchases grant on SnapPool's production branch (F4's live step 2, below; he runs it himself). Record "grant applied" and the four counts in the F4 milestone file when he reports them.
-2. **Next session (clean context): M01a's live steps, with Marcus** (`start-session`, then the M01a milestone file's live steps; `NOW.md` "Live steps for Marcus", M01a). Run `nvm use` in the repo folder first (GOTCHAS). SnapPool reads no longer need the `NODE_OPTIONS=…` prefix. Record each result in the milestone file.
+1. **Done 2026-11-03:** the purchases grant (Marcus ran it; Claude checked it as `ads_agent_ro`: 6 / 5 / 9 / 6 columns, `card_ref` denied, the adapter's read ok with 7 outcomes in 35 days). Details in the F4 milestone file.
+2. **Next session (clean context): M01a's live steps, with Marcus**, on this branch `m01a/live-acceptance` (continue it; its PR is a draft) (`start-session`, then the M01a milestone file's live steps; `NOW.md` "Live steps for Marcus", M01a). Run `nvm use` in the repo folder first (GOTCHAS). SnapPool reads no longer need the `NODE_OPTIONS=…` prefix. Record each result in the milestone file.
 3. **Claude, after that: F5** (BLUEPRINT §7 F5, D-099): the AI cost soft limit (US$20 a month default; skip the AI stages at the limit, one alert, "AI paused: monthly limit" in the brief and digest), with tests at, below and above; and the Phase 0 checklist artifact's grant step (D-096). It can run while Marcus does the live steps (it changes no stored stage).
 4. **Marcus, setup left:** T10's database settings (at M10a: steps 1, 2 and 4); T14's Meta part (URL parameters on each ad) and the Meta spending limit, both with the first ad.
 5. **Claude, docs only, with `update-plan`** (carried over): M05a's live step 2 and PROPOSAL §16 T6 → make `ads_agent_ro` with SQL, never the console; M07's and M08's steps → `ADS_OPERATOR=marcus` in Doppler `worker`; M01a says each service's login role comes in M07, but M07 uses the owner string for the worker (decide: keep it, or add an `ads_worker` login like M10a's `ads_dashboard`); T3 → Doppler's 4-environment limit; the checklist artifact's M10a step 6 (302 to Vercel's login).
@@ -21,17 +21,17 @@
 7. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e). SnapPool's memory should also note that the agent reads its payment columns (SNAPPOOL-TRACKING §2.1, §6): a rename there needs a change here.
 
 ## In flight
-- Nothing: PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (F4 and its plan docs) squash-merged on Marcus's word, 2026-11-03, after CI passed.
+- Branch `m01a/live-acceptance` (draft PR): F4's grant result; M01a's live results are recorded here next. PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (F4) squash-merged on Marcus's word, 2026-11-03.
 
 ## Blocked on Marcus
-- The SnapPool purchases grant; then the live steps M01a → M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
+- The live steps M01a → M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
 
 ## Live steps for Marcus
 _M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of Phase 0 (D-074), in milestone order: first F4's grant, then M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1, then M09b's steps 1–3 and 5, then M10a's (needs T10), then M10b's steps 1–4. The rest wait for the Phase 0 gate._
 
 **F4** (PR #25 merged 2026-11-03; before M01a). Full text in the F4 milestone file:
 1. `git pull` on `main`, `pnpm install`.
-2. Neon console → SnapPool's project, **production** branch → SQL editor, as the owner: run the four `grant select (…) on … to ads_agent_ro;` statements from the F4 milestone file (or `SNAPPOOL-TRACKING.md` §2.1), then its check query → `billing_subscriptions 6`, `deferred_event_charges 5`, `orders 9`, `refunds 6`. Report "grant applied" and the counts.
+2. **Done 2026-11-03:** the purchases grant on SnapPool's production branch, checked as `ads_agent_ro` (`billing_subscriptions 6`, `deferred_event_charges 5`, `orders 9`, `refunds 6`).
 3. At M05a's step 4 (`ads outcomes --product snappool`): `card_saved`, `paid` and `refunded` among the stages, no error (counts may be 0 until 2027-01-01). At M04 and M05a: no `ETIMEDOUT` reading SnapPool.
 
 **M10b** (after M10a's; no migration; steps 1–4 during the gate, step 5 at phase 1). Full text in the M10b milestone file:
