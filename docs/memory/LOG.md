@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-10-28 to 2026-11-03 — Phase 0 setup: T6a–T10 done, M00 passed, purchases planned (F4)
+- **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
+- **Did:** checked T6a from `dev` (`ads_agent_ro` read-only, select only, no memberships); T9 keys checked in `dev`, all four `MODEL_*` set to Opus 5.5 in `dev` (Marcus set `worker`); T7 (a new bot: the poker bot's token can't be shared, both long-poll), T8, T14's Google part; T10's first part with Marcus and checked with curl and openssl (`ads.snappool.photos` behind Access, team `marcus-ads`, a Bypass app for `/.well-known/*`, the Vercel certificate valid to 2027-02-01, direct-to-Vercel requests get 401); ran M00's live steps on `ads-agent-dev` (ready, healthy, stopped, exit 0); read SnapPool's payment code and planned purchase tracking; found CI red on every branch since about 2026-10-24 (date-bound tests); ticked T6a–T10 and M00 in the checklist artifact.
+- **Decided:** D-096 (SnapPool purchases as outcomes), D-097 (fix session F4, before M01a's live steps), D-098 (Opus 5.5 for Phase 0). BLUEPRINT v3.34, PROPOSAL v3.11, SNAPPOOL-TRACKING v1.3.
+- **Learned:** GOTCHAS: SnapPool's Neon (us-east-1) times out from the SER9 without a longer per-address connect timeout; the T10 setup facts (One-time PIN not default, Full (strict) by rule, `/.well-known` bypass, `vercel.app` → Vercel's login, Vercel's Node setting).
+- **Next:** F4 in a clean session (`start-milestone F4`), CI fix first.
+- **Open:** PR #25 can't merge until CI is green; T14's Meta part and the Meta spending limit wait for the first ad.
+
 ## 2026-10-24/25 — Phase 0 setup with Marcus: T1–T5 done, T6a half done
 - **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
 - **Did:** refreshed the [Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f) (versions 2–10): Q13 removed, T10 and the M08–M10b steps added, exact steps and "where it goes" per setup task, a Doppler table, safe terminal commands for secrets (hidden prompt, `-pooler` stripped, shape-checked), SnapPool's Meta and Google ids in M02/M03's commands. Checked T1 (GitHub ruleset), T2 and T3 (Doppler names; `dev` values by shape only). Created Doppler environments `worker` and `gateway` (deleted the empty Staging: 4-environment limit), linked the repo folder to `dev`, set `dev`'s `VAULT_READ_KEY` (generated, never shown) and `OPERATOR_ACTORS`. Guided T4 (Meta) and T5 (Google) by screenshot. T6a: a read-only check found the console-made `ads_agent_ro` was a `neon_superuser` admin; Marcus deleted it and remade it with SQL, but the new password wasn't saved to Doppler (login fails; nothing unsafe).
