@@ -28,7 +28,7 @@
    - **After the first ads have run about a week:**
      - M02 step 7 and M03 step 7 (record fixtures; the recorded tests need rows). Meta: the token and app secret are in Doppler `dev` as `META_READ_ACCESS_TOKEN` / `META_APP_SECRET`. Claude recommended keeping them until then and deleting them after. Google: the key in `~/Downloads/ads-agent-512616-b56034686591.json`, then into Marcus's password manager.
      - M06b steps 2–4 (an analysed cycle with findings, the Langfuse trace).
-   - **Marcus, at the SER9:** M01a steps 5–6 (prod migrate + seed; never by a local Claude session). Nothing before M07 needs prod.
+   - **Done 2026-11-04:** M01a steps 5–6 on prod (Marcus, in his own terminal): migrated, seeded, checked in Neon.
    - **Google, for later:** the manager has two not-enabled client links (`884-331-3896`, `319-172-0680`; setup never finished). Harmless. Marcus may cancel them; one may be meant for property-sg.
 4. **Claude, after that: F5** (BLUEPRINT §7 F5, D-099): the AI cost soft limit (US$20 a month default; skip the AI stages at the limit, one alert, "AI paused: monthly limit" in the brief and digest), with tests at, below and above; and the Phase 0 checklist artifact's grant step (D-096). If there's room: refuse free-mail domains (`gmail.com` and the like) in `testTraffic.emailDomains` (D-101). It can run while Marcus does the live steps (it changes no stored stage).
 5. **Marcus, setup left:** T15 (item 2); T10's database settings (at M10a: steps 1, 2 and 4); T14's Meta part (URL parameters on each ad) and the Meta spending limit, both with the first ad.
@@ -41,7 +41,7 @@
 - PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27) (the property case answered by Opus 5.5, plus the replay look-ups fix) squash-merged on Marcus's word, 2026-11-03, after CI passed; `main` merged into this branch.
 
 ## Blocked on Marcus
-- T15 (D-101). M01a's prod steps 5–6 (at the SER9). M05a step 5's daily ceiling; M06a's "trace seen"; M06b's rating of the property findings (PR #27, merged). The fixtures (M02/M03 step 7) and M06b steps 2–4: after the first ads. The live steps M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
+- T15 (D-101). M05a step 5's daily ceiling; M06a's "trace seen"; M06b's rating of the property findings (PR #27, merged). The fixtures (M02/M03 step 7) and M06b steps 2–4: after the first ads. The live steps M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
 
 ## Live steps for Marcus
 _M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of Phase 0 (D-074), in milestone order: first F4's grant, then M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1, then M09b's steps 1–3 and 5, then M10a's (needs T10), then M10b's steps 1–4. The rest wait for the Phase 0 gate._
@@ -171,7 +171,7 @@ _M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of P
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **done** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 passed 2026-11-03 |
-| M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: dev passed 2026-11-03; prod (steps 5–6) to do, Marcus at the SER9 |
+| M01a | Database schema and repositories | 0 | **done** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: dev passed 2026-11-03; prod (steps 5–6) passed 2026-11-04, run by Marcus |
 | M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
 | M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Dry sync passed 2026-11-03 (6.9 s); fixtures after the first Meta ad (the account is empty) |
 | M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Dry sync passed 2026-11-03 (11.9 s, 13 requests) after Explorer (D-100) and the manager link; fixtures after the first Google ad |
