@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | awaiting live acceptance |
+| **Status** | done (live acceptance 2026-11-03) |
 | **Phase** | 0 |
 | **Started** | 2026-09-25 |
-| **Finished** | — |
+| **Finished** | 2026-11-03 |
 | **PRs** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) |
 
 ## Goal
@@ -85,8 +85,10 @@ A monorepo where the dependency rules are enforced by tooling before any feature
   - evidence: the same run built `ads-agent:ci`. The smoke test logged `"msg":"ready"`, then `"msg":"stopped"`, for worker (8081) and gateway (8082), exit code 0 on `docker stop`, and `ads 0.0.0` / `ads-gw 0.0.0`.
 
 ## Done when (live, run by Marcus)
-- [ ] `docker compose up` on the SER9 prints `ready` for both services.
-- [ ] `docker compose stop` exits cleanly.
+- [x] `docker compose up` on the SER9 prints `ready` for both services.
+  - evidence (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, project `ads-agent-dev`, no `.env` so no secrets, `main`'s code at `34b02f5`): build 36 s; `"msg":"ready"` from `gateway` (8082) and `worker` (8081); both `(healthy)` within 5 s. The worker logged `no DATABASE_URL or VAULT_READ_KEY: the worker runs its health endpoint only`, as expected without a token.
+- [x] `docker compose stop` exits cleanly.
+  - evidence: `"msg":"stopping"` (SIGTERM) then `"msg":"stopped"` from both, `Exited (0)` for both; `down` removed the containers and the network.
 
 ### Live steps for Marcus
 These use no secrets; `-p ads-agent-dev` keeps them away from the production project (D-058).
