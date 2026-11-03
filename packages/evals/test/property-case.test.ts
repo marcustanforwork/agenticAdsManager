@@ -24,8 +24,24 @@ describe('replay case property-sg-0001', () => {
     t = await createTestDatabase();
     // A model's answer (the live step) replays like a recorded one; only `answeredBy` says where it came from.
     const note = saved.answeredBy.source === 'recorded' ? saved.answeredBy.note : '';
-    const replayed = await runPropertyCase(t.db, { recorded: { output: saved.analystOutput, note } });
+    // A model ran with the fixture's look-ups offered, which its input (the token estimate) reflects: replay alike.
+    const replayed = await runPropertyCase(t.db, {
+      recorded: { output: saved.analystOutput, note },
+      lookups: saved.answeredBy.source === 'model',
+    });
     expect({ ...replayed, answeredBy: saved.answeredBy }).toEqual(saved);
+  });
+
+  it('offers look-ups to a recorded answer only when asked, as a model run had them', async () => {
+    const answer = { output: saved.analystOutput, note: 'look-ups check' };
+    t = await createTestDatabase();
+    const without = await runPropertyCase(t.db, { recorded: answer });
+    await t.drop();
+    t = await createTestDatabase();
+    const withLookups = await runPropertyCase(t.db, { recorded: answer, lookups: true });
+    expect(withLookups.input.prompt).toBe(without.input.prompt);
+    expect(withLookups.input.estimatedTokens).toBeGreaterThan(without.input.estimatedTokens);
+    expect(withLookups.result).toEqual(without.result);
   });
 
   it('covers what the plan asks of it: every detector type, the injection term as data', () => {
