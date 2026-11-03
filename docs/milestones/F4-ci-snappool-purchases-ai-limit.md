@@ -6,11 +6,11 @@
 
 | | |
 |---|---|
-| **Status** | built; awaiting Marcus's merge, then his live steps (the grant, then M01a on) |
+| **Status** | awaiting live acceptance (merged 2026-11-03; live step: the purchases grant, then M01a on) |
 | **Phase** | fix (runs before M01a's live steps, D-097) |
 | **Started** | 2026-11-03 |
 | **Finished** | 2026-11-03 (built; live step: the purchases grant) |
-| **PRs** | [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (continued: its plan changes are F4's inputs, and it can't merge until F4 makes CI green) |
+| **PRs** | [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (squash-merged on Marcus's word, 2026-11-03, CI green) |
 
 ## Goal
 CI is green again; SnapPool's database can be read from the SER9 every time; SnapPool's purchases reach the agent as outcomes; the agent stops its own AI spending at a monthly limit.
