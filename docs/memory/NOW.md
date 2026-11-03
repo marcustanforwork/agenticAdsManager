@@ -5,7 +5,7 @@
 **Last updated:** 2026-11-03 · local session (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (docs only; **CI red for a reason outside this PR**, see Next action 1). **Phase 0 setup** follows the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (its ticks: the artifact's database, collection `progress`; read them with the artifacts tool `db_list`). **Done and checked:** T1, T2, T3, T4 (Meta spending limit still to set), T5, **T6a** (2026-10-28: `ads_agent_ro` logs in from `dev`, read-only, select only on `pool_requests`, `hosts`, `events`, no role memberships), **T7** (a new bot, not the poker bot's), **T8**, **T9** (Langfuse `jp.cloud.langfuse.com` and Anthropic keys in `dev` and `worker`; all four `MODEL_*` = `anthropic:claude-opus-5-5`, D-098), **T10's first part** (2026-11-03, see M10a's milestone file), **T14's Google part** (auto-tagging on, the final URL suffix). **M00's live steps passed** (2026-11-03, run by Claude on `ads-agent-dev`). **M11a onwards wait for the Phase 0 gate** (D-090).
 
 ## Where we are
-- **Phase:** 0. **Next session: F4** (BLUEPRINT §7 F4, D-097), in a clean session: `start-session`, then `start-milestone F4`. It runs **before M01a's live steps** (the seed stores the stages once).
+- **Phase:** 0. **F4 in progress** (2026-11-03, local session; milestone file `docs/milestones/F4-ci-snappool-purchases-ai-limit.md`), on this branch, PR #25. It runs **before M01a's live steps** (the seed stores the stages once).
 - **Built and merged:** M00–M10b and the fix sessions F1–F3 (details in each milestone file and DECISIONS D-069 to D-095). All but M00 and M01b await live acceptance.
 - **New decisions (2026-11-03):** **D-096** SnapPool purchases as outcomes (`card_saved`; `paid` = a host's first paid order, with its value; `refunded`; KPI stays `signup`; cost per paying customer beside it; `SNAPPOOL-TRACKING.md` v1.3 §2.1). **D-097** fix session F4. **D-098** Opus 5.5 for every AI stage in Phase 0 (D-041 unchanged).
 - **Status:** BLUEPRINT v3.34, PROPOSAL v3.11, SNAPPOOL-TRACKING v1.3. Earlier: D-082 to D-090 (M08–M10b built before the gate), D-092 (F1–F3).
@@ -172,7 +172,7 @@ _M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of P
 | F1 | Fix: wording and feedback (D-092) | fix | **done** (merged) | [#22](https://github.com/marcustanforwork/agenticAdsManager/pull/22) (merged) | Live checks fold into M07's and M10b's |
 | F2 | Fix: request processor, shared formatting | fix | **done** (merged) | [#23](https://github.com/marcustanforwork/agenticAdsManager/pull/23) (merged) | Migration `0008` with the others |
 | F3 | Fix: pre-live rehearsal | fix | **done** (merged) | [#24](https://github.com/marcustanforwork/agenticAdsManager/pull/24) (merged) | The first live weekend follows its checked steps |
-| F4 | Fix: CI, SnapPool connection, purchases, AI cost limit (D-097) | fix | **next** | — | Before M01a's live steps |
+| F4 | Fix: CI, SnapPool connection, purchases, AI cost limit (D-097) | fix | **in progress** (2026-11-03) | [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) | Before M01a's live steps |
 | M11a | Gateway rules: allowlist, guards, fingerprint | 2 | not started | — | Phase 1 gate |
 | M11b | Gateway pipeline, recovery, undo, service | 2 | not started | — | |
 | M12 | Meta writes + CAPI | 2 | not started | — | T4 (write side); T6b |
