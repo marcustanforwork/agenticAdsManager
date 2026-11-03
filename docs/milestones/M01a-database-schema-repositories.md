@@ -64,7 +64,13 @@ Build notes:
 
 ## Done when (live, run by Marcus)
 - [ ] Migrations and `roles.sql` are applied to the Neon `dev` and `prod` branches, and `prod` is seeded (Marcus runs them via `doppler run`).
-  - result: —
+  - result (dev, 2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`): steps 1–4 passed.
+    - Step 2 was already in place: `DATABASE_URL` in Doppler `dev` is `neondb_owner` on the direct host (no `-pooler`), `ap-southeast-1`. The dev branch was empty before (0 tables, no `agent_*` roles).
+    - Step 3: `db:migrate` twice → `migrations and roles.sql applied` both times, exit 0.
+    - Step 4: `ads seed` → `{"productsCreated":["snappool","property-sg"],"offeringsEnsured":2,"docsCreated":6,"flagsCreated":["writes_enabled"]}`; a second run → `{"productsCreated":[],"offeringsEnsured":2,"docsCreated":0,"flagsCreated":[]}`.
+    - Checked read-only afterwards: all 9 migrations (`0000`–`0008`) in `drizzle.__drizzle_migrations`, 32 tables in `public`, roles `agent_dashboard`, `agent_gateway`, `agent_worker`; `property-sg | dormant | 1`, `snappool | active | 1`, `writes_enabled | false`; `ads phase` → `{"phase": 0}`.
+    - The Neon branch runs **PostgreSQL 18.6** (CI and the tests use 16); the migrations applied without a problem.
+  - result (prod): —
 
 ### Live steps for Marcus
 Needs T2 (Neon project with `prod` and `dev` branches) and T3 (Doppler). Run on your own machine after this PR is merged; they use the Neon **owner** role, which may create tables and roles. Use the **direct** connection string (the host without `-pooler`).
@@ -73,7 +79,7 @@ Needs T2 (Neon project with `prod` and `dev` branches) and T3 (Doppler). Run on 
 3. `doppler run --config dev -- pnpm --filter @ads/db db:migrate`, then run it a second time.
    - expect: `migrations and roles.sql applied`, both times.
 4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads seed` (was `db:seed`; moved to the worker in M05a, D-076)
-   - expect: `{"productsCreated":["snappool","property-sg"],"offeringsEnsured":2,"flagsCreated":["writes_enabled"]}`
+   - expect: `{"productsCreated":["snappool","property-sg"],"offeringsEnsured":2,"docsCreated":6,"flagsCreated":["writes_enabled"]}` (`docsCreated` since M05b; a second run creates nothing)
 5. **Prod** (the owner string isn't kept in Doppler's service configs): `read -rs DATABASE_URL && export DATABASE_URL`, paste the Neon **prod** branch's owner connection string, press Enter. Then:
    `pnpm --filter @ads/db db:migrate && pnpm --silent --filter @ads/app-worker ads seed && unset DATABASE_URL`
    - expect: the same two lines as steps 3 and 4.
