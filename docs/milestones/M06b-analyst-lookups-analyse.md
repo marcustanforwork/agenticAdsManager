@@ -71,8 +71,17 @@ The analyst AI reviews, ranks and explains the candidates, and the core validate
 
 ## Done when (live, run by Marcus)
 - [ ] The SnapPool run produces findings whose evidence resolves to real rows. At low volume these will mostly be `tracking_gap` and `pacing_risk`, which is fine.
+  - result (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch): `"analysed": {"status": "skipped", "detail": "no candidates and no metrics in the window: nothing to analyse"}`, `input.estimatedTokens` 2372, `withinCap` true, phase `beta`. So there was no model call, and `ads findings` → `[]`, cost 0. Correct for empty accounts. **Waits for the first ads** (a week of metrics), then steps 2–4 again.
 - [ ] Langfuse shows the trace, with its cost.
+  - result: waits with the item above (no analyst call yet). Step 5's real-model run below was traced.
 - [ ] Marcus rates the property-fixture findings as useful on first read.
+  - result (step 5, 2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch, a throwaway `postgres:16` on port 55432, stopped after): `case:property --write`.
+    - The model: `anthropic:claude-opus-5-5`, 1 attempt, 18,997 tokens in, 2,771 out, US$0.13, 33 s.
+    - Confirmed: `cost_spike` (low), `no_delivery` (medium), `wasteful_search_term` × 2 (high; medium, the injection term as data, an exact negative), `zero_outcome_spend` (low).
+    - Dismissed: `pacing_risk` ("spending below the ceiling is intended … not to push budgets before the preview").
+    - `pnpm test` then failed on `input.estimatedTokens` only (2930 vs 2854): the replay always turned look-ups off, and the model run had them. Fixed in the same PR: replaying a model's answer offers the same look-ups, with a test. Full suite green.
+    - Case and fix: PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27) (branch `m06b/property-case`).
+    - **Marcus to rate** whether the findings are useful on first read.
 
 ### Live steps for Marcus
 _At the end of Phase 0 (D-074), after the M06a steps (they set up T9 and `ANTHROPIC_API_KEY`). No migration. Doppler `dev`, Neon dev branch._

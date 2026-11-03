@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | awaiting live acceptance |
+| **Status** | done (live passed 2026-11-03) |
 | **Phase** | 0 |
 | **Started** | 2026-10-07 |
 | **Finished** | 2026-10-07 (cloud part) |

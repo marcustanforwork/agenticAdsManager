@@ -4,21 +4,32 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
-## 2026-11-03 — Live steps: M01a dev passed, M01a prod waits, M02 dry sync passed, M03 blocked (D-100)
-- **Later the same session:**
-  - M02 steps 1–6, 8, 9: SnapPool's Meta account linked, its read token sealed, dry sync 6.9 s. The account is empty (no campaigns, never spent), so the fixtures (step 7) wait for the first ad.
-  - M03 steps 1–5: the Google read key (T5's download) sealed. The dry sync got 403: the Cloud project has **Test** access. Read-only diagnosis: the service account reaches the manager; the client is denied.
-  - D-100, BLUEPRINT v3.36, PROPOSAL v3.12, GOTCHAS, CHANGES-v3; the checklist artifact's T5 gains the Explorer step.
-  - Marcus applies for Explorer and checks the client's link.
-- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
-- **Did:**
-  - M01a steps 1–4 on the Neon dev branch, run by Claude with Marcus's go-ahead (Doppler `dev`, owner, direct host). The dev branch was empty before. Migrate twice and seed twice, all as expected. Checked read-only: 9 migrations, 32 tables, the three `agent_*` roles, products, flag, `ads phase` 0.
-  - Step 4's expected output in the milestone file now includes `docsCreated` (since M05b).
-  - Ticked M01a 1–4, M02 1, 2, 8 and M05b 1 in the checklist artifact.
-- **Decided:** M01a's prod steps wait for Marcus at the SER9. He was remote, and a local session may never use the prod owner string, nor should it pass through the chat. Nothing before M07 needs prod. Dev live steps go ahead meanwhile (Marcus).
-- **Learned:** the Neon branches run **PostgreSQL 18.6**; CI and the tests use 16, and every migration applied cleanly on 18. The Meta tokens are deliberately not in Doppler (T4: vault only). For a remote session, they reach the SER9 through temporary Doppler `dev` secrets, deleted after loading.
-- **Next:** M02 steps 3–7 and 9 once the two temporary secrets are in Doppler `dev`; then M03.
-- **Open:** M01a prod (Marcus).
+## 2026-11-03 — The dev live steps: M01a–M06b on the Neon dev branch (D-100)
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26) · PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27) (`m06b/property-case`)
+- **Did** (all run by Claude with Marcus's go-ahead, Doppler `dev`, read credentials only; Marcus was remote):
+  - **M01a** 1–4: migrate and seed dev (9 migrations, 32 tables, roles, products, flag, phase 0).
+  - **M02** 1–6, 8, 9: Meta linked, token sealed, dry sync 6.9 s. The token came through temporary Doppler `dev` secrets.
+  - **M03** 1–6, 8: Google linked, key (T5's download) sealed, dry sync 11.9 s / 13 requests, live smoke test passed. Two blocks came first:
+    - the Cloud project had **Test** access (D-100); Marcus applied and Explorer was approved the same day;
+    - SnapPool `722-828-5349` wasn't linked under the manager; Marcus linked it.
+  - **M04** day 1: 1 min 6 s, `degraded` for expected reasons. Google's first sync reads 89 click-id days (101 requests).
+  - **M05a** 1–4: 7 outcomes, KPI `signup`; F4's step 3 check passed.
+  - **M05b** 1–4: done.
+  - **M06a** 1, 3, 4: model ping US$0.0015 traced; detect found 0 candidates.
+  - **M06b:** the analysed cycle skipped (nothing to analyse). Step 5: the property case with Opus 5.5 (US$0.13). It found a replay-test bug (look-ups off in replay, on in the model run), fixed with a test in PR #27.
+  - Both ad accounts are **empty** (no campaigns, never spent), so the fixtures (M02/M03 step 7) and M06b's analysed run wait for the first ads.
+- **Decided:**
+  - **D-100:** Explorer must be applied for (BLUEPRINT v3.36, PROPOSAL v3.12; the checklist's T5).
+  - M01a prod waits for Marcus at the SER9 (a local session never uses the prod owner string).
+  - The Meta secrets can stay in Doppler `dev` until the fixtures (Claude's recommendation).
+- **Learned** (GOTCHAS):
+  - Neon runs Postgres 18.6;
+  - Google Explorer is applied for, not automatic;
+  - a client your login can open isn't necessarily linked under the manager (`customer_client_link` shows the truth).
+- **Next:**
+  - Marcus: M05a step 5's values; "trace seen"; rate the property findings (PR #27); M01a prod at home.
+  - Claude: M04 day 2 and the restart check (2026-11-04 or later); then F5.
+- **Open:** the manager's two not-enabled client links (`884-331-3896`, `319-172-0680`).
 
 ## 2026-11-03 — F4: CI green again, SnapPool connect timeout, SnapPool purchases (AI cost limit cut to F5)
 - **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
