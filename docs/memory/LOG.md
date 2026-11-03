@@ -4,6 +4,17 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-11-03 — Live steps: M01a dev passed, M01a prod waits, M02 started
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
+- **Did:**
+  - M01a steps 1–4 on the Neon dev branch, run by Claude with Marcus's go-ahead (Doppler `dev`, owner, direct host). The dev branch was empty before. Migrate twice and seed twice, all as expected. Checked read-only: 9 migrations, 32 tables, the three `agent_*` roles, products, flag, `ads phase` 0.
+  - Step 4's expected output in the milestone file now includes `docsCreated` (since M05b).
+  - Ticked M01a 1–4, M02 1, 2, 8 and M05b 1 in the checklist artifact.
+- **Decided:** M01a's prod steps wait for Marcus at the SER9. He was remote, and a local session may never use the prod owner string, nor should it pass through the chat. Nothing before M07 needs prod. Dev live steps go ahead meanwhile (Marcus).
+- **Learned:** the Neon branches run **PostgreSQL 18.6**; CI and the tests use 16, and every migration applied cleanly on 18. The Meta tokens are deliberately not in Doppler (T4: vault only). For a remote session, they reach the SER9 through temporary Doppler `dev` secrets, deleted after loading.
+- **Next:** M02 steps 3–7 and 9 once the two temporary secrets are in Doppler `dev`; then M03.
+- **Open:** M01a prod (Marcus).
+
 ## 2026-11-03 — F4: CI green again, SnapPool connect timeout, SnapPool purchases (AI cost limit cut to F5)
 - **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)
 - **Did:**
