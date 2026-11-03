@@ -75,7 +75,10 @@ The first two cycle steps, end to end, for both platforms and both products.
       - `id_capture` `no_signal`.
     - The Google warning about the `signup` route having no conversion action id is expected until T11.
     - A manual cycle the same day (M05b step 3) took 19 s, with Google at 13 requests (1 click-id day).
-  - result, day 2: to do (the same command on 2026-11-04 or later).
+  - result, day 2 (2026-11-04, run by Claude on the SER9, Doppler `dev`, read credentials only): **passed** in **23 s**, exit 0. A new cycle (`cycleDate` `2026-11-04`), `"outcome": "stopped"` at `trust_checked`.
+    - Both accounts `synced`: Google 14 requests (2 click-id days), Meta 9; 0 entities, 0 snapshots, `"drift": 0` (both accounts still empty).
+    - `degraded` for the same expected reasons as day 1: `spend_cap_headroom` warn (no Meta spending limit yet) and `outcome_source_fresh` warn ("healthy but quiet": no SnapPool activity since 2026-10-26). The rest pass or `no_signal` (too few clicks; no uploads yet).
+    - Outcomes read: 7 events, 0 new. Warning as before: the Google route for `signup` has no conversion action id yet.
 - [ ] `docker compose restart` in the middle of a sync resumes the cycle.
   - result: to do (step 4, with the dev stack, after day 2).
 
