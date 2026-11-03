@@ -36,7 +36,7 @@ export const SETTINGS: ProductSettings = {
   outcomes: {
     stages: [
       { id: 'signup', label: 'Signup', tier: 'success' },
-      { id: 'paid', label: 'Paid', tier: 'success' },
+      { id: 'paid', label: 'Paid', tier: 'success', role: 'paying' },
     ],
     primaryKpiStage: 'signup',
     feedback: [],
@@ -108,7 +108,7 @@ export async function seedWorld(db: DbOrTx) {
     outcome('s1', 'signup', '2026-10-02T03:00:00Z'),
     outcome('s2', 'signup', '2026-10-10T03:00:00Z'),
     outcome('s3', 'signup', '2026-10-15T03:00:00Z'),
-    outcome('s3', 'paid', '2026-10-15T05:00:00Z'),
+    { ...outcome('s3', 'paid', '2026-10-15T05:00:00Z'), valueMicros: '29000000', currency: 'SGD' },
     outcome('t1', 'signup', '2026-10-15T06:00:00Z', true),
   ]);
   const { rows } = await db.execute<{ id: string }>(

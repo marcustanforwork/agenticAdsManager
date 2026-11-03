@@ -2,7 +2,17 @@
 // around it; the number check holds every numeric token of that prose to the table, and if one doesn't match, a
 // plain template replaces the prose (`used_template_fallback`). The table, the findings list and the checks are
 // rendered by code. A failed trust check gives the diagnostic variant instead: template only, no AI.
-import { costPer, countOf, formatMoney, minusDays, percentOf, stageWord } from '@ads/contracts';
+import {
+  type MoneyByCurrency,
+  costPer,
+  countOf,
+  formatMoney,
+  minusDays,
+  moneyStages,
+  payingSummary,
+  percentOf,
+  stageWord,
+} from '@ads/contracts';
 import {
   type Account,
   type AdEntity,
@@ -18,6 +28,7 @@ import {
   listProposals,
   listTrustChecks,
   listUnacknowledgedDrift,
+  outcomeValueTotals,
   sumMetrics,
   sumMetricsByEntity,
 } from '@ads/db';
@@ -58,6 +69,26 @@ export interface BriefFinding {
   };
   /** Core's own words for a detector's candidate (computed figures only); null for an analyst-added finding. */
   summary: string | null;
+}
+
+/** An amount in its own currency (a payment's), as a decimal string. */
+export interface BriefMoney {
+  currency: string;
+  amount: string;
+}
+
+/** Paying customers beside the KPI (F4, D-096): the stage marked `paying` and, if there is one, `refund`. */
+export interface BriefPaying {
+  stage: string;
+  label: string;
+  /** New paying customers this week and the week before. */
+  customers: number;
+  previousCustomers: number;
+  /** Their payments this week, per currency. */
+  revenue: BriefMoney[];
+  /** This week's spend (the product's currency) per paying customer; null without one. */
+  costPerCustomer: string | null;
+  refunds: { stage: string; count: number; amounts: BriefMoney[] } | null;
 }
 
 /** Every figure the brief may quote (stored in `briefs.numbers`). */
@@ -111,7 +142,13 @@ export interface BriefNumbers {
   agreeRate?: AgreeRate | null;
   /** What the cycle's model calls cost so far, in US dollars (the providers bill in USD, D-078). */
   modelCostUsd: string;
+  /** Paying customers, revenue and cost per paying customer (F4), for a product with a stage marked `paying`;
+   *  null without one, absent in briefs stored before F4. */
+  paying?: BriefPaying | null;
 }
+
+const briefMoney = (list: readonly MoneyByCurrency[]): BriefMoney[] =>
+  list.map((m) => ({ currency: m.currency, amount: microsToDecimal(m.micros) }));
 
 const changePct = (now: bigint, before: bigint): number | null =>
   before > 0n ? Number(((now - before) * 100n) / before) : null;
@@ -211,6 +248,26 @@ export async function buildBriefNumbers(
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const entitiesById = new Map(entities.map((e) => [e.id, e]));
   const agree = await agreeRate(db, { productId: product.id, now: cycle.startedAt });
+  const valueStages = moneyStages(product.settings.outcomes);
+  const values = (f: string, t: string) =>
+    outcomeValueTotals(db, { productId: product.id, stages: valueStages, from: f, to: t, timeZone: tz });
+  const [weekValues, prevValues] = await Promise.all([values(from, to), values(prevFrom, prevTo)]);
+  const pay = payingSummary(product.settings.outcomes, weekValues, week.spendMicros);
+  const paying: BriefPaying | null =
+    pay === null
+      ? null
+      : {
+          stage: pay.stage,
+          label: pay.label,
+          customers: pay.customers,
+          previousCustomers: payingSummary(product.settings.outcomes, prevValues, prev.spendMicros)?.customers ?? 0,
+          revenue: briefMoney(pay.revenue),
+          costPerCustomer: money(pay.costPerCustomerMicros),
+          refunds:
+            pay.refunds === null
+              ? null
+              : { stage: pay.refunds.stage, count: pay.refunds.count, amounts: briefMoney(pay.refunds.amounts) },
+        };
 
   // Top campaigns by spend this week, with their KPI outcomes (attribution works at campaign level, M05b).
   const campaignRows = byEntity
@@ -319,6 +376,7 @@ export async function buildBriefNumbers(
     newProposals,
     agreeRate: agree.proposals === 0 ? null : agree,
     modelCostUsd: microsToDecimal(cycle.modelCostMicros),
+    paying,
   };
 }
 
@@ -421,6 +479,7 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
     kpi.cost === null
       ? `- Cost per ${stageWord(kpi.stage)}: none this week`
       : `- Cost per ${stageWord(kpi.stage)}: ${m(kpi.cost)}${kpi.previousCost === null ? '' : ` (before ${m(kpi.previousCost)}${pct(kpi.changePct)})`}`,
+    ...payingLines(numbers),
   ];
   if (numbers.campaigns.length > 0) {
     lines.push('', '## Top campaigns');
@@ -448,6 +507,27 @@ export function renderBrief(numbers: BriefNumbers, prose: BriefProse): string {
   lines.push('', '## Checks', ...checkLines(numbers));
   lines.push('', `Model cost this cycle: US$${numbers.modelCostUsd}`);
   return lines.join('\n');
+}
+
+/** Paying customers beside the KPI (F4): how many, what they paid (each currency on its own), and the spend per
+ *  paying customer; refunds on a line of their own when there were any. */
+function payingLines(numbers: BriefNumbers): string[] {
+  const p = numbers.paying;
+  if (p == null) return [];
+  const amounts = (list: readonly BriefMoney[]): string =>
+    list.map((a) => formatMoney(decimalMicros(a.amount), a.currency)).join(' + ');
+  const parts = [`- Paying customers: ${p.customers} (before ${p.previousCustomers})`];
+  if (p.revenue.length > 0) parts.push(`revenue ${amounts(p.revenue)}`);
+  if (p.costPerCustomer !== null) {
+    parts.push(`cost per paying customer ${formatMoney(decimalMicros(p.costPerCustomer), numbers.product.currency)}`);
+  }
+  const lines = [parts.join(' · ')];
+  if (p.refunds !== null && p.refunds.count > 0) {
+    lines.push(
+      `- Refunds: ${p.refunds.count}${p.refunds.amounts.length > 0 ? ` (${amounts(p.refunds.amounts)})` : ''}`,
+    );
+  }
+  return lines;
 }
 
 /** What the cycle proposed that still waits for Marcus, and where to decide it (F1). Printed by code, so it shows

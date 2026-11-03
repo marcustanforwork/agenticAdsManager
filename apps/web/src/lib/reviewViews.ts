@@ -1,7 +1,17 @@
 // What each review screen reads (M10b), one loader per screen. Each takes the database, so tests run them under the
 // dashboard's role against a fixture database; the pages pass `db()`. Settings come from the validated product
 // view: a product whose stored settings are broken shows the numbers without its ceilings and stages.
-import { ComputedEvidence, type WriteOp, daysFrom, localDate, minusDays, targetRefOf } from '@ads/contracts';
+import {
+  ComputedEvidence,
+  type PayingSummary,
+  type WriteOp,
+  daysFrom,
+  localDate,
+  minusDays,
+  moneyStages,
+  payingSummary,
+  targetRefOf,
+} from '@ads/contracts';
 import {
   type Account,
   type Brief,
@@ -24,6 +34,7 @@ import {
   listDriftEvents,
   listProductDocVersions,
   listProposals,
+  outcomeValueTotals,
   outcomesByDay,
   spendByDay,
   sumModelCost,
@@ -77,6 +88,9 @@ export interface OverviewData {
   trend: { weeks: TrendRow[]; days: TrendRow[] };
   /** Outcomes over the trend's days, by stage, with attribution. */
   stages: StageSummary[];
+  /** Paying customers, revenue and cost per paying customer over the trend's days (F4), beside the KPI; null for a
+   *  product without a stage marked paying. */
+  paying: PayingSummary | null;
   accounts: Account[];
 }
 
@@ -88,13 +102,16 @@ export async function loadOverview(db: DbOrTx, product: ProductView, now: Date):
   const monthStart = `${month}-01`;
   const productId = product.id;
   // One spend query covers the trend and the month to date, whichever starts first.
-  const [spend, outcomes, attribution, accounts] = await Promise.all([
+  const s = product.settings;
+  const [spend, outcomes, attribution, accounts, values] = await Promise.all([
     spendByDay(db, { productId, from: daysFrom(monthStart, from) > 0 ? monthStart : from, to: day }),
     outcomesByDay(db, { productId, from, to: day, timeZone: tz }),
     attributionByStage(db, { productId, from, to: day, timeZone: tz }),
     listAccounts(db, productId),
+    s === null
+      ? Promise.resolve([])
+      : outcomeValueTotals(db, { productId, stages: moneyStages(s.outcomes), from, to: day, timeZone: tz }),
   ]);
-  const s = product.settings;
   const ceiling = (json: string | null | undefined): bigint | null => (json == null ? null : BigInt(json));
   const stages = s?.outcomes.stages ?? [];
   const kpiStage = s?.outcomes.primaryKpiStage ?? '';
@@ -112,6 +129,14 @@ export async function loadOverview(db: DbOrTx, product: ProductView, now: Date):
     kpi: { stage: kpiStage, label: stages.find((x) => x.id === kpiStage)?.label ?? kpiStage },
     trend: kpiTrend({ spend, outcomes, kpiStage, lastDay: day, weeks: TREND_DAYS / 7 }),
     stages: summariseStages(attribution, stages, kpiStage),
+    paying:
+      s === null
+        ? null
+        : payingSummary(
+            s.outcomes,
+            values,
+            spend.filter((x) => x.day >= from).reduce((n, x) => n + x.spendMicros, 0n),
+          ),
     accounts,
   };
 }

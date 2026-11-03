@@ -114,6 +114,49 @@ export async function attributionByStage(
     .orderBy(o.stage, o.attributionMethod);
 }
 
+export interface StageValueTotalRow {
+  stage: string;
+  /** Null for outcomes without a value. */
+  currency: string | null;
+  outcomes: number;
+  valueMicros: bigint;
+}
+
+/** Real outcomes (test traffic apart) of `stages` in [from, to], per stage and currency: how many, and their summed
+ *  value (F4: paying customers and revenue, for the brief and the Overview). */
+export async function outcomeValueTotals(
+  db: DbOrTx,
+  input: { productId: string; stages: readonly string[]; from: string; to: string; timeZone: string },
+): Promise<StageValueTotalRow[]> {
+  if (input.stages.length === 0) return [];
+  const day = localDay(input.timeZone);
+  const o = dashboardOutcomes;
+  const rows = await db
+    .select({
+      stage: o.stage,
+      currency: o.currency,
+      outcomes: sql<number>`count(*)::int`,
+      value: sql<string>`coalesce(sum(${o.valueMicros}), 0)::text`,
+    })
+    .from(o)
+    .where(
+      and(
+        eq(o.productId, input.productId),
+        eq(o.isTest, false),
+        inArray(o.stage, [...input.stages]),
+        sql`${day} between ${input.from}::date and ${input.to}::date`,
+      ),
+    )
+    .groupBy(o.stage, o.currency)
+    .orderBy(o.stage, o.currency);
+  return rows.map((r) => ({
+    stage: r.stage,
+    currency: r.currency,
+    outcomes: r.outcomes,
+    valueMicros: BigInt(r.value),
+  }));
+}
+
 /** The latest cycles, newest first, each with its trust checks: the trust-check history and the AI cost. */
 export async function listCycleHistory(
   db: DbOrTx,
