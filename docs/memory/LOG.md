@@ -12,7 +12,9 @@ Newest entry on top. One entry per working session, written by the `end-session`
   - **M04 day 2** on dev (Claude): 23 s, a new cycle, 0 snapshots, `"drift": 0`, `degraded` for the expected reasons (no Meta spending limit; SnapPool quiet since 2026-10-26).
   - T15: `snappool.photos` already routes mail through Cloudflare (MX, SPF, DKIM `cf2024-1`), so `hello@` / `test@` need only routing rules. Marcus will forward them to his current Gmail for now; the new Gmail and the second admins later. For sending as `hello@`, Claude recommended Brevo's free SMTP + Gmail "Send mail as" (one SPF record only).
   - Checklist artifact ticked: `m01a-5`, `m01a-6`, `m04-3`.
-- **Decided:** — (Marcus: the new Gmail and second admins can wait; within D-101)
+  - **M05a steps 5–6** on dev with Marcus's values (D-102: S$20 a day, S$300 a month; test domain `snappool.photos`): settings v2, the KPI switch (v3) and back (v4). M05a → done; `m05a-4`, `m05a-5` ticked.
+  - The Facebook Page: Marcus asked whether Claude could make it with Playwright. Claude advised against automating Meta (its terms forbid automated access without permission; a flagged profile or portfolio would block SnapPool's ads), and to click it by hand with Claude's prepared text and screenshot checks. Brevo skipped for now.
+- **Decided:** D-102 (starting ceilings). Marcus: the new Gmail and second admins can wait (within D-101); Brevo skipped for now.
 - **Learned:** —
 - **Next:** Marcus's three answers (daily ceiling, "trace seen", the property findings' rating) and T15's email and Facebook Page; Claude's M04 restart check; then F5.
 - **Open:** —
