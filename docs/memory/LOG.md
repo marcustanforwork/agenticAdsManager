@@ -4,6 +4,19 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-11-04/05 — PR #27 merged; M01a prod passed (M01a done); M04 day 2; T15 started
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
+- **Did:**
+  - PR #27 squash-merged on Marcus's word (CI green); `main` merged into this branch, the `NOW.md` / `LOG.md` conflict resolved by keeping this branch's fuller record.
+  - **M01a steps 5–6 on prod**, run by Marcus in his own terminal (the owner string never reached Claude): migrate + seed as expected; Neon shows `property-sg dormant 1`, `snappool active 1`, `writes_enabled false`. M01a → done.
+  - **M04 day 2** on dev (Claude): 23 s, a new cycle, 0 snapshots, `"drift": 0`, `degraded` for the expected reasons (no Meta spending limit; SnapPool quiet since 2026-10-26).
+  - T15: `snappool.photos` already routes mail through Cloudflare (MX, SPF, DKIM `cf2024-1`), so `hello@` / `test@` need only routing rules. Marcus will forward them to his current Gmail for now; the new Gmail and the second admins later. For sending as `hello@`, Claude recommended Brevo's free SMTP + Gmail "Send mail as" (one SPF record only).
+  - Checklist artifact ticked: `m01a-5`, `m01a-6`, `m04-3`.
+- **Decided:** — (Marcus: the new Gmail and second admins can wait; within D-101)
+- **Learned:** —
+- **Next:** Marcus's three answers (daily ceiling, "trace seen", the property findings' rating) and T15's email and Facebook Page; Claude's M04 restart check; then F5.
+- **Open:** —
+
 ## 2026-11-03 — The dev live steps: M01a–M06b on the Neon dev branch (D-100); SnapPool's business identity (D-101)
 - **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26) · PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27) (`m06b/property-case`)
 - **Did** (all run by Claude with Marcus's go-ahead, Doppler `dev`, read credentials only; Marcus was remote):
