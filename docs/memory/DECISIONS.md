@@ -872,3 +872,10 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** customer mail and SnapPool's accounts belong to SnapPool, not a personal inbox; two admins prevent lock-out; Meta needs a Page to advertise; a free-mail test domain would silently drop real outcomes.
 - **Instead of:** moving ownership to the new account (re-linking the agent, risking lock-out); a Gmail address shown to customers; a second personal Facebook profile for the business.
 - **See:** PROPOSAL §16 T15 (new), T6(d) · `docs/milestones/M05a-pack-sdk-snappool.md` step 5 · the checklist artifact's T15
+
+### D-102 — Starting ceilings for SnapPool: S$20 a day, S$300 a month
+- **When / who / status:** 2026-11-05 · Marcus · adopted (in chat) · **Changes:** D-063's starting figure (S$500 a month); the rest of D-063 stands.
+- **Decision:** for the first tests, SnapPool's ceilings are **S$20 a day** (`dailyCeilingMicros` `20000000`) and **S$300 a month** (`monthlyCeilingMicros` `300000000`). Set on dev on 2026-11-05 (settings v2, M05a step 5); prod gets the same at M07's step 3 ("starting settings set"). Meta's account spending limit goes at about S$300 with the first ad.
+- **Why:** a small budget while the first ads and the tracking are proven.
+- **Note:** S$20 every day reaches S$300 in about 15 days; the projection and the ceilings show it, so Marcus spends below S$20 on most days or raises the monthly figure.
+- **See:** `docs/milestones/M05a-pack-sdk-snappool.md` step 5 · D-063 · D-101 (the test domain)

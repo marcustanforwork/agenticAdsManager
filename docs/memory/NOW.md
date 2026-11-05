@@ -6,16 +6,16 @@
 
 ## Where we are
 - **Phase:** 0. F4 merged (PR #25); item 4, the AI cost soft limit, cut to **F5** (D-099). **Next: Marcus's three answers and T15 (items 1–2), Claude's M04 restart check (item 3), then F5.**
-- **Built and merged:** M00–M10b and F1–F4. Done: M00, M01a, M01b, M05b. The rest await live acceptance.
-- **New decisions (2026-11-03):** D-096 (purchases), D-097 (F4), D-098 (Opus 5.5 for Phase 0), D-099 (F4 as built, item 4 → F5), D-100 (Google Explorer is applied for), D-101 (SnapPool's business identity, T15).
+- **Built and merged:** M00–M10b and F1–F4. Done: M00, M01a, M01b, M05a, M05b. The rest await live acceptance.
+- **New decisions:** **D-102** (2026-11-05, Marcus: starting ceilings S$20 a day, S$300 a month). 2026-11-03: D-096 (purchases), D-097 (F4), D-098 (Opus 5.5 for Phase 0), D-099 (F4 as built, item 4 → F5), D-100 (Google Explorer is applied for), D-101 (SnapPool's business identity, T15).
 - **Status:** BLUEPRINT v3.36, PROPOSAL v3.13, SNAPPOOL-TRACKING v1.4.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus: three answers** (asked 2026-11-04):
-   - M05a step 5: his **daily ceiling** (monthly S$500; test domain `snappool.photos`, D-101). Then Claude runs steps 5–6 (settings v2, the KPI switch and back) and records them in the M05a milestone file;
-   - M06a step 3: "trace seen" in Langfuse (`analyst:snappool`, the model ping, US$0.0015);
+1. **Marcus: two answers** (asked 2026-11-04):
+   - M06a step 3: "trace seen" in Langfuse (`analyst:snappool`, the model ping, US$0.0015), when he's back;
    - M06b step 5: are the property findings useful on first read? (PR #27 already merged; record the rating in the M06b file, then tick `m06b-5`.)
+   - **Done 2026-11-05:** M05a steps 5–6 on dev with his values (D-102: S$20 a day, S$300 a month; test domain `snappool.photos`): settings v2, the KPI switch to `paid` (v3) and back (v4).
 2. **Marcus: T15** (checklist item `t15`, D-101). Claude guides by screenshot.
    - **Email.** `snappool.photos` already uses Cloudflare Email Routing (MX `route1–3.mx.cloudflare.net`, SPF `include:_spf.mx.cloudflare.net`, DKIM `cf2024-1`; checked 2026-11-04), so no DNS change for receiving. Create `hello@` and `test@` → for now his **current** Gmail (Marcus, 2026-11-04: the new Gmail and the second admins can come later; the destination can be switched any time).
    - **Sending as `hello@`** (Marcus wants it for enquiries): Claude recommended Brevo's free SMTP plus Gmail "Send mail as" (port 587, TLS). If Brevo asks for SPF, **edit the one existing SPF record**, never add a second; Claude checks the record before he saves, and the headers (SPF / DKIM / DMARC pass) after a test send. Cloudflare's own sending needs Workers Paid (US$5 a month) and is API-only; Workspace ~US$7 a month. Not needed by the agent.
@@ -33,7 +33,7 @@
 - Branch `m01a/live-acceptance` (draft PR #26): the live steps' record (F4, M01a–M06b), D-100, D-101. `main` (with PR #27) merged in on 2026-11-04. Stays a draft until the live steps it records are done.
 
 ## Blocked on Marcus
-- Item 1's three answers; T15. The fixtures (M02/M03 step 7) and M06b steps 2–4: after the first ads. The live steps M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
+- Item 1's two answers; T15. The fixtures (M02/M03 step 7) and M06b steps 2–4: after the first ads. The live steps M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
 
 ## Live steps for Marcus
 _M00 passed on 2026-11-03, M01a on 2026-11-04. The rest run after F4 merges (D-097), at the end of Phase 0 (D-074), in milestone order: first F4's grant, then M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1, then M09b's steps 1–3 and 5, then M10a's (needs T10), then M10b's steps 1–4. The rest wait for the Phase 0 gate._
@@ -159,7 +159,7 @@ _M00 passed on 2026-11-03, M01a on 2026-11-04. The rest run after F4 merges (D-0
 | M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Dry sync passed 2026-11-03 (6.9 s); fixtures after the first Meta ad (the account is empty) |
 | M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Dry sync passed 2026-11-03 (11.9 s, 13 requests) after Explorer (D-100) and the manager link; fixtures after the first Google ad |
 | M04 | Sync, drift, trust checks | 0 | **awaiting live acceptance** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) (merged) | Day 1 passed 2026-11-03, day 2 on 2026-11-04 (23 s, no drift); the restart check to do (Claude, dev stack) |
-| M05a | Pack SDK, SnapPool pack, settings | 0 | **awaiting live acceptance** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged) | Outcomes passed 2026-11-03; starting settings and the KPI switch wait for Marcus's values |
+| M05a | Pack SDK, SnapPool pack, settings | 0 | **done** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged) | Live passed on dev 2026-11-03/05 (outcomes; settings v2 with D-102's ceilings; KPI switch). Prod's settings at M07 step 3 |
 | M05b | Property pack (G8), attribution, product docs | 0 | **done** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) (merged) | G8 passed; live passed 2026-11-03 (docs, a cycle, attribution 0% until ads and T14) |
 | M06a | AI layer, finding registry, detectors | 0 | **awaiting live acceptance** | [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (merged) | Detect passed 2026-11-03 (0 candidates: empty accounts); model ping traced, "trace seen" for Marcus |
 | M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting live acceptance** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (merged) | Property case with Opus 5.5 done (PR #27 merged; Marcus rates it); the analysed cycle waits for the first ads |
