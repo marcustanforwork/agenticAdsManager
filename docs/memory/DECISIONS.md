@@ -872,6 +872,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** customer mail and SnapPool's accounts belong to SnapPool, not a personal inbox; two admins prevent lock-out; Meta needs a Page to advertise; a free-mail test domain would silently drop real outcomes.
 - **Instead of:** moving ownership to the new account (re-linking the agent, risking lock-out); a Gmail address shown to customers; a second personal Facebook profile for the business.
 - **See:** PROPOSAL §16 T15 (new), T6(d) · `docs/milestones/M05a-pack-sdk-snappool.md` step 5 · the checklist artifact's T15
+- **Update 2026-11-07 (Marcus):** no new Gmail for now. His current Gmail stays SnapPool's business login, and `hello@` / `test@` forward to it; items 2's second admin waits with it. Sending as `hello@` (e.g. Brevo) only if he needs it. Items 3 and 4 stand.
 
 ### D-102 — Starting ceilings for SnapPool: S$20 a day, S$300 a month
 - **When / who / status:** 2026-11-05 · Marcus · adopted (in chat) · **Changes:** D-063's starting figure (S$500 a month); the rest of D-063 stands.
