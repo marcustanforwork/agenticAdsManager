@@ -4,6 +4,14 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
+## 2026-11-07 — T15 done; the Page's cover; a prompt for the introductory post
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
+- **Did:** Marcus: no new Gmail for now (D-101 update), `hello@` / `test@` → his current Gmail, then T15 done on his word (checklist `t15`). Claude made the Page's cover (1640×624) from SnapPool's social kit and used its 512 icon as the profile picture. A read-only Meta check: `promote_pages` `[]` (the read system user has no Page access, so it can't confirm), `spend_cap` `"0"`. Wrote Marcus a prompt for another agent (in `~/source/snappool`) to make the introductory post; he posts it by hand.
+- **Decided:** D-101 update (current Gmail; second admins and Brevo deferred).
+- **Learned:** —
+- **Next:** the introductory post, then the first ad (spending limit about S$300, T14's URL parameters); Marcus's two answers; Claude's M04 restart check; F5.
+- **Open:** —
+
 ## 2026-11-04/05 — PR #27 merged; M01a prod passed (M01a done); M04 day 2; T15 started
 - **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
 - **Did:**
