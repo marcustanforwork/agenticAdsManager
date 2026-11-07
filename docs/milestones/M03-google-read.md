@@ -12,7 +12,7 @@
 Typed, deterministic, quota-aware Google Ads reads.
 
 ## Needs
-- [ ] T5 (as rewritten for D-070): **not done yet.** Needed for the live steps only. Explorer access, which comes with enabling the Google Ads API in the Cloud project, is enough. The cloud work builds against Google's documented REST shapes with hand-written fixtures (D-072).
+- [ ] T5 (as rewritten for D-070): done 2026-10-24 except **Explorer access, applied for since 2026-11-03 (D-100)**: enabling the API gives Test access only. Needed for the live steps only. Explorer is enough. The cloud work builds against Google's documented REST shapes with hand-written fixtures (D-072).
 - [x] Q13 (D-071, service accounts vs logins): **answered 2026-10-19: service accounts (A).** It only changes the sign-in piece, so both token providers are built (service-account key file, or a login's refresh token) and the credential's `type` picks one.
 - [x] M02: merged (PR #6). Reuse `@ads/connector-testing` and copy its fixture layout (M02 "Leave behind").
 - [ ] M01a / M00 / M02 live steps: not done yet (Marcus). They don't block M03's cloud work.
@@ -69,10 +69,27 @@ Typed, deterministic, quota-aware Google Ads reads.
   - evidence: `pnpm test` → `Test Files 44 passed | 1 skipped (45)`, `Tests 563 passed | 3 skipped (566)` (skipped: the Meta and Google recorded fixtures, and the `LIVE=1` smoke test).
 
 ## Done when (live, run by Marcus)
-- [ ] `ads sync --dry` against SnapPool's Google account (or the test account) prints entities, 28 days of metrics and search terms, in under 60 s and under 200 operations.
+- [x] `ads sync --dry` against SnapPool's Google account (or the test account) prints entities, 28 days of metrics and search terms, in under 60 s and under 200 operations.
+  - **Passed 2026-11-03, after Explorer and the link:** **11.9 s** (`real 0m11.910s`), **13 requests**, `"outcome": "read"`, `Asia/Singapore`, `SGD`, `"timezoneMatchesProduct": true`, window 2026-10-07 → 2026-11-03, `"loginCustomerId": "9611885654"`.
+    - Everything 0: budgets, campaigns, ad groups, keywords, metric rows, search terms, click ids. The account has no campaigns yet.
+    - `autoTaggingEnabled: true` (T14's Google part confirmed), `conversionActionsEnabled: 0`.
+    - One warning, expected until T11: `the Google route for "signup" has no conversion action id yet`.
+  - **Step 8** (live smoke test, with the key from `~/Downloads`): `Tests 1 passed (1)`.
+  - **Step 7 (record fixtures) postponed** until SnapPool's first Google campaign has run about 7 days. As with Meta, `test/recorded.test.ts` needs more than 0 rows, and the account has none. Then run step 7 with the key in `~/Downloads/ads-agent-512616-b56034686591.json` (Marcus keeps it there until then, then moves it to his password manager and deletes the download).
+  - **How it was unblocked:**
+    - Marcus applied for Explorer and it was approved the same day; a GAQL read of the manager then worked.
+    - SnapPool wasn't linked under the manager. The manager's `customer_client_link` showed two ACTIVE links, `8843313896` and `3191720680`, both `CUSTOMER_NOT_ENABLED` (accounts made in the manager whose setup was never finished), and neither SnapPool. Marcus's own login reaching both accounts had made it look linked.
+    - Marcus linked `722-828-5349` from the manager (Accounts → + → Link existing account) and accepted it in SnapPool (Admin → Access and security → Managers). The link `7228285349~6691097499` is ACTIVE, and the client reads through the manager (a direct read stays denied: the service account is a user of the manager only, as D-071 intends).
+  - **First attempt, 2026-11-03, blocked on Explorer access (D-100).** Run by Claude on the SER9 with Marcus's go-ahead (Doppler `dev`, the Neon dev branch, the read key only). The key was T5's download in `~/Downloads`, account `ads-agent-read@ads-agent-512616.iam.gserviceaccount.com`; Claude copied it to `~/google-read.json` (mode 600) and deleted the copy afterwards.
+    - Step 2: `migrations and roles.sql applied` (nothing new).
+    - Step 4: `linked google:7228285349 to snappool through manager 9611885654`.
+    - Step 5: `stored the read credential for google:7228285349 (sealed with read-v1)`.
+    - Step 6: `"outcome": "error"`, `403 PERMISSION_DENIED [authorizationError:USER_PERMISSION_DENIED]`, 1 request, 2.6 s, exit 1. Also the warning `the Google route for "signup" has no conversion action id yet` (expected until T11).
+    - Diagnosis (read-only calls with the same key): `customers:listAccessibleCustomers` → `customers/9611885654` only (the manager: the service account is a user there, as D-071 says). A GAQL read of the manager → `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION`: the Cloud project `ads-agent-512616` has **Test** access. The client `7228285349` → `USER_PERMISSION_DENIED`, both through the manager and directly. Either the client isn't linked under the manager yet, or the Test access hides it; re-check once Explorer is granted (a `customer_client` read of the manager lists its clients).
+    - **Next:** Marcus applies for Explorer (Cloud Console → Google Ads API Overview → Upgrade access level → Apply for access) and confirms SnapPool `722-828-5349` shows as linked under the manager `961-188-5654`. Then re-run step 6 (the key is already in the vault, so no file is needed), then steps 3, 7 and 9 for the fixtures.
 
 ### Live steps for Marcus
-**Before you start:** setup task **T5** (the Cloud project with the Google Ads API enabled; SnapPool's ad account under the manager account) and your answer to **Q13**. With A (recommended): the `ads-agent-read` service account added to the manager account with **Read only** access, and its key file downloaded. With B: a read-only Google login's `{ "type": "authorized_user", "client_id", "client_secret", "refresh_token" }`. You also need the **M01a live steps 1–4** and M02's step 2 (`VAULT_READ_KEY` in Doppler `dev`). These steps use Doppler's `dev` config and the Neon **dev** branch, with read credentials only.
+**Before you start:** setup task **T5** (the Cloud project with the Google Ads API enabled **and Explorer access granted**: Cloud Console → Google Ads API Overview → Upgrade access level → Apply for access, D-100; SnapPool's ad account under the manager account) and your answer to **Q13**. With A (recommended): the `ads-agent-read` service account added to the manager account with **Read only** access, and its key file downloaded. With B: a read-only Google login's `{ "type": "authorized_user", "client_id", "client_secret", "refresh_token" }`. You also need the **M01a live steps 1–4** and M02's step 2 (`VAULT_READ_KEY` in Doppler `dev`). These steps use Doppler's `dev` config and the Neon **dev** branch, with read credentials only.
 
 1. `git pull` on `main`, then `pnpm install`.
 2. Apply the new migration (it adds `accounts.login_customer_id`): `doppler run --config dev -- pnpm --filter @ads/db db:migrate`

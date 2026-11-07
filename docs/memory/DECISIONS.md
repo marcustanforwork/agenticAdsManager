@@ -491,7 +491,7 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **See:** `docs/milestones/M02-meta-read.md` · BLUEPRINT §3.6, §5.7 · GOTCHAS "Meta …" rows
 
 ### D-070 — Google API access comes from the Cloud project; no developer token
-- **When / who / status:** 2026-10-02 · Claude (fix) · adopted. Marcus found it while setting up T5: the manager account's API Center now offers only a form for a different, app-only API.
+- **When / who / status:** 2026-10-02 · Claude (fix) · adopted; **its "Explorer access is the plan" bullet is superseded by D-100** (Explorer must be applied for). Marcus found it while setting up T5: the manager account's API Center now offers only a form for a different, app-only API.
 - **Decision:**
   - **No developer token.** On 2026-09-09/10 Google moved Google Ads API access from the manager account's API Center to the Google Cloud project. The access level belongs to the Cloud project whose credentials sign in; the `developer-token` header is optional and ignored (a future major API version will reject it); the API Center no longer issues tokens. Nothing in this system sends or stores one.
   - **Explorer access is the plan.** It comes with enabling the Google Ads API in the Cloud project, reaches real accounts, and allows 2,880 operations a day; our sync needs well under 500. Apply for **Basic** (15,000 a day) only if `api_usage` nears the cap: an application now needs the Cloud project's **brand verification** (homepage, privacy policy and terms on a verified domain), after which Basic is reviewed in minutes, so there's no lead time to beat.
@@ -849,3 +849,34 @@ These correct errors, contradictions and outdated facts found in the review. Det
 - **Why:** D-097 (F4). The red CI came from code mixing clocks as well as tests; only reading what the adapter needs keeps the grant minimal and the contract with SnapPool small; the session budget (D-056).
 - **Instead of:** freezing the tests' dates (they'd break again as the calendar moves); faking the database's clock too (no portable way: `now()` can't be shifted per database); a product-specific "paid" in core; a grant written only in the docs.
 - **See:** BLUEPRINT §3 (`OutcomeStage`), F4 "As built"; SNAPPOOL-TRACKING v1.4 §2.1; `docs/milestones/F4-ci-snappool-purchases-ai-limit.md`.
+
+### D-100 — Google Ads API: apply for Explorer access; enabling the API gives Test access only
+- **When / who / status:** 2026-11-03 · Claude (fix) · adopted. Found in M03's live dry sync. **Supersedes D-070's "Explorer access is the plan" bullet** (the rest of D-070, no developer token, stands).
+- **Decision:** enabling the Google Ads API gives a Cloud project **Test** access: requests against real (non-test) accounts fail with `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` (v25). To read SnapPool's account, the project needs **Explorer**: Cloud Console → **Google Ads API Overview** (`console.cloud.google.com/google/ads-apis/overview`) → **Upgrade access level** → Next access level **Explorer** → **Apply for access**. Google says review is automated and approves "in most cases". Explorer's limits are unchanged: 2,880 operations a day on real accounts, `Search`/`SearchStream` not restricted. Basic stays "only if we near the cap". T5 gains this step; M03's live steps need it.
+- **Why:** observed on 2026-11-03: `ads-agent-read` lists the manager `9611885654` as directly accessible, but a GAQL read of it returned `authorizationError: CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION`. Google's access-levels page says "After you enable the Google Ads API (which grants **Test** access)", and that Test "can only make Google Ads API requests against test accounts". D-070 had it from secondary sources.
+- **Instead of:** D-070's "Explorer comes with enabling the API, with no application".
+- **See:** PROPOSAL §7 (Google API facts), §16 T5 · BLUEPRINT M03 · GOTCHAS (Google Ads API access) · `docs/milestones/M03-google-read.md` · developers.google.com/google-ads/api/docs/api-policy/access-levels and get-started/common-errors (read 2026-11-03)
+
+### D-101 — SnapPool's own business identity: a domain address, added admins, a Facebook Page
+- **When / who / status:** 2026-11-03 · Marcus · adopted (he agreed to Claude's four points, in chat).
+- **Decision:**
+  1. **Email.** A new Gmail account is SnapPool's business login. Customers see an address on SnapPool's own domain (e.g. `hello@snappool.photos`): either Cloudflare Email Routing (free; forwards to the Gmail, and sending *as* the address needs extra setup) or Google Workspace (paid, a full mailbox).
+  2. **Add, don't move.** The new account is added as a **second admin** everywhere SnapPool lives:
+     - the Google Ads manager `961-188-5654` and SnapPool's ads account `722-828-5349`;
+     - the Cloud project `ads-agent-512616`;
+     - billing on both platforms.
+
+     Marcus's current account stays admin, so there are always two and no lock-out. The ad accounts stay the same (the agent is linked to their ids). The agent's own identities (the Google service accounts, the Meta system users) are untouched.
+  3. **Meta.** A **Facebook Page** for SnapPool, made in the existing Business portfolio: Ads Manager runs ads under a Page, even Instagram-only ones. SnapPool's Instagram becomes a professional account connected to that Page. Marcus's **personal** Facebook profile stays the admin; the new Gmail is the business contact email. No second personal profile (Meta's rules; such accounts get disabled).
+  4. **Test sign-ups** use an address on `snappool.photos`, and `testTraffic.emailDomains` is `["snappool.photos"]`. It is **never a free-mail domain**: test traffic is matched by domain only, so `gmail.com` would hide every real Gmail sign-up. A guard refusing free-mail domains is a candidate for F5.
+- **Why:** customer mail and SnapPool's accounts belong to SnapPool, not a personal inbox; two admins prevent lock-out; Meta needs a Page to advertise; a free-mail test domain would silently drop real outcomes.
+- **Instead of:** moving ownership to the new account (re-linking the agent, risking lock-out); a Gmail address shown to customers; a second personal Facebook profile for the business.
+- **See:** PROPOSAL §16 T15 (new), T6(d) · `docs/milestones/M05a-pack-sdk-snappool.md` step 5 · the checklist artifact's T15
+- **Update 2026-11-07 (Marcus):** no new Gmail for now. His current Gmail stays SnapPool's business login, and `hello@` / `test@` forward to it; items 2's second admin waits with it. Sending as `hello@` (e.g. Brevo) only if he needs it. Items 3 and 4 stand.
+
+### D-102 — Starting ceilings for SnapPool: S$20 a day, S$300 a month
+- **When / who / status:** 2026-11-05 · Marcus · adopted (in chat) · **Changes:** D-063's starting figure (S$500 a month); the rest of D-063 stands.
+- **Decision:** for the first tests, SnapPool's ceilings are **S$20 a day** (`dailyCeilingMicros` `20000000`) and **S$300 a month** (`monthlyCeilingMicros` `300000000`). Set on dev on 2026-11-05 (settings v2, M05a step 5); prod gets the same at M07's step 3 ("starting settings set"). Meta's account spending limit goes at about S$300 with the first ad.
+- **Why:** a small budget while the first ads and the tracking are proven.
+- **Note:** S$20 every day reaches S$300 in about 15 days; the projection and the ceilings show it, so Marcus spends below S$20 on most days or raises the monthly figure.
+- **See:** `docs/milestones/M05a-pack-sdk-snappool.md` step 5 · D-063 · D-101 (the test domain)

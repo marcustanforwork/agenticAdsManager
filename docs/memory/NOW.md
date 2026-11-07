@@ -2,37 +2,43 @@
 
 > This file is auto-loaded into every Claude session via `CLAUDE.md`. The `end-session` skill rewrites it at the end of every session. Keep it to about 90 lines: detail belongs in the milestone file, history in `LOG.md`.
 
-**Last updated:** 2026-11-03 · local session (SER9) · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (**F4**, with the plan docs it was planned in) **merged** on Marcus's word; **CI green again**. **Phase 0 setup** follows the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (its ticks: the artifact's database, collection `progress`; read them with the artifacts tool `db_list`). **Done and checked:** T1, T2, T3, T4 (Meta spending limit still to set), T5, **T6a** (2026-10-28), **T7**, **T8**, **T9** (all four `MODEL_*` = `anthropic:claude-opus-5-5`, D-098), **T10's first part** (2026-11-03), **T14's Google part**. **M00's live steps passed** (2026-11-03). **M11a onwards wait for the Phase 0 gate** (D-090).
+**Last updated:** 2026-11-05 (session end) · local session (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26) (the live steps' record). **2026-11-04/05:** PR #27 merged on Marcus's word; **M01a done** (prod steps 5–6 run by Marcus); M04 day 2 passed on dev; T15 done 2026-11-07 (Marcus's word). **Both ad accounts are still empty**, so the fixtures and M06b's analysed run wait for the first ads. **Phase 0 setup** follows the artifact **[Phase 0 Live Checklist](https://claude.ai/artifact/12LGui2vrbD3b2yxrrao4f)** (slug `002f9f39-9709-4740-a61a-cec9dc3d00e4`; ticks in its database collection `progress`, `{at, done}` per item id such as `m04-3`; read with `db_list`). **Done and checked:** T1–T5, T6a, T7, T8, T9 (`MODEL_*` = Opus 5.5, D-098), T10's first part, T14's Google part; M00's and M01a's live steps. **M11a onwards wait for the Phase 0 gate** (D-090).
 
 ## Where we are
-- **Phase:** 0. **F4 merged** (PR #25, on Marcus's word, 2026-11-03; `docs/milestones/F4-ci-snappool-purchases-ai-limit.md`): CI green again (and a year ahead), the SnapPool connect timeout, SnapPool purchases as outcomes (`card_saved`, `paid`, `refunded`) with paying customers in the brief and the Overview. **Item 4, the AI cost soft limit, cut to F5** (D-099). **Next session: M01a's live steps, with Marcus** (his choice, 2026-11-03); F5 after.
-- **Built and merged:** M00–M10b and F1–F4. All but M00 and M01b await live acceptance (F4: the purchases grant).
-- **New decisions (2026-11-03):** D-096 (purchases), D-097 (F4), D-098 (Opus 5.5 for Phase 0), **D-099** (F4 as built: one clock per comparison, a stage's `role`, the purchases grant as code, item 4 → F5).
-- **Status:** BLUEPRINT v3.35, PROPOSAL v3.11, SNAPPOOL-TRACKING v1.4.
+- **Phase:** 0. F4 merged (PR #25); item 4, the AI cost soft limit, cut to **F5** (D-099). **Next: Marcus's three answers and T15 (items 1–2), Claude's M04 restart check (item 3), then F5.**
+- **Built and merged:** M00–M10b and F1–F4. Done: M00, M01a, M01b, M05a, M05b. The rest await live acceptance.
+- **New decisions:** **D-102** (2026-11-05, Marcus: starting ceilings S$20 a day, S$300 a month). 2026-11-03: D-096 (purchases), D-097 (F4), D-098 (Opus 5.5 for Phase 0), D-099 (F4 as built, item 4 → F5), D-100 (Google Explorer is applied for), D-101 (SnapPool's business identity, T15).
+- **Status:** BLUEPRINT v3.36, PROPOSAL v3.13, SNAPPOOL-TRACKING v1.4.
 - **Session model (D-056):** one clean-context session per milestone part, on Opus 5.5 at medium effort, each within 400–600k tokens (BLUEPRINT §9).
 
 ## Next action
-1. **Marcus:** the purchases grant on SnapPool's production branch (F4's live step 2, below; he runs it himself). Record "grant applied" and the four counts in the F4 milestone file when he reports them.
-2. **Next session (clean context): M01a's live steps, with Marcus** (`start-session`, then the M01a milestone file's live steps; `NOW.md` "Live steps for Marcus", M01a). Run `nvm use` in the repo folder first (GOTCHAS). SnapPool reads no longer need the `NODE_OPTIONS=…` prefix. Record each result in the milestone file.
-3. **Claude, after that: F5** (BLUEPRINT §7 F5, D-099): the AI cost soft limit (US$20 a month default; skip the AI stages at the limit, one alert, "AI paused: monthly limit" in the brief and digest), with tests at, below and above; and the Phase 0 checklist artifact's grant step (D-096). It can run while Marcus does the live steps (it changes no stored stage).
-4. **Marcus, setup left:** T10's database settings (at M10a: steps 1, 2 and 4); T14's Meta part (URL parameters on each ad) and the Meta spending limit, both with the first ad.
-5. **Claude, docs only, with `update-plan`** (carried over): M05a's live step 2 and PROPOSAL §16 T6 → make `ads_agent_ro` with SQL, never the console; M07's and M08's steps → `ADS_OPERATOR=marcus` in Doppler `worker`; M01a says each service's login role comes in M07, but M07 uses the owner string for the worker (decide: keep it, or add an `ads_worker` login like M10a's `ads_dashboard`); T3 → Doppler's 4-environment limit; the checklist artifact's M10a step 6 (302 to Vercel's login).
-6. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus sets phase 1 (`ads phase set 1`, D-082).
-7. **Marcus, any time:** SnapPool still owes one real `/start` on production that shows `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e). SnapPool's memory should also note that the agent reads its payment columns (SNAPPOOL-TRACKING §2.1, §6): a rename there needs a change here.
+1. **Marcus: two answers** (asked 2026-11-04):
+   - M06a step 3: "trace seen" in Langfuse (`analyst:snappool`, the model ping, US$0.0015), when he's back;
+   - M06b step 5: are the property findings useful on first read? (PR #27 already merged; record the rating in the M06b file, then tick `m06b-5`.)
+   - **Done 2026-11-05:** M05a steps 5–6 on dev with his values (D-102: S$20 a day, S$300 a month; test domain `snappool.photos`): settings v2, the KPI switch to `paid` (v3) and back (v4).
+2. **Done 2026-11-07 (Marcus's word): T15** (D-101 as updated 2026-11-07; checklist `t15` ticked): `hello@` / `test@` forward to his current Gmail, the SnapPool Facebook Page in the Business portfolio (cover from SnapPool's social kit), Instagram, the Page connected to `act_2241505703097876`. Claude's read-only check: the read token's `act_…/promote_pages` returns `[]`, expected because the agent's read system user isn't given the Page (the agent doesn't need it), so it can't confirm the link. The account shows `spend_cap` `"0"` (no Meta spending limit yet) and `currency` SGD.
+   - **Next, Marcus: the introductory post** on the Page and Instagram (Claude wrote him a prompt for another agent working in `~/source/snappool`; he posts by hand). Then the first ad, with the Meta spending limit at about S$300 (D-102) and T14's URL parameters.
+   - Deferred: a new Gmail and second admins; Brevo only if he needs to send as `hello@`.
+3. **Claude: M04 step 4**, the restart check with the dev stack `ads-agent-dev` (never `ads-agent`): `docker compose -p ads-agent-dev exec worker ads-entrypoint ads cycle --product snappool --kind daily`, restart the worker during its sync → `"startup reconciliation done"` with `"cyclesResumed": 1`; step 2's command then prints `"already_finished"`. Record in the M04 file, tick `m04-4`. Run `nvm use` first (GOTCHAS).
+4. **Claude, after that: F5** (BLUEPRINT §7 F5, D-099), its own clean session on a new branch from `main`: the AI cost soft limit (US$20 a month default; skip the AI stages at the limit, one alert, "AI paused: monthly limit" in the brief and digest), tests at, below and above; the checklist artifact's grant step (D-096). If there's room: refuse free-mail domains in `testTraffic.emailDomains` (D-101).
+5. **After the first ads have run about a week:** M02 step 7 and M03 step 7 (fixtures; Meta token and secret in Doppler `dev` as `META_READ_ACCESS_TOKEN` / `META_APP_SECRET`, delete after; the Google key in `~/Downloads/ads-agent-512616-b56034686591.json`, then into Marcus's password manager); M06b steps 2–4. With the first ad: T14's Meta part (URL parameters) and the Meta spending limit (Marcus).
+6. **Marcus, setup left:** T10's database settings (at M10a: steps 1, 2 and 4). Google, optional: cancel the manager's two not-enabled client links (`884-331-3896`, `319-172-0680`).
+7. **Claude, docs only, with `update-plan`** (carried over): M05a's live step 2 and PROPOSAL §16 T6 → make `ads_agent_ro` with SQL, never the console; M07's and M08's steps → `ADS_OPERATOR=marcus` in Doppler `worker`; M01a says each service's login role comes in M07, but M07 uses the owner string for the worker (decide: keep it, or add an `ads_worker` login like M10a's `ads_dashboard`); T3 → Doppler's 4-environment limit; the checklist artifact's M10a step 6 (302 to Vercel's login).
+8. **Phase 0 gate (4 weeks, PROPOSAL §12):** starts once M07 runs live. Press 👍 / 💡 on each weekly brief. When it passes, Marcus sets phase 1 (`ads phase set 1`, D-082).
+9. **Marcus, any time:** one real `/start` on SnapPool's production showing `attribution`, `user_agent` and `page_url` filled (SnapPool's memory, 0e), e.g. with `test@snappool.photos`. SnapPool's memory should also note that the agent reads its payment columns (SNAPPOOL-TRACKING §2.1, §6).
 
 ## In flight
-- Nothing: PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25) (F4 and its plan docs) squash-merged on Marcus's word, 2026-11-03, after CI passed.
-- Branch `m06b/property-case` (PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27)): M06b live step 5, the property replay case answered by Opus 5.5, plus a replay fix (look-ups offered when replaying a model's answer). Marcus rates the findings, then merges on his word after CI. The dev live steps' full record is on `m01a/live-acceptance` (draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)).
+- Branch `m01a/live-acceptance` (draft PR #26): the live steps' record (F4, M01a–M06b), D-100, D-101. `main` (with PR #27) merged in on 2026-11-04. Stays a draft until the live steps it records are done.
 
 ## Blocked on Marcus
-- The SnapPool purchases grant; then the live steps M01a → M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
+- Item 1's two answers; the introductory post and the first ad (Meta spending limit, T14's Meta part). The fixtures (M02/M03 step 7) and M06b steps 2–4: after the first ads. The live steps M07, M08's and M09a's step 1, M09b's steps 1–3 and 5, M10a's (T10's database part), M10b's steps 1–4; T14's Meta part and the Meta spending limit.
 
 ## Live steps for Marcus
-_M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of Phase 0 (D-074), in milestone order: first F4's grant, then M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1, then M09b's steps 1–3 and 5, then M10a's (needs T10), then M10b's steps 1–4. The rest wait for the Phase 0 gate._
+_M00 passed on 2026-11-03, M01a on 2026-11-04. The rest run after F4 merges (D-097), at the end of Phase 0 (D-074), in milestone order: first F4's grant, then M01a, M02, M03, M04, M05a, M05b, M06a, M06b, M07, then M08's step 1 and M09a's step 1, then M09b's steps 1–3 and 5, then M10a's (needs T10), then M10b's steps 1–4. The rest wait for the Phase 0 gate._
 
 **F4** (PR #25 merged 2026-11-03; before M01a). Full text in the F4 milestone file:
 1. `git pull` on `main`, `pnpm install`.
-2. Neon console → SnapPool's project, **production** branch → SQL editor, as the owner: run the four `grant select (…) on … to ads_agent_ro;` statements from the F4 milestone file (or `SNAPPOOL-TRACKING.md` §2.1), then its check query → `billing_subscriptions 6`, `deferred_event_charges 5`, `orders 9`, `refunds 6`. Report "grant applied" and the counts.
+2. **Done 2026-11-03:** the purchases grant on SnapPool's production branch, checked as `ads_agent_ro` (`billing_subscriptions 6`, `deferred_event_charges 5`, `orders 9`, `refunds 6`).
 3. At M05a's step 4 (`ads outcomes --product snappool`): `card_saved`, `paid` and `refunded` among the stages, no error (counts may be 0 until 2027-01-01). At M04 and M05a: no `ETIMEDOUT` reading SnapPool.
 
 **M10b** (after M10a's; no migration; steps 1–4 during the gate, step 5 at phase 1). Full text in the M10b milestone file:
@@ -137,15 +143,6 @@ _M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of P
 8. If property-sg has a Meta account: link it, `set-status … --status paused`, dry sync property-sg → `skipped`.
 9. `rm ~/meta-read.json`.
 
-**M01a** (to do; needs T2 + T3). Use the Neon **owner** connection strings, **direct** host (no `-pooler`):
-1. `git pull` on `main`, then `pnpm install`.
-2. Add `DATABASE_URL` (Neon **dev** branch, owner) to Doppler's `dev` config.
-3. `doppler run --config dev -- pnpm --filter @ads/db db:migrate` (twice) → `migrations and roles.sql applied` both times.
-4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads seed` → `{"productsCreated":["snappool","property-sg"],...}` (was `db:seed`, D-076).
-5. Prod: `read -rs DATABASE_URL && export DATABASE_URL` (paste the **prod** owner string), then `pnpm --filter @ads/db db:migrate && pnpm --silent --filter @ads/app-worker ads seed && unset DATABASE_URL`.
-6. Neon SQL editor on prod: `select slug, status, settings_version from products order by slug; select key, value from system_flags;` → `property-sg dormant 1`, `snappool active 1`, `writes_enabled false`.
-7. Report "migrated and seeded", or paste the error.
-
 
 ## Deployed
 - Ads Agent: nothing yet.
@@ -155,15 +152,15 @@ _M00 passed on 2026-11-03. The rest run after F4 merges (D-097), at the end of P
 | M | Title | Ph | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M00 | Scaffold, contracts, boundaries, CI | 0 | **done** | [#3](https://github.com/marcustanforwork/agenticAdsManager/pull/3) (merged) | Live: compose up/stop on the SER9 passed 2026-11-03 |
-| M01a | Database schema and repositories | 0 | **awaiting live acceptance** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: Neon migrate + seed (to do; needs T2, T3) |
+| M01a | Database schema and repositories | 0 | **done** | [#4](https://github.com/marcustanforwork/agenticAdsManager/pull/4) (merged) | Live: dev passed 2026-11-03; prod (steps 5–6) passed 2026-11-04, run by Marcus |
 | M01b | Queue, leader lock, vault, request processor | 0 | **done** | [#5](https://github.com/marcustanforwork/agenticAdsManager/pull/5) (merged) | No live steps; tokens are loaded in M02/M03 |
-| M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Live: link, dry sync, record fixtures (to do; needs T4 read side, M01a) |
-| M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Live: link, dry sync, record fixtures (to do; needs T5 (service accounts), M01a) |
-| M04 | Sync, drift, trust checks | 0 | **awaiting live acceptance** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) (merged) | Live: two daily cycles + a restart (to do; after M03's steps) |
-| M05a | Pack SDK, SnapPool pack, settings | 0 | **awaiting live acceptance** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged) | Live: outcomes, starting settings, KPI switch (to do; needs T6a) |
-| M05b | Property pack (G8), attribution, product docs | 0 | **awaiting live acceptance** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) (merged) | G8 passed; live: docs seeded, attribution rate (needs T6a; real ids need T14) |
-| M06a | AI layer, finding registry, detectors | 0 | **awaiting live acceptance** | [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (merged) | Live: model ping + trace, detect on real data (needs T9, `ANTHROPIC_API_KEY`) |
-| M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting live acceptance** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (merged) | Live: analysed cycle, findings, trace, property case with the real model |
+| M02 | Meta read connector | 0 | **awaiting live acceptance** | [#6](https://github.com/marcustanforwork/agenticAdsManager/pull/6) (merged) | Dry sync passed 2026-11-03 (6.9 s); fixtures after the first Meta ad (the account is empty) |
+| M03 | Google read connector | 0 | **awaiting live acceptance** | [#7](https://github.com/marcustanforwork/agenticAdsManager/pull/7) (merged) | Dry sync passed 2026-11-03 (11.9 s, 13 requests) after Explorer (D-100) and the manager link; fixtures after the first Google ad |
+| M04 | Sync, drift, trust checks | 0 | **awaiting live acceptance** | [#8](https://github.com/marcustanforwork/agenticAdsManager/pull/8) (merged) | Day 1 passed 2026-11-03, day 2 on 2026-11-04 (23 s, no drift); the restart check to do (Claude, dev stack) |
+| M05a | Pack SDK, SnapPool pack, settings | 0 | **done** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged) | Live passed on dev 2026-11-03/05 (outcomes; settings v2 with D-102's ceilings; KPI switch). Prod's settings at M07 step 3 |
+| M05b | Property pack (G8), attribution, product docs | 0 | **done** | [#10](https://github.com/marcustanforwork/agenticAdsManager/pull/10) (merged) | G8 passed; live passed 2026-11-03 (docs, a cycle, attribution 0% until ads and T14) |
+| M06a | AI layer, finding registry, detectors | 0 | **awaiting live acceptance** | [#11](https://github.com/marcustanforwork/agenticAdsManager/pull/11) (merged) | Detect passed 2026-11-03 (0 candidates: empty accounts); model ping traced, "trace seen" for Marcus |
+| M06b | Analyst input, look-ups, analyse stage | 0 | **awaiting live acceptance** | [#12](https://github.com/marcustanforwork/agenticAdsManager/pull/12) (merged) | Property case with Opus 5.5 done (PR #27 merged; Marcus rates it); the analysed cycle waits for the first ads |
 | M07 | Digest, brief, services (Phase 0 exit) | 0 | **awaiting live acceptance** | [#13](https://github.com/marcustanforwork/agenticAdsManager/pull/13) (merged) | Live: deploy on the SER9, 7 days unattended (needs T7, T8) |
 | M08 | Draft stage, proposals, replay v0 | 1 | **awaiting live acceptance** | [#14](https://github.com/marcustanforwork/agenticAdsManager/pull/14) (merged) | Built before the gate (D-082); live: migrate now, the rest after the gate |
 | M09a | Telegram bot core and proposal cards | 1 | **awaiting live acceptance** | [#15](https://github.com/marcustanforwork/agenticAdsManager/pull/15) (merged) | Built before the gate (D-084); live: migrate now, cards after the gate |

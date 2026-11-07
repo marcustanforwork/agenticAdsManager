@@ -67,8 +67,13 @@ A traced, model-swappable AI layer, and fixed rules that find candidate problems
   - evidence: `pnpm test` → 66 files passed, 1 skipped; 785 tests passed, 3 skipped (the recorded-fixture replays wait for the live recordings).
 
 ## Done when (live, run by Marcus)
-- [ ] A SnapPool cycle up to `detected` runs on real synced data.
+- [x] A SnapPool cycle up to `detected` runs on real synced data.
+  - result (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch): `"outcome": "stopped"`, `"stageReached": "detected"`, `"trustResult": "degraded"`, `"detected": {"candidates": []}`, 1.5 s.
+    - It carried on that day's manual cycle (synced in M05b step 3), so there was no new sync.
+    - No candidates is right: both ad accounts are empty (no campaigns yet).
+    - Steps 1 (migrate) and 2 (T9 keys in Doppler `dev`) were already done.
 - [ ] Langfuse receives a test trace.
+  - result: `ads model ping` → `"model": "anthropic:claude-opus-5-5"`, `"attempts": 1`, `"usage": {"inputTokens": 293, "outputTokens": 17}`, `"costMicros": "1512"` (US$0.0015), `"traced": true`. **Marcus to confirm** a trace `analyst:snappool` in Langfuse ("trace seen").
 
 ### Live steps for Marcus
 _At the end of Phase 0 (D-074), after the M05b steps. Needs T9 (Langfuse keys) and the AI provider key; Doppler `dev`, Neon dev branch._

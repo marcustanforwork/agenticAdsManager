@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | awaiting live acceptance |
+| **Status** | done (live passed 2026-11-03) |
 | **Phase** | 0 |
 | **Started** | 2026-10-07 |
 | **Finished** | 2026-10-07 (cloud part) |
@@ -75,8 +75,11 @@ The second pack is added with zero changes to the core, outcomes are attributed 
   - evidence: `git show --stat --format= c1d9798 | grep -E "packages/(core|gateway|connector-)"` → nothing. The commit's 16 files: `packages/packs/property-sg/**`, `apps/worker/src/packs.ts`, `apps/worker/test/settings.test.ts`, `products/seed.json`, `pnpm-lock.yaml`.
 
 ## Done when (live, run by Marcus)
-- [ ] `ads outcomes --product snappool` shows the attribution rate on real outcomes.
-  - result: —
+- [x] `ads outcomes --product snappool` shows the attribution rate on real outcomes.
+  - result (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch, read credentials only): `"attribution": {"stage": "signup", "outcomes": 2, "attributed": 0, "ratePct": 0, "byMethod": {"platform_ids": 0, "gclid_lookup": 0, "utm": 0, "none": 2, "pending": 0}}`. That is the expected 0%: no ads have run, and T14's Meta part waits for the first ad.
+    - Step 1: the seed made the 6 docs during M01a's dev seed (`"docsCreated": 6`).
+    - Step 2: `ads docs list` → `strategy` v1 (779 characters), `playbook` v1 (464), `learnings` v1 (279).
+    - Step 3: a manual cycle to `trust_checked` in 19 s, `degraded` for M04's reasons. Its `attribution` block checked 0 new outcomes. `attribution_gap` (no_signal, per account) and `id_capture` (no_signal) are among the checks.
 
 ### Live steps for Marcus
 _At the end of Phase 0 (D-074), after the M01a–M05a steps (the ad accounts synced, T6a set). Doppler `dev`, the Neon dev branch. No migration in M05b._

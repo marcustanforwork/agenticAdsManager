@@ -64,9 +64,23 @@ The first two cycle steps, end to end, for both platforms and both products.
 
 ## Done when (live, run by Marcus)
 - [ ] The daily cycle for `snappool` completes sync and trust check on two consecutive days on the SER9. A manual trigger is fine; scheduling arrives in M07.
-  - result: —
+  - result, day 1 (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch, read credentials only): **passed** in **1 min 6 s**, exit 0. `"outcome": "stopped"`, `"stageReached": "trust_checked"`, `"trustResult": "degraded"`.
+    - Both accounts `synced`. Google: 101 requests, 53 s; its first sync reads 89 days of click ids, one request a day, and later syncs need about 13. Meta: 9 requests, 5 s.
+    - Both accounts are empty: 0 entities, 0 metric rows, 0 search terms, 0 click ids, drift 0.
+    - Outcomes: 7 read from SnapPool (latest activity 2026-10-26), all attribution `none` (no ads yet; T14).
+    - `degraded` for the expected reasons:
+      - Meta `spend_cap_headroom: warn` (no spending limit yet);
+      - `outcome_source_fresh: warn` ("healthy but quiet", 186 h since SnapPool's last activity);
+      - `tracking_active` and `attribution_gap` `no_signal` (too few clicks; no uploads yet, D-075);
+      - `id_capture` `no_signal`.
+    - The Google warning about the `signup` route having no conversion action id is expected until T11.
+    - A manual cycle the same day (M05b step 3) took 19 s, with Google at 13 requests (1 click-id day).
+  - result, day 2 (2026-11-04, run by Claude on the SER9, Doppler `dev`, read credentials only): **passed** in **23 s**, exit 0. A new cycle (`cycleDate` `2026-11-04`), `"outcome": "stopped"` at `trust_checked`.
+    - Both accounts `synced`: Google 14 requests (2 click-id days), Meta 9; 0 entities, 0 snapshots, `"drift": 0` (both accounts still empty).
+    - `degraded` for the same expected reasons as day 1: `spend_cap_headroom` warn (no Meta spending limit yet) and `outcome_source_fresh` warn ("healthy but quiet": no SnapPool activity since 2026-10-26). The rest pass or `no_signal` (too few clicks; no uploads yet).
+    - Outcomes read: 7 events, 0 new. Warning as before: the Google route for `signup` has no conversion action id yet.
 - [ ] `docker compose restart` in the middle of a sync resumes the cycle.
-  - result: —
+  - result: to do (step 4, with the dev stack, after day 2).
 
 ### Live steps for Marcus
 _After the M01a, M02 and M03 live steps (D-074: at the end of Phase 0). Doppler `dev`, Neon dev branch, read credentials only. **Since M05a** the cycle also reads SnapPool's outcomes and runs `outcome_source_fresh`: Doppler `dev` needs `SNAPPOOL_DATABASE_URL` (the read-only string, T6a), or that check fails and so does the cycle (D-076)._

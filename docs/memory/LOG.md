@@ -4,10 +4,58 @@ Newest entry on top. One entry per working session, written by the `end-session`
 
 ---
 
-## 2026-11-03 — M06b live step 5: the property case answered by Opus 5.5
-- **Where:** local (SER9) · branch `m06b/property-case` · PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27)
-- **Did:** `case:property --write` with Doppler `dev`'s model (Opus 5.5, US$0.13): 5 findings confirmed, 1 dismissed, the injection term kept as data. `pnpm test` then failed on `input.estimatedTokens` only, because the replay always turned look-ups off. Fixed: replaying a model's answer offers the same look-ups, with a test pinning both cases.
-- **Next:** Marcus rates the findings ("useful on first read"); merge on his word after CI. The rest of that day's live steps are in PR #26.
+## 2026-11-07 — T15 done; the Page's cover; a prompt for the introductory post
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
+- **Did:** Marcus: no new Gmail for now (D-101 update), `hello@` / `test@` → his current Gmail, then T15 done on his word (checklist `t15`). Claude made the Page's cover (1640×624) from SnapPool's social kit and used its 512 icon as the profile picture. A read-only Meta check: `promote_pages` `[]` (the read system user has no Page access, so it can't confirm), `spend_cap` `"0"`. Wrote Marcus a prompt for another agent (in `~/source/snappool`) to make the introductory post; he posts it by hand.
+- **Decided:** D-101 update (current Gmail; second admins and Brevo deferred).
+- **Learned:** —
+- **Next:** the introductory post, then the first ad (spending limit about S$300, T14's URL parameters); Marcus's two answers; Claude's M04 restart check; F5.
+- **Open:** —
+
+## 2026-11-04/05 — PR #27 merged; M01a prod passed (M01a done); M04 day 2; T15 started
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26)
+- **Did:**
+  - PR #27 squash-merged on Marcus's word (CI green); `main` merged into this branch, the `NOW.md` / `LOG.md` conflict resolved by keeping this branch's fuller record.
+  - **M01a steps 5–6 on prod**, run by Marcus in his own terminal (the owner string never reached Claude): migrate + seed as expected; Neon shows `property-sg dormant 1`, `snappool active 1`, `writes_enabled false`. M01a → done.
+  - **M04 day 2** on dev (Claude): 23 s, a new cycle, 0 snapshots, `"drift": 0`, `degraded` for the expected reasons (no Meta spending limit; SnapPool quiet since 2026-10-26).
+  - T15: `snappool.photos` already routes mail through Cloudflare (MX, SPF, DKIM `cf2024-1`), so `hello@` / `test@` need only routing rules. Marcus will forward them to his current Gmail for now; the new Gmail and the second admins later. For sending as `hello@`, Claude recommended Brevo's free SMTP + Gmail "Send mail as" (one SPF record only).
+  - Checklist artifact ticked: `m01a-5`, `m01a-6`, `m04-3`.
+  - **M05a steps 5–6** on dev with Marcus's values (D-102: S$20 a day, S$300 a month; test domain `snappool.photos`): settings v2, the KPI switch (v3) and back (v4). M05a → done; `m05a-4`, `m05a-5` ticked.
+  - The Facebook Page: Marcus asked whether Claude could make it with Playwright. Claude advised against automating Meta (its terms forbid automated access without permission; a flagged profile or portfolio would block SnapPool's ads), and to click it by hand with Claude's prepared text and screenshot checks. Brevo skipped for now.
+- **Decided:** D-102 (starting ceilings). Marcus: the new Gmail and second admins can wait (within D-101); Brevo skipped for now.
+- **Learned:** —
+- **Next:** Marcus's three answers (daily ceiling, "trace seen", the property findings' rating) and T15's email and Facebook Page; Claude's M04 restart check; then F5.
+- **Open:** —
+
+## 2026-11-03 — The dev live steps: M01a–M06b on the Neon dev branch (D-100); SnapPool's business identity (D-101)
+- **Where:** local (SER9) · branch `m01a/live-acceptance` · draft PR [#26](https://github.com/marcustanforwork/agenticAdsManager/pull/26) · PR [#27](https://github.com/marcustanforwork/agenticAdsManager/pull/27) (`m06b/property-case`)
+- **Did** (all run by Claude with Marcus's go-ahead, Doppler `dev`, read credentials only; Marcus was remote):
+  - **M01a** 1–4: migrate and seed dev (9 migrations, 32 tables, roles, products, flag, phase 0).
+  - **M02** 1–6, 8, 9: Meta linked, token sealed, dry sync 6.9 s. The token came through temporary Doppler `dev` secrets.
+  - **M03** 1–6, 8: Google linked, key (T5's download) sealed, dry sync 11.9 s / 13 requests, live smoke test passed. Two blocks came first:
+    - the Cloud project had **Test** access (D-100); Marcus applied and Explorer was approved the same day;
+    - SnapPool `722-828-5349` wasn't linked under the manager; Marcus linked it.
+  - **M04** day 1: 1 min 6 s, `degraded` for expected reasons. Google's first sync reads 89 click-id days (101 requests).
+  - **M05a** 1–4: 7 outcomes, KPI `signup`; F4's step 3 check passed.
+  - **M05b** 1–4: done.
+  - **M06a** 1, 3, 4: model ping US$0.0015 traced; detect found 0 candidates.
+  - **M06b:** the analysed cycle skipped (nothing to analyse). Step 5: the property case with Opus 5.5 (US$0.13). It found a replay-test bug (look-ups off in replay, on in the model run), fixed with a test in PR #27.
+  - Both ad accounts are **empty** (no campaigns, never spent), so the fixtures (M02/M03 step 7) and M06b's analysed run wait for the first ads.
+- **Decided:**
+  - **D-100:** Explorer must be applied for (BLUEPRINT v3.36, PROPOSAL v3.12; the checklist's T5).
+  - M01a prod waits for Marcus at the SER9 (a local session never uses the prod owner string).
+  - The Meta secrets can stay in Doppler `dev` until the fixtures (Claude's recommendation).
+- **Learned** (GOTCHAS):
+  - Neon runs Postgres 18.6;
+  - Google Explorer is applied for, not automatic;
+  - a client your login can open isn't necessarily linked under the manager (`customer_client_link` shows the truth).
+- **At the end:** Marcus plans a separate SnapPool business identity and agreed to Claude's four points.
+  - Recorded as **D-101**: a domain address; the new Gmail added as a second admin, never moving ownership; a Facebook Page in the existing Business portfolio, with his personal profile as admin; test sign-ups on `snappool.photos`, never a free-mail domain.
+  - Setup task **T15** (PROPOSAL v3.13, also in the checklist artifact); T6(d) and M05a step 5 updated.
+- **Next:**
+  - With Marcus at home: T15 (account set-ups, the Facebook Page), then M01a prod; his daily ceiling for M05a step 5; "trace seen"; rate the property findings (PR #27).
+  - Claude: M04 day 2 and the restart check (2026-11-04 or later); then F5.
+- **Open:** the manager's two not-enabled client links (`884-331-3896`, `319-172-0680`).
 
 ## 2026-11-03 — F4: CI green again, SnapPool connect timeout, SnapPool purchases (AI cost limit cut to F5)
 - **Where:** local (SER9) · branch `claude/elegant-goodall-ursfd8` · PR [#25](https://github.com/marcustanforwork/agenticAdsManager/pull/25)

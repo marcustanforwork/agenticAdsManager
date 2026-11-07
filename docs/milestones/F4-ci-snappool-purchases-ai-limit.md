@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | awaiting live acceptance (merged 2026-11-03; live step: the purchases grant, then M01a on) |
+| **Status** | awaiting live acceptance (merged 2026-11-03; the grant applied and checked 2026-11-03; left: `ads outcomes` at M05a, and M04's and M05a's reads) |
 | **Phase** | fix (runs before M01a's live steps, D-097) |
 | **Started** | 2026-11-03 |
 | **Finished** | 2026-11-03 (built; live step: the purchases grant) |
@@ -67,6 +67,7 @@ CI is green again; SnapPool's database can be read from the SER9 every time; Sna
 
 ## Done when (live, run by Marcus)
 - [ ] After Marcus's grant, `ads outcomes --product snappool` reads `card_saved` and `paid` without error (counts may be 0 until 2027-01-01); M04's and M05a's SnapPool reads succeed every time.
+  - result: 2026-11-03, Marcus ran the four grants on SnapPool's production branch (Neon SQL editor, "Statement executed successfully" ×4). Claude checked them from the SER9 as the agent's own login (`doppler run --config dev`, `SNAPPOOL_DATABASE_URL`, a read-only transaction; counts only): role `ads_agent_ro`; column grants `billing_subscriptions 6`, `deferred_event_charges 5`, `orders 9`, `refunds 6`; `card_ref` → permission denied. The adapter's own read (`fetchSince`, 35 days, the manifest's stages) → ok in 2.7 s, 7 outcomes (`pool_request` 3, `signup` 2, `activated` 2; no purchases yet, as expected; test traffic not split, no domain list given). Left: `ads outcomes` itself at M05a's step 4 (needs M01a's database), and M04's and M05a's reads without a timeout.
 
 ### Live steps for Marcus
 After this PR merges, **before M01a's live steps** (D-097):

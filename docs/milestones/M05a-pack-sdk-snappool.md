@@ -2,17 +2,17 @@
 
 | | |
 |---|---|
-| **Status** | awaiting live acceptance |
+| **Status** | done |
 | **Phase** | 0 |
 | **Started** | 2026-10-06 |
-| **Finished** | 2026-10-06 (cloud part) |
+| **Finished** | 2026-10-06 (cloud part); live acceptance 2026-11-05 (dev) |
 | **PRs** | [#9](https://github.com/marcustanforwork/agenticAdsManager/pull/9) (merged 2026-10-07) |
 
 ## Goal
 The first real pack loads through the registry, SnapPool's outcomes flow in, and settings are one validated document.
 
 ## Needs
-- [ ] A read-only SnapPool connection string (T6a): **not set up yet**. Under D-074 it waits for the end of Phase 0. The adapter is built and tested against a local Postgres fixture with SnapPool's real table shapes (read from the SnapPool repo, `origin/main` `34d3473`, 2026-10-06).
+- [x] A read-only SnapPool connection string (T6a): done 2026-10-28 (was: **not set up yet**). Under D-074 it waits for the end of Phase 0. The adapter is built and tested against a local Postgres fixture with SnapPool's real table shapes (read from the SnapPool repo, `origin/main` `34d3473`, 2026-10-06).
 - [x] The SnapPool facts: `SNAPPOOL-TRACKING.md` §1–2, re-checked against SnapPool's repo on 2026-10-06 (below).
 - [x] **SnapPool's tracking change (T6b) is live on production since 2026-09-25 17:01 UTC** (SnapPool Session 41, its PR #108; SnapPool's `memory/MEMORY.md`, 0e). `pool_requests` has `attribution` (jsonb), `user_agent` and `page_url` (SnapPool migration `0032`). Still owed on SnapPool's side: one real `/start` on production that shows all three columns filled (Marcus), and T14 (the ad URL settings), without which only Meta's `fbclid` arrives.
 - [x] M04: merged (PR #8). Its "Leave behind": add `outcome_source_fresh` to `trustStage` as a pure check with table tests.
@@ -78,12 +78,15 @@ The first real pack loads through the registry, SnapPool's outcomes flow in, and
   - evidence: full preflight below (`Tests 679 passed | 3 skipped`).
 
 ## Done when (live, run by Marcus)
-- [ ] `ads outcomes --product snappool` prints 30 days of outcomes by stage.
-  - result: —
-- [ ] Marcus's starting settings are entered with `ads settings set`: the test-signup email domains (D-059), a monthly ceiling of S$500 (D-063), and a daily ceiling of his choice.
-  - result: —
-- [ ] Changing the KPI from `signup` to `paid` with `ads settings set` changes the output, with no code change.
-  - result: —
+- [x] `ads outcomes --product snappool` prints 30 days of outcomes by stage.
+  - result (2026-11-03, run by Claude on the SER9 with Marcus's go-ahead, Doppler `dev`, the Neon dev branch, read credentials only): `"read": {"outcome": "read", "events": 7, "new": 0}` (the 7 came in with M04's day-1 cycle), `"kpiStage": "signup"`.
+    - Last 30 days: `pool_request` 3, `signup` 2, `activated` 2, `card_saved` 0, `paid` 0, `refunded` 0; test 0 and attributed 0 everywhere.
+    - F4's step 3 check passes too: the three purchase stages are listed, with no error and no `ETIMEDOUT`.
+    - Step 2 (T6a) was done 2026-10-28; step 3: `OPERATOR_ACTORS=cli:marcus` already in Doppler `dev` (login `marcus`).
+- [x] Marcus's starting settings are entered with `ads settings set`: the test-signup email domains (D-059), a monthly ceiling of S$500 (D-063; **S$300 for starters, D-102**), and a daily ceiling of his choice.
+  - result (dev, 2026-11-05, run by Claude with Marcus's values: S$20 a day, S$300 a month, test domain `snappool.photos`): `"status": "done"`, `"version": 2`. Step 4 again: the same 7 outcomes, `test` 0 on every stage (none of them was signed up with `snappool.photos`). Prod gets the same values at M07's step 3.
+- [x] Changing the KPI from `signup` to `paid` with `ads settings set` changes the output, with no code change.
+  - result (dev, 2026-11-05): `primaryKpiStage` `paid` → settings v3, `ads outcomes --no-read` shows `"kpiStage": "paid"` and the `kpi` mark on `paid` only; back to `signup` → v4, `"kpiStage": "signup"`. KPI switch OK.
 
 ### Live steps for Marcus
 _At the end of Phase 0 (D-074), after the M01a–M04 steps. Doppler `dev`, the Neon dev branch of the agent's database._
@@ -95,7 +98,7 @@ _At the end of Phase 0 (D-074), after the M01a–M04 steps. Doppler `dev`, the N
 4. `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads outcomes --product snappool`
    - expect: `"read": {"outcome": "read", …}`, then 30 days of `pool_request`, `signup`, `activated` (and `paid` at 0), with `"kpiStage": "signup"`.
    - report back: the JSON (it holds counts only).
-5. Your starting settings (D-059, D-063). Replace `<your-domain>` with the domains you sign up with when testing, and pick the daily ceiling in micros (S$1 = `1000000`; S$25 = `25000000`):
+5. Your starting settings (D-059, D-063). Replace `<your-domain>` with the domains you sign up with when testing (SnapPool: `snappool.photos`; **never a free-mail domain** like `gmail.com`, which would mark every Gmail sign-up as test, D-101), and pick the daily ceiling in micros (S$1 = `1000000`; S$25 = `25000000`):
    `doppler run --config dev -- pnpm --silent --filter @ads/app-worker ads settings set --product snappool --patch '{"testTraffic":{"emailDomains":["<your-domain>"]},"spend":{"monthlyCeilingMicros":"500000000","dailyCeilingMicros":"25000000"}}'`
    - expect: `"status": "done"`, `"version": 2`. Run step 4 again: your own signups now count under `test`.
 6. The KPI switch: `… ads settings set --product snappool --patch '{"outcomes":{"primaryKpiStage":"paid"}}'`, then `… ads outcomes --product snappool --no-read`
